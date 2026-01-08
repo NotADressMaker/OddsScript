@@ -4,6 +4,7 @@ TrackScript is a domain-specific programming language designed specifically for 
 
 ## Features
 
+### Core Language
 - **Horse racing-specific syntax**: Create win/place/show bets, exactas, trifectas, superfectas, and more
 - **Built-in racing functions**: Calculate payouts, track takeout, exotic bet combinations, handicapping ratios
 - **Odds format support**: Track odds (fractional), decimal, and traditional formats
@@ -11,6 +12,12 @@ TrackScript is a domain-specific programming language designed specifically for 
 - **Handicapping tools**: Speed ratings, class analysis, pace calculations
 - **Full programming language**: Variables, functions, loops, conditionals, arrays, dictionaries
 - **Interactive REPL**: Test calculations and strategies interactively
+
+### Advanced Packages (NEW!)
+- **Breeding & Pedigree Analysis**: Dosage Index, Chef-de-Race, nick crosses, female family strength
+- **Pattern Recognition**: Trainer/jockey angles, track biases, market inefficiencies
+- **Arbitrage & Value Finding**: Overlay detection, true odds calculation, exotic value scoring
+- **Race Simulation & Probability**: Monte Carlo simulation, Bayesian updates, Elo ratings, variance analysis
 
 ## Installation
 
@@ -194,13 +201,19 @@ let bet_amount = analyze_horse("7-2", "2-1", 20)
 
 The `examples/` directory contains comprehensive examples:
 
+**Core Features:**
 1. **01_basic_wager.track** - Basic win/place/show betting
 2. **02_exotic_bets.track** - Exacta, trifecta, and superfecta examples
 3. **03_handicapping.track** - Handicapping and speed ratings
 4. **04_dutching.track** - Dutching multiple horses in a race
 5. **05_bankroll_management.track** - Managing your track bankroll
-6. **06_daily_double.track** - Multi-race exotic wagers
-7. **07_advanced_strategy.track** - Advanced betting strategies with value analysis
+6. **06_advanced_strategy.track** - Advanced betting strategies with value analysis
+
+**Advanced Packages:**
+7. **07_pedigree_analysis.track** - Dosage Index, breeding patterns, pedigree evaluation
+8. **08_pattern_recognition.track** - Trainer/jockey angles, track biases, betting patterns
+9. **09_arbitrage_value.track** - Arbitrage detection, value finding, market efficiency
+10. **10_race_simulation.track** - Monte Carlo simulation, Bayesian updates, probability modeling
 
 ### Running Examples
 
@@ -395,6 +408,183 @@ let top_speed = max(speed_figs)
 
 print("Average speed figure: " + avg_speed)
 print("Top speed figure: " + top_speed)
+```
+
+## Advanced Packages
+
+TrackScript includes four professional-grade packages for serious handicapping and wagering:
+
+### Breeding & Pedigree Analysis Package
+
+Analyze bloodlines and breeding patterns for distance/surface suitability.
+
+**Functions:**
+- `dosage_index(brilliant, intermediate, classic, solid, professional)` - Calculate Dosage Index (DI < 4.0 = router, DI > 4.0 = sprinter)
+- `center_of_distribution(...)` - Calculate CD for speed/stamina balance
+- `optimal_distance(dosage_index)` - Predict optimal racing distance
+- `inbreeding_coefficient(duplications, generations)` - Calculate inbreeding level
+- `surface_affinity(turf_wins, turf_starts, dirt_wins, dirt_starts)` - Determine surface preference
+- `maiden_breaker_score(sire_wins, sire_starters)` - Predict maiden race success
+- `distance_pedigree_rating(sire_dist, dam_dist, race_dist)` - Rate pedigree for specific distance
+- `nick_multiplier(sire, broodmare_sire)` - Get multiplier for known successful crosses
+- `female_family_strength(sw, graded, total_foals)` - Evaluate female family quality
+- `workout_indicator(2yo_starts, 2yo_foals)` - Predict early maturity
+
+**Example:**
+```trackscript
+let di = dosage_index(4, 3, 2, 1, 1)
+let optimal = optimal_distance(di)
+print("DI: " + di + " - Optimal: " + optimal)
+
+if di < 3.0 {
+    print("Suited for route races")
+}
+```
+
+### Pattern Recognition Package
+
+Identify profitable trainer/jockey angles and track biases.
+
+**Trainer Patterns:**
+- `layoff_pattern(trainer, days, wins, starts)` - Success after layoffs
+- `first_time_starter_angle(wins, starts)` - FTS effectiveness rating
+- `class_drop_specialist(drop_wins, drop_starts, raise_wins, raise_starts)` - Class drop expertise
+- `distance_switch_pattern(...)` - Stretch out vs cut back success
+- `surface_switch_specialist(turf_dirt_wins, starts)` - Surface switch skill
+- `claiming_pattern(claims_won, claims_started, next_wins)` - First race after claim
+
+**Jockey Patterns:**
+- `running_style_affinity(early_wins, early_starts, late_wins, late_starts)` - Speed vs closer preference
+- `track_specialist_rating(track_wins, track_starts, overall_wins, overall_starts)` - Track expertise
+- `post_position_skill(rail_wins, outside_wins, ...)` - Post position skill
+- `favorite_performance(fav_wins, fav_starts)` - Reliability on favorites
+
+**Bias Detection:**
+- `speed_bias_score(fr_wins, fr_starts, closer_wins, closer_starts)` - Detect speed/closing bias
+- `rail_bias(rail_wins, middle_wins, outside_wins, ...)` - Post position bias
+- `wet_track_specialists(wet_wins, fast_wins, ...)` - Off-track performance
+- `pace_scenario_advantage(...)` - Contested vs uncontested pace preference
+
+**Betting Patterns:**
+- `overlay_finder(true_prob, ml_odds, current_odds)` - Identify overlays/underlays
+- `chalk_eat_pattern(fav_won, fav_ran, avg_odds)` - Analyze favorite performance
+- `late_money_indicator(opening_odds, current_odds)` - Detect smart money
+
+**Example:**
+```trackscript
+let fts = first_time_starter_angle(95, 310)
+print("FTS Rating: " + fts["rating"])
+print("Profitable: " + fts["profitable"])
+
+if fts["rating"] == "elite" {
+    print("Strong angle - bet this debut")
+}
+
+let bias = speed_bias_score(35, 90, 12, 90)
+if bias > 10 {
+    print("Speed bias detected - favor front-runners")
+}
+```
+
+### Arbitrage & Value Finding Package
+
+Find guaranteed profits and exploit market inefficiencies.
+
+**Arbitrage Detection:**
+- `dutching_arbitrage(horses, takeout)` - Calculate if dutching guarantees profit
+- `cross_track_arbitrage(track1_odds, track2_odds, ...)` - Find cross-track arbs
+- `place_show_arbitrage(win_odds, place_odds, show_odds, runners)` - Detect place/show value
+
+**Value Finding:**
+- `true_odds_calculator(speed, class, pace, form, jockey, trainer)` - Calculate fair odds from factors
+- `value_bet_calculator(estimated_odds, actual_odds, min_edge)` - Evaluate value bets
+- `multi_race_parlay_value(races, min_roi)` - Analyze multi-race wager value
+- `exotic_value_score(exotic_type, key_probs, exotic_odds)` - Evaluate exotic bet value
+
+**Market Efficiency:**
+- `favorite_longshot_bias(fav_roi, longshot_roi)` - Detect market bias
+- `pool_size_inefficiency(pool, avg_pool, edge)` - Small pool opportunities
+- `late_scratch_value(original_odds, scratched_favorite)` - Value from scratches
+
+**Example:**
+```trackscript
+let true_odds = true_odds_calculator(92, 85, 88, 90, 75, 80)
+let value = value_bet_calculator(true_odds, 4.5, 0.10)
+
+print("Estimated odds: " + true_odds)
+print("Actual odds: 4.5")
+print("Edge: " + value["edge_pct"] + "%")
+
+if value["is_value"] {
+    print("VALUE BET - Kelly: " + (value["kelly_fraction"] * 100) + "%")
+}
+
+let ps_arb = place_show_arbitrage(3.5, 6.0, 8.5, 10)
+if ps_arb["place_overlay"] {
+    print("Overlay in place pool!")
+}
+```
+
+### Race Simulation & Probability Package
+
+Monte Carlo simulation and advanced probability modeling.
+
+**Race Simulation:**
+- `simulate_race(horses, num_simulations)` - Run Monte Carlo race simulation
+- `simulate_exotic(exotic_type, horses, num_sims)` - Simulate exotic bet outcomes
+- `variance_calculation(win_prob, odds, stake, num_bets)` - Calculate variance and bankroll needs
+
+**Probability Modeling:**
+- `bayesian_update(prior_prob, likelihood, evidence_strength)` - Update probability with new info
+- `confidence_interval(estimated_prob, sample_size, confidence_level)` - Calculate confidence bounds
+- `poisson_pace_model(early_pace, avg_pace, std_dev)` - Model pace scenarios
+- `elo_rating_update(winner_rating, loser_rating, k_factor)` - Update Elo ratings
+- `regression_to_mean(current, career_avg, races_back, max_weight)` - Adjust for regression
+
+**Monte Carlo Strategies:**
+- `optimal_bet_sizing(bankroll, win_prob, odds, simulations, target_kelly)` - Simulate optimal stake
+
+**Example:**
+```trackscript
+# Update probability with new workout information
+let prior = 0.35
+let updated = bayesian_update(prior, 1.4, 0.8)
+print("Updated probability: " + (updated * 100) + "%")
+
+# Calculate variance
+let var = variance_calculation(0.42, 2.8, 50, 100)
+print("Expected profit: $" + var["total_expected_profit"])
+print("Risk of ruin: " + var["risk_of_ruin_pct"] + "%")
+
+# Regression to mean
+let regressed = regression_to_mean(95, 85, 3, 0.7)
+print("Regressed figure: " + regressed)
+
+# Elo ratings
+let ratings = elo_rating_update(1450, 1520, 32)
+print("New rating: " + ratings[0])
+```
+
+### Package Usage Tips
+
+1. **Breeding Package**: Use for 2YO races, turf debuts, route races
+2. **Pattern Package**: Essential for trainer/jockey angles and track biases
+3. **Arbitrage Package**: Daily tool for finding value and overlays
+4. **Simulation Package**: Use for bankroll management and probability updates
+
+**Combined Example:**
+```trackscript
+# Full analysis workflow
+let di = dosage_index(4, 3, 2, 1, 1)
+let fts = first_time_starter_angle(95, 310)
+let true_odds = true_odds_calculator(90, 85, 88, 92, 78, 82)
+let value = value_bet_calculator(true_odds, 4.2, 0.10)
+
+if di < 3.5 and fts["profitable"] and value["is_value"] {
+    let kelly = value["kelly_fraction"]
+    print("STRONG BET: Multiple edges aligned")
+    print("Kelly stake: " + (kelly * 100) + "% of bankroll")
+}
 ```
 
 ## Best Practices

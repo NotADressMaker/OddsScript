@@ -1,0 +1,181 @@
+# Arbitrage & Advanced Value Finding
+
+print("=== ARBITRAGE & VALUE FINDING ===")
+print("Find guaranteed profits and exploit market inefficiencies")
+
+# Place/Show arbitrage opportunity
+print("\n--- Place/Show Arbitrage ---")
+print("Horse #5: 'Thunder Bolt'")
+
+let win_odds_h5 = 3.5
+let place_odds_h5 = 6.0  # Unusually high
+let show_odds_h5 = 8.5   # Unusually high
+let num_runners = 10
+
+let ps_arb = place_show_arbitrage(win_odds_h5, place_odds_h5, show_odds_h5, num_runners)
+
+print("Win Odds: " + win_odds_h5)
+print("Place Odds: " + place_odds_h5)
+print("Show Odds: " + show_odds_h5)
+print("\nPlace Overlay: " + ps_arb["place_overlay"])
+print("Show Overlay: " + ps_arb["show_overlay"])
+print("Place Value: " + ps_arb["place_value_pct"] + "%")
+print("Show Value: " + ps_arb["show_value_pct"] + "%")
+print("Best Play: " + ps_arb["best_play"])
+
+if ps_arb["place_overlay"] or ps_arb["show_overlay"] {
+    print("\n✓✓ OVERLAY DETECTED in place/show pools")
+    print("ACTION: Bet " + ps_arb["best_play"] + " pool - value opportunity")
+}
+
+# True odds calculator
+print("\n\n--- True Odds Calculation ---")
+print("Horse #3: Comprehensive handicapping")
+
+let speed = 92
+let class = 85
+let pace = 88
+let form = 90
+let jockey = 75
+let trainer = 80
+
+let true_odds = true_odds_calculator(speed, class, pace, form, jockey, trainer)
+print("\nHandicapping Factors:")
+print("  Speed: " + speed)
+print("  Class: " + class)
+print("  Pace: " + pace)
+print("  Form: " + form)
+print("  Jockey: " + jockey)
+print("  Trainer: " + trainer)
+print("\nEstimated True Odds: " + true_odds)
+print("True Probability: " + (1 / true_odds * 100) + "%")
+
+# Value bet calculation
+let actual_odds = 4.5
+let value_bet = value_bet_calculator(true_odds, actual_odds, 0.10)
+
+print("\nActual Market Odds: " + actual_odds)
+print("Is Value Bet: " + value_bet["is_value"])
+print("Edge: " + (value_bet["edge"] * 100) + "%")
+print("Edge %: " + value_bet["edge_pct"] + "%")
+print("Expected ROI: " + value_bet["expected_roi"] + "%")
+print("Kelly Fraction: " + (value_bet["kelly_fraction"] * 100) + "%")
+
+if value_bet["is_value"] {
+    print("\n✓✓ VALUE BET IDENTIFIED")
+    print("Recommended stake: " + (value_bet["kelly_fraction"] * 1000) + " (Kelly on $1000 bankroll)")
+}
+
+# Exotic value score
+print("\n\n--- Exotic Bet Value Analysis ---")
+print("Exacta: 3-5")
+
+let key_probs = [0.35, 0.22]  # Horse 3 win prob, Horse 5 place prob
+let exacta_odds = 12.5
+
+let exotic_value = exotic_value_score("exacta", key_probs, exacta_odds)
+
+print("Estimated Probability: " + (exotic_value["estimated_prob"] * 100) + "%")
+print("Fair Odds: " + exotic_value["fair_odds"])
+print("Actual Odds: " + exacta_odds)
+print("Value Score: " + exotic_value["value_score"] + "%")
+print("Is Value: " + exotic_value["is_value"])
+
+if exotic_value["is_value"] {
+    print("\n✓ EXACTA VALUE PLAY")
+    print("Overlay of " + exotic_value["overlay_pct"] + "% detected")
+}
+
+# Multi-race parlay value
+print("\n\n--- Pick-3 Value Analysis ---")
+print("Races 4-5-6")
+
+let race4 = {"estimated_prob": 0.40, "actual_odds": 2.8}
+let race5 = {"estimated_prob": 0.35, "actual_odds": 3.2}
+let race6 = {"estimated_prob": 0.28, "actual_odds": 4.0}
+
+let races = [race4, race5, race6]
+let parlay_value = multi_race_parlay_value(races, 0.15)
+
+print("\nRace 4: " + (race4["estimated_prob"] * 100) + "% @ " + race4["actual_odds"])
+print("Race 5: " + (race5["estimated_prob"] * 100) + "% @ " + race5["actual_odds"])
+print("Race 6: " + (race6["estimated_prob"] * 100) + "% @ " + race6["actual_odds"])
+
+print("\nCombined Probability: " + (parlay_value["combined_prob"] * 100) + "%")
+print("Combined Odds: " + parlay_value["combined_odds"])
+print("Expected ROI: " + parlay_value["roi"] + "%")
+print("Is Value: " + parlay_value["is_value"])
+
+if parlay_value["playable"] {
+    print("\n✓ PICK-3 VALUE PLAY")
+    print("Positive expected value - worth the risk")
+}
+
+# Market efficiency analysis
+print("\n\n=== MARKET EFFICIENCY ANALYSIS ===")
+
+# Favorite-longshot bias
+let fav_roi = -8.5
+let long_roi = -28.0
+
+let bias_analysis = favorite_longshot_bias(fav_roi, long_roi)
+
+print("Favorites ROI: " + fav_roi + "%")
+print("Longshots ROI: " + long_roi + "%")
+print("Market Type: " + bias_analysis["market_type"])
+print("Bias Strength: " + bias_analysis["bias_strength"] + "%")
+print("Strategy: " + bias_analysis["recommended_strategy"])
+
+if bias_analysis["market_type"] == "strong_favorite_bias" {
+    print("\n✓ Market strongly favors favorites")
+    print("  Focus betting strategy on favorites and near-favorites")
+}
+
+# Pool size inefficiency
+print("\n--- Pool Size Opportunity ---")
+let pool_size = 8500
+let avg_pool = 35000
+
+let pool_analysis = pool_size_inefficiency(pool_size, avg_pool, -0.17)
+
+print("This Race Pool: $" + pool_size)
+print("Average Pool: $" + avg_pool)
+print("Pool Ratio: " + pool_analysis["pool_size_ratio"])
+print("Inefficiency Multiplier: " + pool_analysis["inefficiency_multiplier"] + "x")
+print("Opportunity: " + pool_analysis["opportunity_level"])
+
+if pool_analysis["opportunity_level"] == "high" {
+    print("\n✓✓ SMALL POOL OPPORTUNITY")
+    print("  Smaller pools create pricing inefficiencies")
+    print("  Look for overlay situations more aggressively")
+}
+
+# Late scratch impact
+print("\n--- Late Scratch Value Creation ---")
+let scratched_fav = true
+
+let scratch_impact = late_scratch_value([2.5, 3.8, 4.2, 8.0], scratched_fav)
+
+print("Favorite Scratched: " + scratched_fav)
+print("Value Multiplier: " + scratch_impact["value_multiplier"] + "x")
+print("Opportunity: " + scratch_impact["opportunity"])
+print("Action: " + scratch_impact["action"])
+
+if scratch_impact["opportunity"] == "major" {
+    print("\n✓✓✓ MAJOR VALUE OPPORTUNITY")
+    print("  Favorite scratch creates chaos in odds")
+    print("  Recalculate all probabilities immediately")
+    print("  Look for overlays in 2nd and 3rd choices")
+}
+
+# Summary
+print("\n\n=== VALUE OPPORTUNITIES SUMMARY ===")
+print("Today's Plays:")
+print("  1. Horse #5: Place pool overlay - $30 place bet")
+print("  2. Horse #3: Value play at 4.5 - $25 win bet")
+print("  3. Exacta 3-5: Overlay situation - $10 exacta")
+print("  4. Pick-3 (4-5-6): Positive EV - $5 ticket")
+print("  5. Post-scratch: Monitor odds movement for overlays")
+print("\nTotal Investment: $70")
+print("Expected ROI: +18.5%")
+print("Risk Level: Moderate (diversified across multiple value plays)")

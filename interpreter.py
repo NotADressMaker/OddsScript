@@ -3,9 +3,18 @@ TrackScript Interpreter - Executes the AST with built-in horse racing functions
 """
 
 import math
+import sys
+import os
 from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
+
+# Import advanced packages
+sys.path.insert(0, os.path.dirname(__file__))
+from packages.breeding import get_breeding_functions
+from packages.patterns import get_pattern_functions
+from packages.arbitrage import get_arbitrage_functions
+from packages.simulation import get_simulation_functions
 
 
 class ReturnValue(Exception):
@@ -433,6 +442,31 @@ class Interpreter:
         self.global_env.define('range', range)
         self.global_env.define('sum', sum)
         self.global_env.define('sort', sorted)
+
+        # Load advanced packages
+        self._load_advanced_packages()
+
+    def _load_advanced_packages(self):
+        """Load all advanced TrackScript packages"""
+        # Breeding & Pedigree Analysis
+        breeding_funcs = get_breeding_functions()
+        for name, func in breeding_funcs.items():
+            self.global_env.define(name, func)
+
+        # Pattern Recognition
+        pattern_funcs = get_pattern_functions()
+        for name, func in pattern_funcs.items():
+            self.global_env.define(name, func)
+
+        # Arbitrage & Value Finding
+        arbitrage_funcs = get_arbitrage_functions()
+        for name, func in arbitrage_funcs.items():
+            self.global_env.define(name, func)
+
+        # Race Simulation & Probability
+        simulation_funcs = get_simulation_functions()
+        for name, func in simulation_funcs.items():
+            self.global_env.define(name, func)
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""

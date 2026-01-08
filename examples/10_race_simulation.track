@@ -1,0 +1,156 @@
+# Monte Carlo Race Simulation & Probability Modeling
+
+print("=== MONTE CARLO RACE SIMULATION ===")
+print("Advanced probability modeling and simulation")
+
+# Define race field with estimated probabilities
+print("\n--- Race 7: $50,000 Claiming ---")
+
+let horses = [
+    {"name": "Thunder Bolt", "true_prob": 0.35},
+    {"name": "Lucky Star", "true_prob": 0.25},
+    {"name": "Speed Demon", "true_prob": 0.18},
+    {"name": "Night Rider", "true_prob": 0.12},
+    {"name": "Storm Chaser", "true_prob": 0.06},
+    {"name": "Wild Fire", "true_prob": 0.04}
+]
+
+print("Field:")
+for horse in horses {
+    print("  " + horse["name"] + ": " + (horse["true_prob"] * 100) + "% estimated")
+}
+
+# Bayesian probability update
+print("\n\n=== BAYESIAN PROBABILITY UPDATE ===")
+print("Updating probabilities with new information")
+
+let prior_prob = 0.35  # Thunder Bolt 35% initially
+print("Prior Probability: " + (prior_prob * 100) + "%")
+
+# New information: horse worked 5 furlongs in 59.2 (bullet work)
+let likelihood = 1.4  # 40% increase in confidence
+let evidence_strength = 0.8  # Strong evidence
+
+let updated_prob = bayesian_update(prior_prob, likelihood, evidence_strength)
+print("New Evidence: Bullet workout (best of 47 works)")
+print("Likelihood Ratio: " + likelihood)
+print("Evidence Strength: " + evidence_strength)
+print("\nUpdated Probability: " + (updated_prob * 100) + "%")
+print("Change: +" + ((updated_prob - prior_prob) * 100) + "%")
+
+if updated_prob > 0.40 {
+    print("\n✓ Probability increased significantly")
+    print("  Confidence in this horse has improved")
+}
+
+# Confidence interval
+print("\n--- Probability Confidence Interval ---")
+let sample_size = 45  # 45 races analyzed
+
+let ci = confidence_interval(updated_prob, sample_size, 0.95)
+print("Probability Estimate: " + (updated_prob * 100) + "%")
+print("Sample Size: " + sample_size + " races")
+print("95% Confidence Interval: " + (ci[0] * 100) + "% to " + (ci[1] * 100) + "%")
+
+let margin = ((ci[1] - ci[0]) / 2) * 100
+print("Margin of Error: ±" + margin + "%")
+
+# Variance and bankroll requirements
+print("\n\n=== BANKROLL & VARIANCE ANALYSIS ===")
+
+let win_prob = 0.42  # Updated probability
+let odds = 2.8       # Current odds
+let stake = 50       # Bet size
+let num_bets = 100   # Over next 100 similar bets
+
+let variance = variance_calculation(win_prob, odds, stake, num_bets)
+
+print("Expected Value per bet: $" + variance["ev_per_bet"])
+print("Standard Deviation per bet: $" + variance["std_dev_per_bet"])
+print("\nOver " + num_bets + " bets:")
+print("Expected Total Profit: $" + variance["total_expected_profit"])
+print("Total Std Dev: $" + variance["total_std_dev"])
+print("Risk of Ruin: " + variance["risk_of_ruin_pct"] + "%")
+print("Recommended Bankroll: $" + variance["recommended_bankroll"])
+
+if variance["risk_of_ruin_pct"] < 5 {
+    print("\n✓ LOW risk of ruin - safe bet sizing")
+} else {
+    if variance["risk_of_ruin_pct"] < 15 {
+        print("\n⚠ MODERATE risk - acceptable with proper bankroll")
+    } else {
+        print("\n✗ HIGH risk - consider reducing stake")
+    }
+}
+
+# Pace modeling
+print("\n\n=== PACE SCENARIO MODELING ===")
+print("Predicting pace pressure")
+
+let early_pace = 44.8  # Projected half-mile time
+let avg_pace = 46.2    # Track average
+let pace_std_dev = 1.2
+
+let pace_prob = poisson_pace_model(early_pace, avg_pace, pace_std_dev)
+
+print("Projected Early Pace: " + early_pace + " seconds")
+print("Track Average: " + avg_pace + " seconds")
+print("Probability of FASTER pace: " + (pace_prob * 100) + "%")
+
+if pace_prob > 0.75 {
+    print("\n✓✓ Very likely to be FAST pace")
+    print("  Favor closers and stalkers")
+    print("  Front-runners may tire")
+} else {
+    if pace_prob > 0.50 {
+        print("\nLikely moderate pace")
+    } else {
+        print("\nLikely SLOW pace - speed may hold")
+    }
+}
+
+# Elo rating update
+print("\n\n=== ELO RATING SYSTEM ===")
+print("Updating horse ratings after last race")
+
+let winner_rating = 1450  # Thunder Bolt
+let loser_rating = 1520   # Lucky Star (was rated higher)
+
+let updated_ratings = elo_rating_update(winner_rating, loser_rating, 32)
+
+print("Before Race:")
+print("  Thunder Bolt: " + winner_rating)
+print("  Lucky Star: " + loser_rating)
+
+print("\nAfter Race (Thunder Bolt wins):")
+print("  Thunder Bolt: " + updated_ratings[0] + " (+" + (updated_ratings[0] - winner_rating) + ")")
+print("  Lucky Star: " + updated_ratings[1] + " (" + (updated_ratings[1] - loser_rating) + ")")
+
+# Regression to mean
+print("\n\n=== REGRESSION TO MEAN ===")
+print("Adjusting for recent hot streak")
+
+let current_perf = 95   # Recent speed figures averaging 95
+let career_avg = 85     # Career average speed figure
+let races_back = 3      # Last 3 races
+
+let regressed = regression_to_mean(current_perf, career_avg, races_back, 0.7)
+
+print("Recent Performance: " + current_perf)
+print("Career Average: " + career_avg)
+print("Races in Hot Streak: " + races_back)
+print("\nRegressed Estimate: " + regressed)
+print("Expected Figure Today: " + regressed + " (not " + current_perf + ")")
+
+if regressed < current_perf - 3 {
+    print("\n⚠ Expecting regression - don't over-bet recent form")
+}
+
+print("\n\n=== SIMULATION SUMMARY ===")
+print("Key Insights:")
+print("  1. Thunder Bolt win probability: 42% (after workout update)")
+print("  2. Fast pace likely - favors closing style")
+print("  3. Elo rating improved after upset win")
+print("  4. Regressed figure still strong: ~90")
+print("  5. Use simulation functions for optimal bet sizing")
+print("\nFINAL VERDICT: STRONG BET - Multiple models confirm value")

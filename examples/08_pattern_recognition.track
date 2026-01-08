@@ -1,0 +1,202 @@
+# Pattern Recognition & Angle Finding
+
+print("=== PATTERN RECOGNITION PACKAGE ===")
+print("Identify profitable trainer/jockey angles")
+
+# Trainer pattern analysis - Bob Baffert
+print("\n--- TRAINER: Bob Baffert ---")
+print("Analyzing first-time starter pattern")
+
+let ftse_wins = 95
+let ftse_starts = 310
+
+let fts_pattern = first_time_starter_angle(ftse_wins, ftse_starts)
+print("First-Time Starter Record: " + ftse_wins + " wins in " + ftse_starts + " starts")
+print("Win %: " + fts_pattern["pct"] + "%")
+print("Rating: " + fts_pattern["rating"])
+
+if fts_pattern["profitable"] {
+    print("✓ STRONG ANGLE: Baffert first-timers are profitable")
+    print("  Horse #3 is making debut for Baffert - BET")
+}
+
+# Class drop specialist
+print("\n--- Class Drop Pattern ---")
+let drop_wins = 45
+let drop_starts = 120
+let raise_wins = 15
+let raise_starts = 90
+
+let class_special = class_drop_specialist(drop_wins, drop_starts, raise_wins, raise_starts)
+print("Win% in class drops: " + (drop_wins / drop_starts * 100) + "%")
+print("Win% in class raises: " + (raise_wins / raise_starts * 100) + "%")
+print("Specialization Score: +" + class_special + "%")
+
+if class_special > 15 {
+    print("✓ POWERFUL ANGLE: This trainer excels dropping horses in class")
+    print("  Horse #7 is dropping from $50k to $25k claimer - PLAY")
+}
+
+# Distance switch pattern
+print("\n--- Distance Switch Patterns ---")
+let route_sprint_wins = 12
+let route_sprint_starts = 45
+let sprint_route_wins = 18
+let sprint_route_starts = 60
+
+let dist_pattern = distance_switch_pattern(route_sprint_wins, route_sprint_starts,
+                                           sprint_route_wins, sprint_route_starts)
+
+print("Stretch out success: " + dist_pattern["stretch_out_pct"] + "%")
+print("Cut back success: " + dist_pattern["cut_back_pct"] + "%")
+
+if dist_pattern["stretch_out_pct"] > 25 {
+    print("✓ ANGLE: Trainer successful stretching horses out")
+    print("  Horse #2 going from 6f to 8.5f - POSITIVE")
+}
+
+# Surface switch specialist
+print("\n--- Surface Switch Angle ---")
+let turf_dirt_wins = 22
+let turf_dirt_starts = 75
+
+let surface_switch = surface_switch_specialist(turf_dirt_wins, turf_dirt_starts)
+print("Turf to Dirt Record: " + turf_dirt_wins + "/" + turf_dirt_starts)
+print("Win Rate: " + surface_switch + "%")
+
+if surface_switch > 20 {
+    print("✓ STRONG ANGLE: Trainer skilled at surface switches")
+}
+
+# Claiming pattern - first race after claim
+print("\n--- Claiming Angle ---")
+let claims_won = 8
+let claims_started = 25
+let next_race_wins = 12
+
+let claim_pattern = claiming_pattern(claims_won, claims_started, next_race_wins)
+print("Strike Rate After Claim: " + claim_pattern["strike_rate"] + "%")
+print("Pattern: " + claim_pattern["pattern"])
+
+if claim_pattern["pattern"] == "strong" {
+    print("✓ ANGLE: Trainer wins with newly claimed horses")
+    print("  Horse #9 just claimed 2 weeks ago - BET")
+}
+
+# Jockey patterns
+print("\n\n--- JOCKEY: Irad Ortiz Jr. ---")
+
+# Running style affinity
+let early_wins = 145
+let early_starts = 480
+let late_wins = 95
+let late_starts = 420
+
+let style = running_style_affinity(early_wins, early_starts, late_wins, late_starts)
+print("Riding Style Affinity: " + style)
+
+if style == "speed_rider" {
+    print("✓ Jockey excels on front-runners")
+    print("  Horse #4 is speed horse - GOOD FIT")
+}
+
+# Track specialist rating
+print("\n--- Track Specialization ---")
+let track_wins = 85
+let track_starts = 320
+let overall_wins = 420
+let overall_starts = 2100
+
+let specialist_rating = track_specialist_rating(track_wins, track_starts,
+                                                overall_wins, overall_starts)
+
+print("Win% at Gulfstream: " + (track_wins / track_starts * 100) + "%")
+print("Overall Win%: " + (overall_wins / overall_starts * 100) + "%")
+print("Specialist Rating: +" + specialist_rating + "%")
+
+if specialist_rating > 5 {
+    print("✓ STRONG ANGLE: Jockey has superior record at this track")
+}
+
+# Favorite performance
+let fav_wins = 180
+let fav_starts = 450
+
+let fav_perf = favorite_performance(fav_wins, fav_starts)
+print("\n--- Favorite Performance ---")
+print("Favorites: " + fav_wins + "/" + fav_starts + " (" + fav_perf["win_pct"] + "%)")
+print("ROI: " + fav_perf["roi"] + "%")
+print("Reliable: " + fav_perf["reliable"])
+
+if fav_perf["reliable"] {
+    print("✓ Jockey reliable on favorites - horse is 2-1 favorite")
+}
+
+# Track bias detection
+print("\n\n=== TRACK BIAS ANALYSIS ===")
+
+# Speed bias
+let fr_wins = 35
+let fr_starters = 90
+let closer_wins = 12
+let closer_starters = 90
+
+let speed_bias = speed_bias_score(fr_wins, fr_starters, closer_wins, closer_starters)
+print("Front-runner Win%: " + (fr_wins / fr_starters * 100) + "%")
+print("Closer Win%: " + (closer_wins / closer_starters * 100) + "%")
+print("Speed Bias Score: " + speed_bias + "%")
+
+if speed_bias > 10 {
+    print("✓✓ STRONG SPEED BIAS TODAY")
+    print("  Action: Favor horses with early speed")
+}
+
+# Rail bias
+let rail_wins = 18
+let rail_runners = 90
+let middle_wins = 22
+let middle_runners = 90
+let outside_wins = 12
+let outside_runners = 90
+
+let rail_bias_result = rail_bias(rail_wins, rail_runners,
+                                  middle_wins, middle_runners,
+                                  outside_wins, outside_runners)
+
+print("\n--- Post Position Bias ---")
+print("Rail (1-3): " + (rail_wins / rail_runners * 100) + "%")
+print("Middle (4-6): " + (middle_wins / middle_runners * 100) + "%")
+print("Outside (7+): " + (outside_wins / outside_runners * 100) + "%")
+print("Bias: " + rail_bias_result)
+
+if rail_bias_result == "inside" {
+    print("✓ INSIDE BIAS - favor low post positions")
+}
+
+# Betting market patterns
+print("\n\n=== BETTING MARKET ANALYSIS ===")
+
+# Late money indicator
+let opening_odds = 5.0
+let current_odds = 3.2
+
+let late_money = late_money_indicator(opening_odds, current_odds, 0.15)
+print("\nHorse #6:")
+print("Opening Odds: " + opening_odds)
+print("Current Odds: " + current_odds)
+print("Change: " + late_money["change_pct"] + "%")
+print("Significant Move: " + late_money["significant_move"])
+print("Direction: " + late_money["direction"])
+
+if late_money["follow"] {
+    print("✓✓ SHARP MONEY DETECTED - Following the move")
+}
+
+print("\n\n=== COMPOSITE PATTERN SCORE ===")
+print("Multiple positive angles identified:")
+print("  ✓ Trainer first-time starter angle")
+print("  ✓ Jockey track specialist")
+print("  ✓ Speed bias favors running style")
+print("  ✓ Late money supporting")
+print("\nRECOMMENDATION: STRONG PLAY on Horse #3")
+print("Suggested bets: $40 WIN, $20 exacta key over all")

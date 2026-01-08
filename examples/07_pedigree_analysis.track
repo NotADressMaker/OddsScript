@@ -1,0 +1,155 @@
+# Advanced Pedigree & Breeding Analysis
+
+print("=== PEDIGREE ANALYSIS PACKAGE ===")
+print("Professional bloodline evaluation for handicapping")
+
+# Horse #5 - "Thunder Bolt"
+print("\n--- Horse #5: Thunder Bolt ---")
+print("Sire: Northern Dancer | Dam: Secretariat")
+
+# Dosage Profile (count chef de race in 5 generations)
+let brilliant = 4
+let intermediate = 3
+let classic = 2
+let solid = 1
+let professional = 1
+
+# Calculate Dosage Index
+let di = dosage_index(brilliant, intermediate, classic, solid, professional)
+print("\nDosage Index: " + di)
+
+# Center of Distribution
+let cd = center_of_distribution(brilliant, intermediate, classic, solid, professional)
+print("Center of Distribution: " + cd)
+
+# Optimal distance prediction
+let optimal_dist = optimal_distance(di)
+print("Optimal Distance: " + optimal_dist)
+
+if di < 3.0 {
+    print("✓ SUITED for today's 9 furlong race")
+} else {
+    print("✗ QUESTIONABLE for route distance")
+}
+
+# Surface affinity from pedigree
+print("\n--- Surface Preference Analysis ---")
+let turf_wins = 15
+let turf_starts = 45
+let dirt_wins = 25
+let dirt_starts = 60
+
+let surface_pref = surface_affinity(turf_wins, turf_starts, dirt_wins, dirt_starts)
+print("Pedigree Surface Affinity: " + surface_pref)
+print("Today's Surface: dirt")
+
+if surface_pref == "dirt" or surface_pref == "versatile" {
+    print("✓ GOOD surface match")
+}
+
+# Sire's first-time starter record
+print("\n--- Sire Pattern: First-Time Starters ---")
+let ftse_wins = 45
+let ftse_starts = 180
+
+let maiden_score = maiden_breaker_score(ftse_wins, ftse_starts)
+print("Maiden Breaker Score: " + (maiden_score * 100) + "%")
+
+if maiden_score > 0.20 {
+    print("✓ Sire is STRONG with first-time starters")
+} else {
+    print("Average sire for maidens")
+}
+
+# Distance pedigree rating
+print("\n--- Distance Suitability ---")
+let sire_avg_dist = 8.5  # furlongs
+let dam_avg_dist = 9.2   # furlongs
+let today_dist = 9.0     # furlongs
+
+let dist_rating = distance_pedigree_rating(sire_avg_dist, dam_avg_dist, today_dist)
+print("Distance Pedigree Rating: " + dist_rating + "/100")
+
+if dist_rating > 80 {
+    print("✓ EXCELLENT distance for pedigree")
+} else {
+    if dist_rating > 60 {
+        print("Acceptable distance match")
+    } else {
+        print("✗ Distance may be issue")
+    }
+}
+
+# Nick cross multiplier (famous sire/broodmare sire combos)
+print("\n--- Nick Cross Analysis ---")
+let sire = "Mr. Prospector"
+let broodmare_sire = "Buckpasser"
+
+let nick_mult = nick_multiplier(sire, broodmare_sire)
+print("Sire: " + sire)
+print("Broodmare Sire: " + broodmare_sire)
+print("Nick Multiplier: " + nick_mult + "x")
+
+if nick_mult > 1.15 {
+    print("✓ POSITIVE nick cross - known successful combination")
+}
+
+# Female family strength
+print("\n--- Female Family Strength ---")
+let stakes_winners = 8
+let graded_winners = 3
+let total_foals = 35
+
+let family_strength = female_family_strength(stakes_winners, graded_winners, total_foals)
+print("Stakes Winners from family: " + stakes_winners)
+print("Graded Winners from family: " + graded_winners)
+print("Family Strength Score: " + family_strength + "/100")
+
+if family_strength > 70 {
+    print("✓ ELITE female family")
+} else {
+    if family_strength > 50 {
+        print("Above average female family")
+    }
+}
+
+# Workout indicator - early maturity
+print("\n--- Early Maturity Indicator ---")
+let sire_2yo_starts = 120
+let total_2yo_foals = 200
+
+let maturity = workout_indicator(sire_2yo_starts, total_2yo_foals)
+print("Sire's 2YO Pattern: " + maturity)
+
+if maturity == "precocious" {
+    print("✓ Sire's offspring typically ready early")
+    print("  Horse is 2YO debut - POSITIVE sign")
+}
+
+# Composite pedigree score
+print("\n\n=== COMPOSITE PEDIGREE ANALYSIS ===")
+let pedigree_score = dist_rating + family_strength + (nick_mult * 10)
+print("Total Pedigree Score: " + pedigree_score)
+
+if pedigree_score > 150 {
+    print("RATING: Elite pedigree for this spot")
+} else {
+    if pedigree_score > 120 {
+        print("RATING: Strong pedigree")
+    } else {
+        print("RATING: Average pedigree")
+    }
+}
+
+print("\n--- PEDIGREE VERDICT ---")
+if di < 3.5 and dist_rating > 70 and family_strength > 60 {
+    print("✓✓✓ BET: Pedigree strongly supports this race")
+    print("Recommended play: WIN bet + exacta key")
+} else {
+    if dist_rating > 60 {
+        print("✓ PLAYABLE: Pedigree is acceptable")
+        print("Recommended: Place/Show or exotic underneath")
+    } else {
+        print("PASS: Pedigree concerns for this distance/surface")
+    }
+}
