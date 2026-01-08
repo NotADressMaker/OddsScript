@@ -1,0 +1,59 @@
+# Exotic Bet Calculations in TrackScript
+
+print("=== Exotic Bet Analysis ===")
+
+# Exacta combinations
+print("\n--- Exacta Combinations ---")
+let field_size = 8
+let exacta_combos = exacta_combinations(field_size)
+print("With " + field_size + " horses, there are " + exacta_combos + " possible exactas")
+
+# Boxing an exacta
+let box_horses = [2, 5, 7, 8]
+let exacta_box_horses = len(box_horses)
+let exacta_combos_box = exacta_combinations(exacta_box_horses)
+print("\nBoxing horses " + box_horses + ":")
+print("Number of combinations: " + exacta_combos_box)
+
+let unit_bet = 2
+let total_exacta_cost = box_cost("exacta", exacta_box_horses, unit_bet)
+print("Cost at $" + unit_bet + " per combo: $" + total_exacta_cost)
+
+# Trifecta analysis
+print("\n--- Trifecta Combinations ---")
+let trifecta_combos = trifecta_combinations(field_size)
+print("With " + field_size + " horses, there are " + trifecta_combos + " possible trifectas")
+
+# Trifecta box
+let tri_box = 4
+let tri_box_cost = box_cost("trifecta", tri_box, 1)
+print("Trifecta box with " + tri_box + " horses: $" + tri_box_cost)
+
+# Trifecta key
+print("\n--- Trifecta Key Bet ---")
+let key_horse = 5
+let with_horses = 4
+let key_bet_cost = key_cost("trifecta", key_horse, with_horses, 1)
+print("Key horse #" + key_horse + " with " + with_horses + " others")
+print("Cost: $" + key_bet_cost)
+
+# Superfecta
+print("\n--- Superfecta ---")
+let superfecta_combos = superfecta_combinations(field_size)
+print("With " + field_size + " horses, there are " + superfecta_combos + " possible superfectas")
+
+let super_box = 5
+let super_box_cost = box_cost("superfecta", super_box, 1)
+print("Superfecta box with " + super_box + " horses: $" + super_box_cost)
+
+# Wheel bet
+print("\n--- Exacta Wheel ---")
+let key_horses_count = 1
+let other_horses_count = 6
+let wheel_bet_cost = wheel_cost("exacta", key_horses_count, other_horses_count, 2)
+print("Wheel #5 with " + other_horses_count + " others at $2")
+print("Total cost: $" + wheel_bet_cost)
+
+print("\n--- Summary ---")
+print("Exotic bets offer higher payouts but require more precision")
+print("Boxing increases coverage but multiplies cost quickly")

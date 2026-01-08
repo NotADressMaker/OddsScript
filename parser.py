@@ -1,5 +1,5 @@
 """
-OddsScript Parser - Builds Abstract Syntax Tree from tokens
+TrackScript Parser - Builds Abstract Syntax Tree from tokens
 """
 
 from dataclasses import dataclass
@@ -119,18 +119,12 @@ class MemberAccess(ASTNode):
 
 
 @dataclass
-class BetStatement(ASTNode):
-    bet_type: str
-    team: ASTNode
+class WagerStatement(ASTNode):
+    wager_type: str  # win, place, show, exacta, trifecta, etc.
+    horse: ASTNode   # horse number or list of horses
     odds: ASTNode
     stake: ASTNode
-    additional_params: dict
-
-
-@dataclass
-class ParlayStatement(ASTNode):
-    bets: List[ASTNode]
-    stake: ASTNode
+    additional_params: dict  # box, wheel, key, etc.
 
 
 class Parser:
@@ -192,10 +186,8 @@ class Parser:
             return self.parse_function_def()
         elif token.type == TokenType.RETURN:
             return self.parse_return_statement()
-        elif token.type == TokenType.BET:
-            return self.parse_bet_statement()
-        elif token.type == TokenType.PARLAY:
-            return self.parse_parlay_statement()
+        elif token.type == TokenType.WAGER:
+            return self.parse_wager_statement()
         elif token.type == TokenType.PRINT:
             return self.parse_print_statement()
         elif token.type == TokenType.IDENTIFIER:
@@ -327,54 +319,59 @@ class Parser:
         value = self.parse_expression()
         return ReturnStatement(value)
 
-    def parse_bet_statement(self) -> BetStatement:
-        self.expect(TokenType.BET)
+    def parse_wager_statement(self) -> WagerStatement:
+        """Parse horse racing wager statement
+        Examples:
+          wager win horse 5 odds "7-2" stake 20
+          wager place horse 3 odds "3-5" stake 40
+          wager exacta box [5, 7, 8] stake 12
+          wager trifecta key 5 with [2, 7, 8, 9] stake 24
+        """
+        self.expect(TokenType.WAGER)
 
-        bet_type = "moneyline"  # default
-        if self.current_token().type in [TokenType.MONEYLINE, TokenType.SPREAD, TokenType.TOTAL]:
-            bet_type = self.current_token().type.name.lower()
+        wager_type = "win"  # default
+        if self.current_token().type in [TokenType.WIN, TokenType.PLACE, TokenType.SHOW,
+                                          TokenType.EXACTA, TokenType.TRIFECTA, TokenType.SUPERFECTA,
+                                          TokenType.DAILY_DOUBLE, TokenType.PICK3, TokenType.PICK4, TokenType.PICK6]:
+            wager_type = self.current_token().type.name.lower()
             self.advance()
 
-        team = self.parse_expression()
+        # Parse horse number(s)
+        horse = None
+        if self.current_token().type == TokenType.HORSE:
+            self.advance()
+            horse = self.parse_expression()
 
         odds = None
         stake = None
         additional_params = {}
 
         # Parse optional parameters
-        while self.current_token().type in [TokenType.ODDS, TokenType.STAKE, TokenType.SPREAD]:
+        while self.current_token().type in [TokenType.ODDS, TokenType.STAKE, TokenType.BOX,
+                                             TokenType.WHEEL, TokenType.KEY, TokenType.WITH]:
             if self.current_token().type == TokenType.ODDS:
                 self.advance()
                 odds = self.parse_expression()
             elif self.current_token().type == TokenType.STAKE:
                 self.advance()
                 stake = self.parse_expression()
-            elif self.current_token().type == TokenType.SPREAD:
+            elif self.current_token().type == TokenType.BOX:
                 self.advance()
-                additional_params['spread'] = self.parse_expression()
-
-        return BetStatement(bet_type, team, odds, stake, additional_params)
-
-    def parse_parlay_statement(self) -> ParlayStatement:
-        self.expect(TokenType.PARLAY)
-        self.expect(TokenType.LBRACKET)
-
-        bets = []
-        while self.current_token().type != TokenType.RBRACKET:
-            bet = self.parse_expression()
-            bets.append(bet)
-
-            if self.current_token().type == TokenType.COMMA:
+                additional_params['box'] = True
+                # If horse wasn't parsed yet, parse it now (for "exacta box [1,2,3]")
+                if horse is None:
+                    horse = self.parse_expression()
+            elif self.current_token().type == TokenType.KEY:
                 self.advance()
+                additional_params['key'] = self.parse_expression()
+            elif self.current_token().type == TokenType.WITH:
+                self.advance()
+                additional_params['with'] = self.parse_expression()
+            elif self.current_token().type == TokenType.WHEEL:
+                self.advance()
+                additional_params['wheel'] = True
 
-        self.expect(TokenType.RBRACKET)
-
-        stake = None
-        if self.current_token().type == TokenType.STAKE:
-            self.advance()
-            stake = self.parse_expression()
-
-        return ParlayStatement(bets, stake)
+        return WagerStatement(wager_type, horse, odds, stake, additional_params)
 
     def parse_print_statement(self) -> FunctionCall:
         self.expect(TokenType.PRINT)

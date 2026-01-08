@@ -1,0 +1,158 @@
+# Advanced Handicapping and Value Betting Strategy
+
+print("=== Advanced Value Betting Strategy ===")
+
+# Define our own odds vs morning line
+print("\n--- Morning Line Analysis ---")
+
+let race_field = [
+    {"num": 1, "ml": "9-5", "my_odds": "7-5", "name": "Front Runner"},
+    {"num": 2, "ml": "5-2", "my_odds": "4-1", "name": "Come From Behind"},
+    {"num": 3, "ml": "8-1", "my_odds": "6-1", "name": "Longshot Lucy"},
+    {"num": 4, "ml": "6-1", "my_odds": "5-1", "name": "Speed Star"},
+    {"num": 5, "ml": "12-1", "my_odds": "8-1", "name": "Dark Horse"},
+]
+
+print("Horse            ML      My Line  Overlay")
+print("-------------------------------------------")
+
+# Find overlays
+let value_plays = []
+
+for horse in race_field {
+    let ml_odds = horse["ml"]
+    let my_odds = horse["my_odds"]
+
+    let overlay = overlay_percentage(my_odds, ml_odds)
+
+    print("#" + horse["num"] + " " + horse["name"] + "  " + ml_odds + "     " + my_odds + "     " + overlay + "%")
+
+    # If morning line is 20% higher than our line, it's an overlay
+    if overlay > 20 {
+        value_plays = value_plays + [horse]
+    }
+}
+
+print("\n--- Value Plays Identified ---")
+print("Overlays > 20%: " + len(value_plays) + " horses")
+
+for play in value_plays {
+    print("  #" + play["num"] + " " + play["name"] + " (ML: " + play["ml"] + ", My line: " + play["my_odds"] + ")")
+}
+
+# Kelly Criterion betting
+print("\n--- Kelly Criterion Sizing ---")
+
+let bankroll = 1500
+
+for play in value_plays {
+    let my_decimal = track_to_decimal(play["my_odds"])
+    let my_prob = 1 / my_decimal
+
+    let kelly_pct = kelly_racing(my_prob, play["ml"], bankroll)
+    let kelly_stake = bankroll * kelly_pct
+
+    print("\nHorse #" + play["num"] + " " + play["name"])
+    print("  Estimated probability: " + (my_prob * 100) + "%")
+    print("  Kelly percentage: " + (kelly_pct * 100) + "%")
+    print("  Recommended stake: $" + kelly_stake)
+
+    # Quarter Kelly for safer betting
+    let quarter_kelly = kelly_stake * 0.25
+    print("  Quarter Kelly (safer): $" + quarter_kelly)
+}
+
+# Multi-race strategy
+print("\n\n=== Multi-Race Strategy ===")
+
+# Daily Double analysis
+print("\n--- Daily Double (Races 3-4) ---")
+let r3_selections = [2, 5]
+let r4_selections = [1, 7, 9]
+
+let dd_combos = len(r3_selections) * len(r4_selections)
+let dd_cost = dd_combos * 2  # $2 base
+
+print("Race 3 selections: " + r3_selections)
+print("Race 4 selections: " + r4_selections)
+print("Total combinations: " + dd_combos)
+print("Cost at $2 base: $" + dd_cost)
+
+if dd_cost <= (bankroll * 0.03) {
+    print("PLAY - Cost within 3% bankroll limit")
+} else {
+    print("PASS - Too expensive for bankroll")
+}
+
+# Pick-3 analysis
+print("\n--- Pick-3 (Races 5-7) ---")
+let r5 = [3, 5, 7]
+let r6 = [2]  # Single
+let r7 = [1, 4, 6, 8]
+
+let p3_combos = len(r5) * len(r6) * len(r7)
+let p3_cost = p3_combos * 1  # $1 base
+
+print("Race 5: " + r5 + " (" + len(r5) + " horses)")
+print("Race 6: " + r6 + " (SINGLE)")
+print("Race 7: " + r7 + " (" + len(r7) + " horses)")
+print("Total combinations: " + p3_combos)
+print("Cost at $1 base: $" + p3_cost)
+
+# Risk vs Reward analysis
+print("\n--- Risk/Reward Analysis ---")
+let potential_dd_payout = 85.40  # Estimated
+let dd_roi = ((potential_dd_payout - dd_cost) / dd_cost) * 100
+
+print("Daily Double:")
+print("  Risk: $" + dd_cost)
+print("  Potential return: $" + potential_dd_payout)
+print("  ROI if hit: " + dd_roi + "%")
+
+let potential_p3_payout = 320.60  # Estimated
+let p3_roi = ((potential_p3_payout - p3_cost) / p3_cost) * 100
+
+print("\nPick-3:")
+print("  Risk: $" + p3_cost)
+print("  Potential return: $" + potential_p3_payout)
+print("  ROI if hit: " + p3_roi + "%")
+
+# Final recommendations
+print("\n\n=== BETTING RECOMMENDATIONS ===")
+
+func make_recommendation(overlay, kelly_pct) {
+    if overlay > 30 and kelly_pct > 0.05 {
+        return "STRONG PLAY"
+    } else {
+        if overlay > 20 and kelly_pct > 0.03 {
+            return "PLAY"
+        } else {
+            if overlay > 10 {
+                return "MARGINAL PLAY"
+            } else {
+                return "PASS"
+            }
+        }
+    }
+}
+
+for play in value_plays {
+    let my_decimal = track_to_decimal(play["my_odds"])
+    let my_prob = 1 / my_decimal
+    let kelly_pct = kelly_racing(my_prob, play["ml"], bankroll)
+    let overlay = overlay_percentage(play["my_odds"], play["ml"])
+
+    let recommendation = make_recommendation(overlay, kelly_pct)
+
+    print("\nHorse #" + play["num"] + " " + play["name"] + ": " + recommendation)
+}
+
+print("\nDaily Double: PLAY")
+print("Pick-3: " + make_recommendation(15, 0.02))
+
+print("\n--- KEY PRINCIPLES ---")
+print("1. Only bet when you have an edge (overlay)")
+print("2. Size bets using Kelly Criterion (or fractional Kelly)")
+print("3. Never exceed 5% of bankroll on a single race")
+print("4. Track all results to validate your handicapping")
+print("5. Adjust as the day progresses and bankroll changes")

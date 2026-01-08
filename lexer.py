@@ -1,5 +1,5 @@
 """
-OddsScript Lexer - Tokenizes source code for the sports betting language
+TrackScript Lexer - Tokenizes source code for the horse racing betting language
 """
 
 import re
@@ -17,11 +17,10 @@ class TokenType(Enum):
 
     # Identifiers and keywords
     IDENTIFIER = auto()
-    BET = auto()
+    WAGER = auto()
     BANKROLL = auto()
     ODDS = auto()
     STAKE = auto()
-    PARLAY = auto()
     IF = auto()
     ELSE = auto()
     WHILE = auto()
@@ -33,19 +32,45 @@ class TokenType(Enum):
     CONST = auto()
     PRINT = auto()
 
-    # Betting specific
-    TEAM = auto()
-    GAME = auto()
-    OVER = auto()
-    UNDER = auto()
-    SPREAD = auto()
-    MONEYLINE = auto()
-    TOTAL = auto()
-    CALCULATE = auto()
-    KELLY = auto()
-    EV = auto()
-    IMPLIED = auto()
-    PROBABILITY = auto()
+    # Horse racing specific
+    RACE = auto()
+    HORSE = auto()
+    JOCKEY = auto()
+    TRAINER = auto()
+    TRACK = auto()
+    POST = auto()
+    WIN = auto()
+    PLACE = auto()
+    SHOW = auto()
+    EXACTA = auto()
+    TRIFECTA = auto()
+    SUPERFECTA = auto()
+    DAILY_DOUBLE = auto()
+    PICK3 = auto()
+    PICK4 = auto()
+    PICK6 = auto()
+    BOX = auto()
+    WHEEL = auto()
+    KEY = auto()
+    WITH = auto()
+
+    # Race types and conditions
+    MAIDEN = auto()
+    CLAIMING = auto()
+    ALLOWANCE = auto()
+    STAKES = auto()
+    TURF = auto()
+    DIRT = auto()
+    SYNTHETIC = auto()
+    FAST = auto()
+    MUDDY = auto()
+    SLOPPY = auto()
+
+    # Handicapping
+    SPEED = auto()
+    CLASS = auto()
+    PACE = auto()
+    FORM = auto()
 
     # Operators
     PLUS = auto()
@@ -95,10 +120,7 @@ class Token:
 
 class Lexer:
     KEYWORDS = {
-        'bet': TokenType.BET,
-        'odds': TokenType.ODDS,
-        'stake': TokenType.STAKE,
-        'parlay': TokenType.PARLAY,
+        # Core language
         'if': TokenType.IF,
         'else': TokenType.ELSE,
         'while': TokenType.WHILE,
@@ -109,14 +131,64 @@ class Lexer:
         'let': TokenType.LET,
         'const': TokenType.CONST,
         'print': TokenType.PRINT,
-        'spread': TokenType.SPREAD,
-        'moneyline': TokenType.MONEYLINE,
-        'total': TokenType.TOTAL,
         'true': TokenType.TRUE,
         'false': TokenType.FALSE,
         'and': TokenType.AND,
         'or': TokenType.OR,
         'not': TokenType.NOT,
+
+        # Wagering
+        'wager': TokenType.WAGER,
+        'odds': TokenType.ODDS,
+        'stake': TokenType.STAKE,
+
+        # Horse racing core
+        'race': TokenType.RACE,
+        'horse': TokenType.HORSE,
+        'jockey': TokenType.JOCKEY,
+        'trainer': TokenType.TRAINER,
+        'track': TokenType.TRACK,
+        'post': TokenType.POST,
+
+        # Bet types
+        'win': TokenType.WIN,
+        'place': TokenType.PLACE,
+        'show': TokenType.SHOW,
+        'exacta': TokenType.EXACTA,
+        'trifecta': TokenType.TRIFECTA,
+        'superfecta': TokenType.SUPERFECTA,
+        'daily_double': TokenType.DAILY_DOUBLE,
+        'pick3': TokenType.PICK3,
+        'pick4': TokenType.PICK4,
+        'pick6': TokenType.PICK6,
+
+        # Exotic bet modifiers
+        'box': TokenType.BOX,
+        'wheel': TokenType.WHEEL,
+        'key': TokenType.KEY,
+        'with': TokenType.WITH,
+
+        # Race types
+        'maiden': TokenType.MAIDEN,
+        'claiming': TokenType.CLAIMING,
+        'allowance': TokenType.ALLOWANCE,
+        'stakes': TokenType.STAKES,
+
+        # Track surfaces
+        'turf': TokenType.TURF,
+        'dirt': TokenType.DIRT,
+        'synthetic': TokenType.SYNTHETIC,
+
+        # Track conditions
+        'fast': TokenType.FAST,
+        'muddy': TokenType.MUDDY,
+        'sloppy': TokenType.SLOPPY,
+
+        # Handicapping terms
+        'speed': TokenType.SPEED,
+        'class': TokenType.CLASS,
+        'pace': TokenType.PACE,
+        'form': TokenType.FORM,
     }
 
     def __init__(self, source: str):

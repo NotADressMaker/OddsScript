@@ -1,0 +1,72 @@
+# Dutching Strategy in TrackScript
+
+print("=== Dutching Multiple Horses ===")
+print("Dutching: Betting on multiple horses in the same race")
+print("Stakes are calculated to return the same profit regardless of which horse wins")
+
+# Race 5 - three contenders
+print("\n--- Race 5 Analysis ---")
+let horse_a = {"number": 3, "odds": "5-2", "name": "Thunder Bolt"}
+let horse_b = {"number": 7, "odds": "4-1", "name": "Lucky Star"}
+let horse_c = {"number": 9, "odds": "6-1", "name": "Speed Demon"}
+
+print("Contenders:")
+print("  #3 Thunder Bolt at 5-2")
+print("  #7 Lucky Star at 4-1")
+print("  #9 Speed Demon at 6-1")
+
+# Calculate individual probabilities
+let prob_a = 1 / track_to_decimal(horse_a["odds"])
+let prob_b = 1 / track_to_decimal(horse_b["odds"])
+let prob_c = 1 / track_to_decimal(horse_c["odds"])
+
+print("\nImplied probabilities:")
+print("  #3: " + (prob_a * 100) + "%")
+print("  #7: " + (prob_b * 100) + "%")
+print("  #9: " + (prob_c * 100) + "%")
+
+let total_prob = prob_a + prob_b + prob_c
+print("Combined probability: " + (total_prob * 100) + "%")
+
+# Dutch betting
+let total_stake = 100
+let horses = [horse_a, horse_b, horse_c]
+
+print("\n--- Dutching Stakes ---")
+print("Total stake to distribute: $" + total_stake)
+
+let dutch_stakes = dutching(horses, total_stake)
+
+print("\nStake allocation:")
+for stake_info in dutch_stakes {
+    print("  Horse #" + stake_info["horse"] + ": $" + stake_info["amount"])
+}
+
+# Calculate expected returns
+print("\n--- Expected Returns ---")
+let return_a = dutch_stakes[0]["amount"] * track_to_decimal(horse_a["odds"])
+let return_b = dutch_stakes[1]["amount"] * track_to_decimal(horse_b["odds"])
+let return_c = dutch_stakes[2]["amount"] * track_to_decimal(horse_c["odds"])
+
+print("If #3 wins: $" + return_a)
+print("If #7 wins: $" + return_b)
+print("If #9 wins: $" + return_c)
+
+let avg_return = (return_a + return_b + return_c) / 3
+let profit = avg_return - total_stake
+
+print("\nAverage return: $" + avg_return)
+print("Expected profit: $" + profit)
+
+# Alternative: Equal stakes
+print("\n--- Alternative: Equal Stakes ---")
+let equal_stake = total_stake / 3
+
+print("Equal stake per horse: $" + equal_stake)
+print("If #3 wins: $" + (equal_stake * track_to_decimal(horse_a["odds"])))
+print("If #7 wins: $" + (equal_stake * track_to_decimal(horse_b["odds"])))
+print("If #9 wins: $" + (equal_stake * track_to_decimal(horse_c["odds"])))
+
+print("\n--- Conclusion ---")
+print("Dutching provides balanced returns across your selections")
+print("Best used when you have strong opinions on 2-3 horses in a race")

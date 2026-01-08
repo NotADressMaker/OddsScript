@@ -1,0 +1,92 @@
+# Handicapping Analysis in TrackScript
+
+print("=== Horse Racing Handicapping ===")
+
+# Speed figures
+print("\n--- Speed Ratings ---")
+let race_time = 110.2
+let track_cond = "fast"
+let distance = 6
+
+let speed_fig = speed_rating(race_time, track_cond, distance)
+print("Horse ran 6f in " + race_time + " on " + track_cond + " track")
+print("Speed figure: " + speed_fig)
+
+# Compare to muddy track
+let muddy_time = 111.5
+let muddy_fig = speed_rating(muddy_time, "muddy", distance)
+print("\nSame horse in muddy conditions (" + muddy_time + "s)")
+print("Speed figure: " + muddy_fig)
+
+# Class analysis
+print("\n--- Class Rating ---")
+let current_purse = 25000
+let last_purse = 15000
+
+let class_fig = class_rating(current_purse, last_purse)
+print("Moving from $" + last_purse + " to $" + current_purse + " race")
+print("Class rating: " + class_fig)
+if class_fig < 0 {
+    print("(Moving up in class - tougher competition)")
+} else {
+    print("(Dropping in class - easier competition)")
+}
+
+# Pace analysis
+print("\n--- Pace Analysis ---")
+let quarter_splits = [22.1, 45.3]
+let pace_fig = pace_rating(quarter_splits, 6)
+print("Quarter splits: " + quarter_splits)
+print("Pace figure: " + pace_fig)
+
+# Recency
+print("\n--- Recency Factor ---")
+let days_off = 21
+let recency = recency_factor(days_off)
+print("Horse last raced " + days_off + " days ago")
+print("Recency factor: " + recency)
+
+if recency >= 0.95 {
+    print("Status: Fresh and ready")
+} else {
+    if recency >= 0.85 {
+        print("Status: Acceptable layoff")
+    } else {
+        print("Status: May need a race")
+    }
+}
+
+# Jockey/Trainer combo
+print("\n--- Jockey/Trainer Statistics ---")
+let jockey_pct = 0.22
+let trainer_pct = 0.18
+
+let combo_rating = jockey_trainer_combo(jockey_pct, trainer_pct)
+print("Jockey win%: " + (jockey_pct * 100) + "%")
+print("Trainer win%: " + (trainer_pct * 100) + "%")
+print("Combined rating: " + combo_rating)
+
+# Post position bias
+print("\n--- Post Position Bias ---")
+let post = 1
+let bias = -0.5  # Inside bias
+
+let pp_adjustment = track_bias_adjustment(post, bias)
+print("Post position: " + post)
+print("Track has inside bias (" + bias + ")")
+print("Adjustment: " + pp_adjustment)
+
+# Overall handicapping score
+print("\n--- Composite Handicapping Score ---")
+let total_rating = speed_fig + class_fig + pace_fig + (combo_rating * 100)
+print("Total rating: " + total_rating)
+
+if total_rating > 85 {
+    print("Grade: STRONG PLAY")
+} else {
+    if total_rating > 70 {
+        print("Grade: Playable")
+    } else {
+        print("Grade: Pass")
+    }
+}

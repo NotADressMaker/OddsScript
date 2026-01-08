@@ -1,5 +1,5 @@
 """
-OddsScript Interpreter - Executes the AST with built-in betting functions
+TrackScript Interpreter - Executes the AST with built-in horse racing functions
 """
 
 import math
@@ -49,37 +49,50 @@ class Environment:
         return name in self.variables or (self.parent and self.parent.exists(name))
 
 
-class Bet:
-    """Represents a sports bet"""
-    def __init__(self, bet_type: str, team: str, odds: float, stake: float, **kwargs):
-        self.bet_type = bet_type
-        self.team = team
-        self.odds = odds
+class Wager:
+    """Represents a horse racing wager"""
+    def __init__(self, wager_type: str, horse: Any, odds: Any, stake: float, **kwargs):
+        self.wager_type = wager_type
+        self.horse = horse  # Can be single horse number or list
+        self.odds = odds    # Can be track odds string like "5-2" or decimal
         self.stake = stake
-        self.spread = kwargs.get('spread', None)
+        self.box = kwargs.get('box', False)
+        self.wheel = kwargs.get('wheel', False)
+        self.key = kwargs.get('key', None)
+        self.with_horses = kwargs.get('with', None)
         self.result = None  # 'win', 'loss', 'push'
 
     def calculate_payout(self) -> float:
-        """Calculate potential payout"""
-        if self.odds > 0:  # American odds (positive)
-            return self.stake * (self.odds / 100)
-        else:  # American odds (negative)
-            return self.stake * (100 / abs(self.odds))
+        """Calculate potential payout from track odds"""
+        if isinstance(self.odds, str):
+            # Parse track odds like "5-2"
+            decimal_odds = self._track_odds_to_decimal(self.odds)
+        else:
+            decimal_odds = self.odds
+
+        return self.stake * (decimal_odds - 1)
+
+    def _track_odds_to_decimal(self, odds_str: str) -> float:
+        """Convert track odds (e.g., '5-2') to decimal"""
+        if '-' in odds_str:
+            parts = odds_str.split('-')
+            numerator = float(parts[0])
+            denominator = float(parts[1])
+            return (numerator / denominator) + 1
+        return float(odds_str)
 
     def calculate_total_return(self) -> float:
         """Calculate total return including stake"""
         return self.stake + self.calculate_payout()
 
-    def to_decimal_odds(self) -> float:
-        """Convert American odds to decimal"""
-        if self.odds > 0:
-            return (self.odds / 100) + 1
-        else:
-            return (100 / abs(self.odds)) + 1
-
     def __repr__(self):
-        spread_info = f" ({self.spread:+.1f})" if self.spread else ""
-        return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+d}, ${self.stake:.2f})"
+        horse_info = f"#{self.horse}" if isinstance(self.horse, (int, float)) else str(self.horse)
+        modifier = ""
+        if self.box:
+            modifier = " (BOX)"
+        elif self.key:
+            modifier = f" (KEY {self.key} WITH {self.with_horses})"
+        return f"Wager({self.wager_type}: {horse_info}{modifier} @ {self.odds}, ${self.stake:.2f})"
 
 
 class Interpreter:
@@ -88,128 +101,338 @@ class Interpreter:
         self.setup_builtins()
 
     def setup_builtins(self):
-        """Setup built-in functions for betting operations"""
+        """Setup built-in functions for horse racing operations"""
 
-        def american_to_decimal(odds: float) -> float:
-            """Convert American odds to decimal odds"""
-            if odds > 0:
-                return (odds / 100) + 1
+        # Odds Conversion Functions
+        def track_to_decimal(odds_str: str) -> float:
+            """Convert track odds (e.g., '5-2', '7-5') to decimal odds"""
+            if isinstance(odds_str, (int, float)):
+                return float(odds_str)
+            if '-' in odds_str:
+                parts = odds_str.split('-')
+                numerator = float(parts[0])
+                denominator = float(parts[1])
+                return (numerator / denominator) + 1
+            return float(odds_str)
+
+        def decimal_to_track(decimal_odds: float) -> str:
+            """Convert decimal odds to track odds format"""
+            numerator = decimal_odds - 1
+            # Find best fractional representation
+            for denom in [1, 2, 5]:
+                num = numerator * denom
+                if abs(num - round(num)) < 0.1:
+                    return f"{int(round(num))}-{denom}"
+            # Fallback to -1 denominator
+            return f"{int(round((decimal_odds - 1) * 10))}-10"
+
+        def track_to_american(odds_str: str) -> float:
+            """Convert track odds to American odds"""
+            decimal = track_to_decimal(odds_str)
+            if decimal >= 2.0:
+                return (decimal - 1) * 100
             else:
-                return (100 / abs(odds)) + 1
+                return -100 / (decimal - 1)
 
-        def decimal_to_american(odds: float) -> float:
-            """Convert decimal odds to American odds"""
-            if odds >= 2.0:
-                return (odds - 1) * 100
+        def american_to_track(american_odds: float) -> str:
+            """Convert American odds to track odds"""
+            if american_odds > 0:
+                decimal = (american_odds / 100) + 1
             else:
-                return -100 / (odds - 1)
+                decimal = (100 / abs(american_odds)) + 1
+            return decimal_to_track(decimal)
 
-        def implied_probability(odds: float) -> float:
-            """Calculate implied probability from American odds"""
-            if odds > 0:
-                return 100 / (odds + 100)
+        def fractional_to_decimal(fractional_str: str) -> float:
+            """Convert fractional odds to decimal (same as track_to_decimal)"""
+            return track_to_decimal(fractional_str)
+
+        # Payout Calculations
+        def win_payout(odds, stake: float) -> float:
+            """Calculate win bet payout"""
+            if isinstance(odds, str):
+                decimal_odds = track_to_decimal(odds)
             else:
-                return abs(odds) / (abs(odds) + 100)
+                decimal_odds = odds
+            return stake * decimal_odds
 
-        def calculate_ev(true_prob: float, odds: float, stake: float = 100) -> float:
-            """Calculate expected value of a bet"""
-            decimal_odds = american_to_decimal(odds)
-            win_amount = stake * (decimal_odds - 1)
-            loss_amount = stake
-            ev = (true_prob * win_amount) - ((1 - true_prob) * loss_amount)
-            return ev
+        def place_payout(odds, stake: float, place_ratio: float = 0.4) -> float:
+            """Calculate place bet payout (typically pays 40% of win odds)"""
+            if isinstance(odds, str):
+                decimal_odds = track_to_decimal(odds)
+            else:
+                decimal_odds = odds
+            place_decimal = 1 + ((decimal_odds - 1) * place_ratio)
+            return stake * place_decimal
 
-        def kelly_criterion(true_prob: float, odds: float) -> float:
-            """Calculate optimal bet size using Kelly Criterion"""
-            decimal_odds = american_to_decimal(odds)
-            b = decimal_odds - 1  # net odds received on the wager
+        def show_payout(odds, stake: float, show_ratio: float = 0.25) -> float:
+            """Calculate show bet payout (typically pays 25% of win odds)"""
+            if isinstance(odds, str):
+                decimal_odds = track_to_decimal(odds)
+            else:
+                decimal_odds = odds
+            show_decimal = 1 + ((decimal_odds - 1) * show_ratio)
+            return stake * show_decimal
+
+        def exacta_payout(odds: float, stake: float) -> float:
+            """Calculate exacta payout"""
+            return stake * odds
+
+        def trifecta_payout(odds: float, stake: float) -> float:
+            """Calculate trifecta payout"""
+            return stake * odds
+
+        def superfecta_payout(odds: float, stake: float) -> float:
+            """Calculate superfecta payout"""
+            return stake * odds
+
+        # Track Analysis
+        def calculate_takeout(pool_size: float, takeout_rate: float) -> float:
+            """Calculate net pool after track takeout"""
+            return pool_size * (1 - takeout_rate)
+
+        def breakage_adjustment(payout: float, breakage: float = 0.10) -> float:
+            """Apply standard track breakage rules (round down to nearest dime)"""
+            return math.floor(payout / breakage) * breakage
+
+        def odds_from_pool(horse_pool: float, total_pool: float, takeout: float = 0.17) -> float:
+            """Calculate odds from pool sizes"""
+            net_pool = calculate_takeout(total_pool, takeout)
+            if horse_pool == 0:
+                return 99.0
+            odds_decimal = net_pool / horse_pool
+            return odds_decimal
+
+        # Exotic Bet Combinations
+        def exacta_combinations(num_horses: int) -> int:
+            """Calculate possible exacta combinations (P(n,2))"""
+            if num_horses < 2:
+                return 0
+            return num_horses * (num_horses - 1)
+
+        def trifecta_combinations(num_horses: int) -> int:
+            """Calculate possible trifecta combinations (P(n,3))"""
+            if num_horses < 3:
+                return 0
+            return num_horses * (num_horses - 1) * (num_horses - 2)
+
+        def superfecta_combinations(num_horses: int) -> int:
+            """Calculate possible superfecta combinations (P(n,4))"""
+            if num_horses < 4:
+                return 0
+            return num_horses * (num_horses - 1) * (num_horses - 2) * (num_horses - 3)
+
+        def box_cost(bet_type: str, num_horses: int, unit_stake: float) -> float:
+            """Calculate cost of boxing a bet"""
+            if bet_type == "exacta":
+                combos = exacta_combinations(num_horses)
+            elif bet_type == "trifecta":
+                combos = trifecta_combinations(num_horses)
+            elif bet_type == "superfecta":
+                combos = superfecta_combinations(num_horses)
+            else:
+                combos = 1
+            return combos * unit_stake
+
+        def wheel_cost(bet_type: str, key_horses: int, other_horses: int, unit_stake: float) -> float:
+            """Calculate wheel bet cost"""
+            if bet_type == "exacta":
+                # Key horse first, all others second + all others first, key horse second
+                combos = key_horses * other_horses * 2
+            elif bet_type == "trifecta":
+                # More complex for trifecta wheels
+                combos = key_horses * other_horses * (other_horses - 1)
+            else:
+                combos = key_horses * other_horses
+            return combos * unit_stake
+
+        def key_cost(bet_type: str, key_horse: int, with_horses: int, unit_stake: float) -> float:
+            """Calculate key bet cost (key horse in specific position)"""
+            if bet_type == "exacta":
+                combos = with_horses
+            elif bet_type == "trifecta":
+                combos = with_horses * (with_horses - 1)
+            elif bet_type == "superfecta":
+                combos = with_horses * (with_horses - 1) * (with_horses - 2)
+            else:
+                combos = with_horses
+            return combos * unit_stake
+
+        # Handicapping Functions
+        def speed_rating(time: float, track_condition: str, distance: float) -> float:
+            """Calculate speed figure (simplified Beyer-style)"""
+            # Base par time for 6 furlongs on fast track
+            par_time = 110.0
+            # Adjust for distance
+            par_time = par_time * (distance / 6.0)
+            # Adjust for track condition
+            condition_variants = {
+                "fast": 0, "good": 0.5, "muddy": 1.0, "sloppy": 1.5,
+                "firm": 0, "yielding": 0.5, "soft": 1.0
+            }
+            variant = condition_variants.get(track_condition, 0)
+            # Calculate rating (100 = par)
+            rating = 100 - ((time - par_time - variant) * 5)
+            return rating
+
+        def class_rating(current_class: float, previous_class: float) -> float:
+            """Analyze class change (positive = move up, negative = drop down)"""
+            if previous_class == 0:
+                return 0
+            change_pct = ((current_class - previous_class) / previous_class) * 100
+            # Convert to rating where drop in class is positive
+            return -change_pct / 10
+
+        def pace_rating(splits: list, distance: float) -> float:
+            """Calculate pace figures from fractional times"""
+            if not splits or len(splits) == 0:
+                return 0
+            # Average the split times and compare to par
+            avg_split = sum(splits) / len(splits)
+            par_split = 24.0 * (distance / 6.0)  # Par quarter in seconds
+            rating = 100 - ((avg_split - par_split) * 10)
+            return rating
+
+        def recency_factor(days_since_last: int) -> float:
+            """Calculate recency adjustment factor"""
+            if days_since_last <= 7:
+                return 1.0
+            elif days_since_last <= 14:
+                return 0.95
+            elif days_since_last <= 30:
+                return 0.90
+            elif days_since_last <= 60:
+                return 0.80
+            else:
+                return 0.70
+
+        def jockey_trainer_combo(jockey_win_pct: float, trainer_win_pct: float) -> float:
+            """Calculate combined jockey/trainer statistics"""
+            # Weighted average with bonus for strong combo
+            combined = (jockey_win_pct * 0.6 + trainer_win_pct * 0.4)
+            if jockey_win_pct > 0.20 and trainer_win_pct > 0.20:
+                combined *= 1.1  # 10% bonus for strong combo
+            return combined
+
+        def track_bias_adjustment(post_position: int, bias_factor: float) -> float:
+            """Post position adjustment based on track bias"""
+            # Negative bias favors inside, positive favors outside
+            return bias_factor * (post_position - 6)
+
+        # Wagering Strategy
+        def kelly_racing(true_prob: float, track_odds_str: str, bankroll: float) -> float:
+            """Kelly criterion for horse racing"""
+            decimal_odds = track_to_decimal(track_odds_str)
+            b = decimal_odds - 1
             p = true_prob
             q = 1 - p
-            kelly = (b * p - q) / b
-            return max(0, kelly)  # Don't bet if kelly is negative
-
-        def parlay_odds(*odds_list) -> float:
-            """Calculate parlay odds from multiple bets"""
-            decimal_odds = [american_to_decimal(o) for o in odds_list]
-            combined = 1
-            for odd in decimal_odds:
-                combined *= odd
-            return decimal_to_american(combined)
-
-        def parlay_probability(*probs) -> float:
-            """Calculate probability of winning a parlay"""
-            result = 1
-            for p in probs:
-                result *= p
-            return result
-
-        def break_even_percentage(odds: float) -> float:
-            """Calculate break-even win percentage"""
-            return implied_probability(odds)
-
-        def vig_calculator(odds1: float, odds2: float) -> float:
-            """Calculate bookmaker's vig (juice) from two-way market"""
-            prob1 = implied_probability(odds1)
-            prob2 = implied_probability(odds2)
-            total = prob1 + prob2
-            vig = total - 1
-            return vig * 100  # Return as percentage
-
-        def true_odds_from_vig(odds: float, total_vig: float) -> float:
-            """Remove vig to get true odds"""
-            implied_prob = implied_probability(odds)
-            true_prob = implied_prob / (1 + total_vig)
-            if true_prob >= 0.5:
-                true_american = -100 * true_prob / (1 - true_prob)
-            else:
-                true_american = 100 * (1 - true_prob) / true_prob
-            return true_american
-
-        def units_to_risk(odds: float, units_to_win: float = 1) -> float:
-            """Calculate units to risk to win specified units"""
-            if odds > 0:
-                return units_to_win * (100 / odds)
-            else:
-                return units_to_win * (abs(odds) / 100)
-
-        def roi_calculator(wins: int, losses: int, avg_odds: float) -> float:
-            """Calculate ROI from betting record"""
-            if wins + losses == 0:
+            if b <= 0:
                 return 0
-            win_rate = wins / (wins + losses)
-            avg_payout = calculate_ev(win_rate, avg_odds, 100)
-            total_staked = (wins + losses) * 100
-            total_return = wins * (100 + abs(avg_payout))
-            roi = ((total_return - total_staked) / total_staked) * 100
+            kelly = (b * p - q) / b
+            return max(0, min(kelly, 0.25))  # Cap at 25% for safety
+
+        def dutching(horses_data: list, total_stake: float) -> list:
+            """Calculate dutching stakes for multiple horses"""
+            # horses_data should be list of dicts with 'odds' key
+            stakes = []
+            total_prob = 0
+
+            for horse in horses_data:
+                if isinstance(horse, dict) and 'odds' in horse:
+                    odds = horse['odds']
+                    if isinstance(odds, str):
+                        decimal = track_to_decimal(odds)
+                    else:
+                        decimal = odds
+                    prob = 1 / decimal
+                    total_prob += prob
+
+            for horse in horses_data:
+                if isinstance(horse, dict) and 'odds' in horse:
+                    odds = horse['odds']
+                    if isinstance(odds, str):
+                        decimal = track_to_decimal(odds)
+                    else:
+                        decimal = odds
+                    prob = 1 / decimal
+                    stake = (prob / total_prob) * total_stake
+                    stakes.append({"horse": horse.get('number', '?'), "amount": stake})
+
+            return stakes
+
+        def calculate_roi(wins: int, total_bets: int, avg_payout: float, avg_stake: float) -> float:
+            """Calculate ROI from betting record"""
+            if total_bets == 0:
+                return 0
+            total_staked = total_bets * avg_stake
+            total_returned = wins * avg_payout
+            roi = ((total_returned - total_staked) / total_staked) * 100
             return roi
 
-        def round_robin(bets_count: int, parlay_size: int) -> int:
-            """Calculate number of parlays in a round robin"""
-            from math import comb
-            return comb(bets_count, parlay_size)
+        def overlay_percentage(true_odds_str: str, morning_line_str: str) -> float:
+            """Calculate overlay/underlay percentage"""
+            true_decimal = track_to_decimal(true_odds_str)
+            ml_decimal = track_to_decimal(morning_line_str)
+            true_prob = 1 / true_decimal
+            ml_prob = 1 / ml_decimal
+            overlay = ((ml_prob - true_prob) / true_prob) * 100
+            return overlay
 
-        # Register built-in functions
-        self.global_env.define('american_to_decimal', american_to_decimal)
-        self.global_env.define('decimal_to_american', decimal_to_american)
-        self.global_env.define('implied_probability', implied_probability)
-        self.global_env.define('calculate_ev', calculate_ev)
-        self.global_env.define('kelly_criterion', kelly_criterion)
-        self.global_env.define('parlay_odds', parlay_odds)
-        self.global_env.define('parlay_probability', parlay_probability)
-        self.global_env.define('break_even_percentage', break_even_percentage)
-        self.global_env.define('vig_calculator', vig_calculator)
-        self.global_env.define('true_odds_from_vig', true_odds_from_vig)
-        self.global_env.define('units_to_risk', units_to_risk)
-        self.global_env.define('roi_calculator', roi_calculator)
-        self.global_env.define('round_robin', round_robin)
+        def calculate_odds_value(estimated_odds_str: str, actual_odds_str: str) -> float:
+            """Calculate value of a bet (positive = good value)"""
+            est_decimal = track_to_decimal(estimated_odds_str)
+            actual_decimal = track_to_decimal(actual_odds_str)
+            value = actual_decimal - est_decimal
+            return value
+
+        # Register all built-in functions
+        self.global_env.define('track_to_decimal', track_to_decimal)
+        self.global_env.define('decimal_to_track', decimal_to_track)
+        self.global_env.define('track_to_american', track_to_american)
+        self.global_env.define('american_to_track', american_to_track)
+        self.global_env.define('fractional_to_decimal', fractional_to_decimal)
+
+        self.global_env.define('win_payout', win_payout)
+        self.global_env.define('place_payout', place_payout)
+        self.global_env.define('show_payout', show_payout)
+        self.global_env.define('exacta_payout', exacta_payout)
+        self.global_env.define('trifecta_payout', trifecta_payout)
+        self.global_env.define('superfecta_payout', superfecta_payout)
+
+        self.global_env.define('calculate_takeout', calculate_takeout)
+        self.global_env.define('breakage_adjustment', breakage_adjustment)
+        self.global_env.define('odds_from_pool', odds_from_pool)
+
+        self.global_env.define('exacta_combinations', exacta_combinations)
+        self.global_env.define('trifecta_combinations', trifecta_combinations)
+        self.global_env.define('superfecta_combinations', superfecta_combinations)
+        self.global_env.define('box_cost', box_cost)
+        self.global_env.define('wheel_cost', wheel_cost)
+        self.global_env.define('key_cost', key_cost)
+
+        self.global_env.define('speed_rating', speed_rating)
+        self.global_env.define('class_rating', class_rating)
+        self.global_env.define('pace_rating', pace_rating)
+        self.global_env.define('recency_factor', recency_factor)
+        self.global_env.define('jockey_trainer_combo', jockey_trainer_combo)
+        self.global_env.define('track_bias_adjustment', track_bias_adjustment)
+
+        self.global_env.define('kelly_racing', kelly_racing)
+        self.global_env.define('dutching', dutching)
+        self.global_env.define('calculate_roi', calculate_roi)
+        self.global_env.define('overlay_percentage', overlay_percentage)
+        self.global_env.define('calculate_odds_value', calculate_odds_value)
+
+        # Standard utility functions
         self.global_env.define('abs', abs)
         self.global_env.define('min', min)
         self.global_env.define('max', max)
         self.global_env.define('sqrt', math.sqrt)
         self.global_env.define('pow', pow)
+        self.global_env.define('round', round)
         self.global_env.define('len', len)
         self.global_env.define('range', range)
         self.global_env.define('sum', sum)
+        self.global_env.define('sort', sorted)
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
@@ -313,18 +536,15 @@ class Interpreter:
 
         elif isinstance(node, MemberAccess):
             obj = self.eval_node(node.object, env)
-            if isinstance(obj, Bet):
+            if isinstance(obj, Wager):
                 return getattr(obj, node.member)
             elif isinstance(obj, dict):
                 return obj.get(node.member)
             else:
                 raise RuntimeError(f"Cannot access member '{node.member}' on {type(obj)}")
 
-        elif isinstance(node, BetStatement):
-            return self.eval_bet_statement(node, env)
-
-        elif isinstance(node, ParlayStatement):
-            return self.eval_parlay_statement(node, env)
+        elif isinstance(node, WagerStatement):
+            return self.eval_wager_statement(node, env)
 
         else:
             raise RuntimeError(f"Unknown node type: {type(node)}")
@@ -405,48 +625,19 @@ class Interpreter:
 
         raise RuntimeError(f"'{node.name}' is not a function")
 
-    def eval_bet_statement(self, node: BetStatement, env: Environment) -> Bet:
-        team = self.eval_node(node.team, env)
-        odds = self.eval_node(node.odds, env) if node.odds else -110
-        stake = self.eval_node(node.stake, env) if node.stake else 100
+    def eval_wager_statement(self, node: WagerStatement, env: Environment) -> Wager:
+        """Evaluate a horse racing wager statement"""
+        horse = self.eval_node(node.horse, env) if node.horse else 1
+        odds = self.eval_node(node.odds, env) if node.odds else "5-2"
+        stake = self.eval_node(node.stake, env) if node.stake else 20
 
         kwargs = {}
         for key, value_node in node.additional_params.items():
             kwargs[key] = self.eval_node(value_node, env)
 
-        bet = Bet(node.bet_type, team, odds, stake, **kwargs)
-        print(f"Created: {bet}")
-        return bet
-
-    def eval_parlay_statement(self, node: ParlayStatement, env: Environment) -> Dict[str, Any]:
-        bets = [self.eval_node(bet_node, env) for bet_node in node.bets]
-        stake = self.eval_node(node.stake, env) if node.stake else 100
-
-        # Calculate combined odds
-        combined_decimal = 1
-        for bet in bets:
-            if isinstance(bet, Bet):
-                combined_decimal *= bet.to_decimal_odds()
-
-        # Convert back to American odds
-        if combined_decimal >= 2.0:
-            combined_american = (combined_decimal - 1) * 100
-        else:
-            combined_american = -100 / (combined_decimal - 1)
-
-        potential_payout = stake * (combined_decimal - 1)
-
-        parlay = {
-            'bets': bets,
-            'stake': stake,
-            'combined_odds': combined_american,
-            'decimal_odds': combined_decimal,
-            'potential_payout': potential_payout,
-            'total_return': stake + potential_payout
-        }
-
-        print(f"Parlay created: {len(bets)} legs, ${stake:.2f} to win ${potential_payout:.2f}")
-        return parlay
+        wager = Wager(node.wager_type, horse, odds, stake, **kwargs)
+        print(f"Created: {wager}")
+        return wager
 
     def is_truthy(self, value: Any) -> bool:
         """Determine if a value is truthy"""

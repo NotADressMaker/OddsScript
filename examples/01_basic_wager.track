@@ -1,0 +1,54 @@
+# Basic Horse Racing Wagering in TrackScript
+
+print("=== Basic Horse Racing Wagers ===")
+
+# Set up bankroll
+let bankroll = 1000
+print("Starting bankroll: $" + bankroll)
+
+# Win bet on horse #5 at 7-2 odds
+print("\n--- Win Bet ---")
+let horse_num = 5
+let odds = "7-2"
+let stake = 20
+
+let decimal_odds = track_to_decimal(odds)
+print("Horse #" + horse_num + " at " + odds + " (" + decimal_odds + " decimal)")
+
+let win_return = win_payout(odds, stake)
+print("$" + stake + " win bet returns: $" + win_return)
+
+# Place bet
+print("\n--- Place Bet ---")
+let place_horse = 3
+let place_odds = "3-5"
+let place_stake = 40
+
+let place_return = place_payout(place_odds, place_stake)
+print("$" + place_stake + " place bet on #" + place_horse + " at " + place_odds)
+print("Estimated return: $" + place_return)
+
+# Show bet
+print("\n--- Show Bet ---")
+let show_horse = 7
+let show_odds = "2-1"
+let show_stake = 10
+
+let show_return = show_payout(show_odds, show_stake)
+print("$" + show_stake + " show bet on #" + show_horse + " at " + show_odds)
+print("Estimated return: $" + show_return)
+
+# Calculate track takeout
+print("\n--- Track Takeout ---")
+let total_pool = 10000
+let takeout_rate = 0.17  # 17% takeout
+
+let net_pool = calculate_takeout(total_pool, takeout_rate)
+print("Total pool: $" + total_pool)
+print("After " + (takeout_rate * 100) + "% takeout: $" + net_pool)
+
+# Update bankroll
+let total_wagered = stake + place_stake + show_stake
+bankroll = bankroll - total_wagered
+print("\nBankroll after wagers: $" + bankroll)
+print("Total at risk: $" + total_wagered)

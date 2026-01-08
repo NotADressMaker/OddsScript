@@ -1,0 +1,126 @@
+# Bankroll Management for Horse Racing
+
+print("=== Bankroll Management at the Track ===")
+
+# Starting bankroll
+let bankroll = 2000
+const min_bankroll = 500
+const max_bet_pct = 0.05  # Never bet more than 5% on a single race
+
+print("Starting bankroll: $" + bankroll)
+print("Minimum bankroll: $" + min_bankroll)
+print("Max bet per race: " + (max_bet_pct * 100) + "% of bankroll")
+
+# Unit size calculation
+let unit_size = bankroll * 0.02  # 2% unit
+print("Unit size (2% of bankroll): $" + unit_size)
+
+# Track a day at the races
+print("\n=== Race Day Simulation ===")
+
+# Race 1: Win bet on favorite
+print("\n--- Race 1 ---")
+let r1_horse = 2
+let r1_odds = "3-5"
+let r1_stake = unit_size * 2  # 2 units on a strong favorite
+
+print("Horse #" + r1_horse + " at " + r1_odds)
+print("Stake: $" + r1_stake + " (2 units)")
+
+let r1_result = true  # Won
+if r1_result {
+    let r1_return = win_payout(r1_odds, r1_stake)
+    let r1_profit = r1_return - r1_stake
+    bankroll = bankroll + r1_profit
+    print("Result: WON")
+    print("Return: $" + r1_return)
+    print("Profit: $" + r1_profit)
+    print("Bankroll: $" + bankroll)
+}
+
+# Race 2: Exacta box
+print("\n--- Race 2 ---")
+let r2_horses = [3, 5, 7]
+let r2_cost = box_cost("exacta", len(r2_horses), 2)
+print("Exacta box: " + r2_horses)
+print("Cost: $" + r2_cost)
+
+let r2_result = false  # Lost
+if r2_result {
+    print("Result: WON - Exacta paid $45.20")
+    bankroll = bankroll + 45.20
+} else {
+    print("Result: LOST")
+    bankroll = bankroll - r2_cost
+    print("Bankroll: $" + bankroll)
+}
+
+# Race 3: Place bet on overlay
+print("\n--- Race 3 ---")
+let r3_horse = 8
+let r3_odds = "9-2"
+let r3_stake = unit_size * 1.5  # 1.5 units
+
+print("Horse #" + r3_horse + " at " + r3_odds + " (place)")
+print("Stake: $" + r3_stake)
+
+let r3_result = true  # Placed
+if r3_result {
+    let r3_return = place_payout(r3_odds, r3_stake)
+    let r3_profit = r3_return - r3_stake
+    bankroll = bankroll + r3_profit
+    print("Result: PLACED")
+    print("Return: $" + r3_return)
+    print("Profit: $" + r3_profit)
+    print("Bankroll: $" + bankroll)
+}
+
+# Race 4: Pass (no value bets found)
+print("\n--- Race 4 ---")
+print("No value plays identified - PASS")
+print("Bankroll: $" + bankroll)
+
+# Race 5: Trifecta key
+print("\n--- Race 5 ---")
+let r5_key = 4
+let r5_with = 4
+let r5_cost = key_cost("trifecta", r5_key, r5_with, 1)
+
+print("Trifecta key: #" + r5_key + " with " + r5_with + " others")
+print("Cost: $" + r5_cost)
+
+let r5_result = true  # Won
+if r5_result {
+    print("Result: WON - Trifecta paid $342.80")
+    let r5_return = 342.80
+    let r5_profit = r5_return - r5_cost
+    bankroll = bankroll + r5_profit
+    print("Profit: $" + r5_profit)
+    print("Bankroll: $" + bankroll)
+}
+
+# Day summary
+print("\n=== End of Day Summary ===")
+let starting_bankroll = 2000
+let ending_bankroll = bankroll
+let net_profit = ending_bankroll - starting_bankroll
+let roi = (net_profit / starting_bankroll) * 100
+
+print("Starting bankroll: $" + starting_bankroll)
+print("Ending bankroll: $" + ending_bankroll)
+print("Net profit/loss: $" + net_profit)
+print("ROI: " + roi + "%")
+
+# Update unit size for next visit
+let new_unit_size = bankroll * 0.02
+print("\nNew unit size: $" + new_unit_size)
+
+if bankroll < min_bankroll {
+    print("\nWARNING: Bankroll below minimum - time to reload or take a break")
+} else {
+    if net_profit > 0 {
+        print("\nSuccessful day! Stay disciplined and stick to the plan")
+    } else {
+        print("\nDown day - review your selections and stay within limits")
+    }
+}
