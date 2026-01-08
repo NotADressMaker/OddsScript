@@ -1,0 +1,39 @@
+# Kelly Criterion example for optimal bet sizing
+
+print("=== Kelly Criterion Bet Sizing ===")
+
+let my_bankroll = 10000
+print("Bankroll:")
+print(my_bankroll)
+
+# You believe the Lakers have a 60% chance to win
+let true_probability = 0.60
+let line = -110
+
+# Calculate Kelly percentage
+let kelly = kelly_criterion(true_probability, line)
+print("Kelly Criterion suggests betting % of bankroll:")
+print(kelly * 100)
+
+# Calculate actual bet size
+let bet_size = my_bankroll * kelly
+print("Optimal bet size:")
+print(bet_size)
+
+# Many bettors use fractional Kelly for safety
+let fractional_kelly = 0.25
+let safe_bet_size = bet_size * fractional_kelly
+print("Quarter Kelly bet size:")
+print(safe_bet_size)
+
+# Calculate expected value
+let ev = calculate_ev(true_probability, line, bet_size)
+print("Expected value:")
+print(ev)
+
+# Only bet if EV is positive
+if ev > 0 {
+    print("This is a +EV bet! Place it.")
+} else {
+    print("This is a -EV bet. Skip it.")
+}

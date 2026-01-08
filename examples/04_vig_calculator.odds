@@ -1,0 +1,45 @@
+# Understanding bookmaker's vig (juice)
+
+print("=== Bookmaker Vig Analysis ===")
+
+# Standard two-way market (e.g., spread or total)
+let favorite_line = -110
+let underdog_line = -110
+
+# Calculate the vig
+let vig = vig_calculator(favorite_line, underdog_line)
+print("Vig on this market %:")
+print(vig)
+
+# Different market
+let moneyline_fav = -200
+let moneyline_dog = 170
+
+let ml_vig = vig_calculator(moneyline_fav, moneyline_dog)
+print("Moneyline vig %:")
+print(ml_vig)
+
+# Calculate implied probabilities
+let fav_implied = implied_probability(moneyline_fav)
+let dog_implied = implied_probability(moneyline_dog)
+
+print("Favorite implied prob %:")
+print(fav_implied * 100)
+print("Underdog implied prob %:")
+print(dog_implied * 100)
+print("Total %:")
+print((fav_implied + dog_implied) * 100)
+
+# The total being over 100% represents the vig
+print("Notice: Total probability > 100% represents bookmaker edge")
+
+# Remove vig to find true odds
+let total_prob = fav_implied + dog_implied
+let vig_decimal = total_prob - 1
+let true_fav_prob = fav_implied / total_prob
+let true_dog_prob = dog_implied / total_prob
+
+print("True favorite probability %:")
+print(true_fav_prob * 100)
+print("True underdog probability %:")
+print(true_dog_prob * 100)

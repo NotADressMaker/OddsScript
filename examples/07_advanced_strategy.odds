@@ -1,0 +1,73 @@
+# Advanced betting strategy with expected value
+
+print("=== Advanced Betting Strategy ===")
+
+# Function to analyze a bet
+func analyze_bet(true_prob, market_line, my_bankroll) {
+    print("--- Analyzing Bet ---")
+
+    # Calculate implied probability from market
+    let market_prob = implied_probability(market_line)
+    print("Market implied probability %:")
+    print(market_prob * 100)
+    print("Your estimated probability %:")
+    print(true_prob * 100)
+
+    # Calculate edge
+    let edge = true_prob - market_prob
+    print("Your edge %:")
+    print(edge * 100)
+
+    # Determine if bet has value
+    if edge > 0 {
+        print("VALUE BET DETECTED!")
+
+        # Calculate Kelly bet size
+        let kelly = kelly_criterion(true_prob, market_line)
+        let full_kelly_amount = my_bankroll * kelly
+
+        # Use quarter Kelly for safety
+        let recommended_bet = full_kelly_amount * 0.25
+        print("Full Kelly:")
+        print(full_kelly_amount)
+        print("Recommended (1/4 Kelly):")
+        print(recommended_bet)
+
+        # Calculate expected value
+        let ev = calculate_ev(true_prob, market_line, recommended_bet)
+        print("Expected value:")
+        print(ev)
+
+        return recommended_bet
+    } else {
+        print("NO VALUE - Skip this bet")
+        return 0
+    }
+}
+
+# Your bankroll
+let my_bankroll = 5000
+print("Bankroll:")
+print(my_bankroll)
+
+# Analyze multiple games
+# Game 1: Lakers vs Celtics
+let lakers_bet_size = analyze_bet(0.58, -120, my_bankroll)
+
+# Game 2: Chiefs vs Bills
+let chiefs_bet_size = analyze_bet(0.52, 105, my_bankroll)
+
+# Game 3: Yankees vs Red Sox
+let yankees_bet_size = analyze_bet(0.45, -110, my_bankroll)
+
+# Total allocation
+let total_allocation = lakers_bet_size + chiefs_bet_size + yankees_bet_size
+print("=== Summary ===")
+print("Total allocated:")
+print(total_allocation)
+print("Percentage of bankroll:")
+print((total_allocation / my_bankroll) * 100)
+
+if total_allocation > (my_bankroll * 0.2) {
+    print("WARNING: Allocating more than 20% of bankroll!")
+}

@@ -1,0 +1,48 @@
+# Odds format conversions
+
+print("=== Odds Format Conversions ===")
+
+# American odds examples
+let american_lines = [-200, -150, -110, 100, 150, 200, 300]
+
+print("Converting American odds to Decimal:")
+
+for line in american_lines {
+    let decimal = american_to_decimal(line)
+    let implied_prob = implied_probability(line)
+    print("American:")
+    print(line)
+    print("Decimal:")
+    print(decimal)
+    print("Implied Prob %:")
+    print(implied_prob * 100)
+}
+
+print("=== Practical Examples ===")
+
+# Heavy favorite
+let heavy_fav = -400
+print("Heavy favorite at -400")
+print("Need to risk $400 to win $100")
+print("Decimal odds:")
+print(american_to_decimal(heavy_fav))
+print("Implied probability %:")
+print(implied_probability(heavy_fav) * 100)
+
+# Pick'em
+let pickem = -110
+print("Pick'em at -110")
+print("Need to risk $110 to win $100")
+print("Decimal odds:")
+print(american_to_decimal(pickem))
+print("Implied probability %:")
+print(implied_probability(pickem) * 100)
+
+# Big underdog
+let big_dog = 500
+print("Big underdog at +500")
+print("Risk $100 to win $500")
+print("Decimal odds:")
+print(american_to_decimal(big_dog))
+print("Implied probability %:")
+print(implied_probability(big_dog) * 100)

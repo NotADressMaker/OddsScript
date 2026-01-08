@@ -1,0 +1,47 @@
+# Parlay betting example
+
+print("=== Parlay Betting ===")
+
+# Individual leg odds
+let bet1_line = -110
+let bet2_line = -120
+let bet3_line = 150
+
+# Calculate parlay odds
+let combined = parlay_odds(bet1_line, bet2_line, bet3_line)
+print("3-leg parlay odds:")
+print(combined)
+
+# Calculate probability of hitting parlay
+# Assume each bet has implied probability
+let prob1 = implied_probability(bet1_line)
+let prob2 = implied_probability(bet2_line)
+let prob3 = implied_probability(bet3_line)
+
+let parlay_prob = parlay_probability(prob1, prob2, prob3)
+print("Probability of hitting parlay %:")
+print(parlay_prob * 100)
+
+# Create actual parlay
+let risk = 50
+let decimal_parlay = american_to_decimal(combined)
+let potential_win = risk * (decimal_parlay - 1)
+let total_return = risk + potential_win
+
+print("Risk:")
+print(risk)
+print("Potential win:")
+print(potential_win)
+print("Total return:")
+print(total_return)
+
+# Calculate expected value
+let parlay_ev = calculate_ev(parlay_prob, combined, risk)
+print("Expected value:")
+print(parlay_ev)
+
+if parlay_ev > 0 {
+    print("Positive EV parlay!")
+} else {
+    print("Negative EV - parlays are usually -EV")
+}

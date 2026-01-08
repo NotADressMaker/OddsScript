@@ -1,0 +1,30 @@
+# Basic betting example in OddsScript
+
+print("=== Basic Sports Betting ===")
+
+# Define bankroll
+let my_bankroll = 1000
+print("Starting bankroll:")
+print(my_bankroll)
+
+# Calculate potential profit on -110 odds
+let decimal_odds = american_to_decimal(-110)
+let potential_profit = 100 * (decimal_odds - 1)
+print("Potential profit on $100 bet at -110:")
+print(potential_profit)
+
+# Calculate implied probability
+let implied_prob = implied_probability(-110)
+print("Implied probability at -110:")
+print(implied_prob * 100)
+
+# Calculate break-even percentage
+let break_even = break_even_percentage(-110)
+print("Break-even win rate:")
+print(break_even * 100)
+
+# Show odds conversions
+print("Favorite -200 in decimal:")
+print(american_to_decimal(-200))
+print("Underdog +150 in decimal:")
+print(american_to_decimal(150))

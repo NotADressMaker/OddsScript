@@ -1,0 +1,68 @@
+# Bankroll management simulation
+
+print("=== Bankroll Management Simulation ===")
+
+let starting_bankroll = 1000
+let my_bankroll = starting_bankroll
+let unit_size = 10  # 1% of bankroll
+
+print("Starting bankroll:")
+print(starting_bankroll)
+print("Unit size:")
+print(unit_size)
+
+# Simulate 10 bets
+let wins = 0
+let losses = 0
+let total_staked = 0
+
+# Simulate some results (in real use, these would be actual game outcomes)
+let results = [1, 1, 0, 1, 0, 1, 1, 1, 0, 1]  # 1 = win, 0 = loss
+
+let i = 0
+while i < len(results) {
+    let result = results[i]
+    let line = -110
+    let bet_stake = unit_size
+
+    total_staked = total_staked + bet_stake
+
+    if result == 1 {
+        # Win
+        let profit = bet_stake * (100 / 110)
+        my_bankroll = my_bankroll + profit
+        wins = wins + 1
+        print("Bet WIN - profit:")
+        print(profit)
+        print("Bankroll:")
+        print(my_bankroll)
+    } else {
+        # Loss
+        my_bankroll = my_bankroll - bet_stake
+        losses = losses + 1
+        print("Bet LOSS")
+        print("Bankroll:")
+        print(my_bankroll)
+    }
+
+    i = i + 1
+}
+
+print("=== Results ===")
+print("Wins:")
+print(wins)
+print("Losses:")
+print(losses)
+let win_rate = wins / (wins + losses)
+print("Win rate %:")
+print(win_rate * 100)
+print("Total staked:")
+print(total_staked)
+print("Final bankroll:")
+print(my_bankroll)
+let final_profit = my_bankroll - starting_bankroll
+print("Profit/Loss:")
+print(final_profit)
+let roi = (final_profit / total_staked) * 100
+print("ROI %:")
+print(roi)
