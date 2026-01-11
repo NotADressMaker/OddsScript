@@ -40,3 +40,6 @@ Thumbs.db
 
 # OddsScript specific
 *.pyc
+
+# Analysis reports (local only)
+LANGUAGE_ANALYSIS.md
