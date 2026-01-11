@@ -13,13 +13,21 @@ OddsScript is a domain-specific programming language designed specifically for s
 - **Interactive REPL**: Test calculations and strategies interactively
 
 ### Packages and Tools
-- **Standard Library**: Statistics module with betting-specific analytics
+- **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
-- **CLI Tools**: Odds calculator and bet performance tracker
+- **CLI Tools**: 15+ professional tools including odds calculator, bet tracker, portfolio optimizer, line tracker, tax calculator, and more
 - **Testing Framework**: Comprehensive unit tests for all components
 - **10 Example Programs**: From basic bets to advanced arbitrage and hedging
 
-📚 **[View Complete Package Documentation](PACKAGES.md)**
+📚 **[View Complete Package Documentation](PACKAGES.md)** - 15+ tools and libraries
+
+**New Advanced Tools:**
+- 🎯 **Portfolio Optimizer** - Optimize bet allocation using Modern Portfolio Theory
+- 📈 **Line Tracker** - Detect steam moves and sharp action
+- ⚽ **Poisson Calculator** - Goal/point probabilities for totals betting
+- 💰 **Tax Calculator** - US gambling tax calculator with 2024 brackets
+- 🔍 **Correlation Analysis** - Avoid correlated parlay mistakes
+- 📊 **Performance Attribution** - Identify your edge by sport, bet type, etc.
 
 ## Installation
 
@@ -349,6 +357,11 @@ This software is for educational and analytical purposes only. Sports betting in
 
 ### Standard Library
 - **Statistics Module** (`lib/statistics.py`) - Mean, median, std dev, Sharpe ratio, max drawdown, and more
+- **Backtesting Framework** (`lib/backtesting.py`) - Test strategies on historical data or Monte Carlo simulations
+- **CLV Tracker** (`lib/clv_tracker.py`) - Track Closing Line Value, the #1 indicator of long-term success
+- **Variance Calculator** (`lib/variance_calc.py`) - Calculate variance, risk of ruin, required bankroll
+- **Poisson Calculator** (`lib/poisson_calculator.py`) - Goal/point probabilities for totals betting
+- **Correlation Analysis** (`lib/correlation_analysis.py`) - Detect correlated parlay legs
 
 ### Betting Strategies
 - **Martingale** (`strategies/martingale.py`) - Classic doubling strategy (high risk)
@@ -356,8 +369,22 @@ This software is for educational and analytical purposes only. Sports betting in
 - **Flat Betting** (`strategies/flat_betting.py`) - Recommended safe strategy
 
 ### Command-Line Tools
-- **Odds Calculator** (`tools/odds_calc.py`) - Quick calculations for Kelly, EV, parlays, vig
+
+**Performance & Tracking:**
 - **Bet Tracker** (`tools/bet_tracker.py`) - Track and analyze your betting performance
+- **Performance Attribution** (`tools/performance_attribution.py`) - Identify edge sources by sport, bet type, book, etc.
+
+**Calculations & Analysis:**
+- **Odds Calculator** (`tools/odds_calc.py`) - Quick calculations for Kelly, EV, parlays, vig
+- **Teaser Calculator** (`tools/teaser_calc.py`) - NFL/NBA teasers with Wong teaser detection
+- **Round Robin Calculator** (`tools/round_robin_calc.py`) - All parlay combinations and scenarios
+- **Bonus Calculator** (`tools/bonus_calc.py`) - Optimize sportsbook bonuses and promos
+- **Tax Calculator** (`tools/tax_calculator.py`) - US gambling tax calculation (2024 brackets)
+
+**Advanced Analysis:**
+- **Portfolio Optimizer** (`tools/portfolio_optimizer.py`) - Optimize bet allocation using Modern Portfolio Theory
+- **Line Tracker** (`tools/line_tracker.py`) - Track line movements and detect steam/sharp action
+- **Bankroll Simulator** (`tools/bankroll_sim.py`) - Simulate strategies with ASCII visualization
 
 ### Testing
 - **Test Suite** (`tests/test_interpreter.py`) - Comprehensive unit tests
@@ -386,12 +413,15 @@ python3 tests/test_interpreter.py
 Potential features for future versions:
 
 - [ ] Real-time odds API integration
-- [ ] Historical data analysis
-- [ ] Graphical visualizations
-- [ ] Betting strategy backtesting
-- [ ] Multi-sport support with sport-specific functions
+- [x] ~~Historical data analysis~~ ✓ (Backtesting framework, Performance attribution)
+- [ ] Graphical visualizations (ASCII visualization available)
+- [x] ~~Betting strategy backtesting~~ ✓ (lib/backtesting.py)
+- [x] ~~Multi-sport support with sport-specific functions~~ ✓ (Poisson for soccer/hockey, teaser calc for NFL/NBA)
 - [ ] Live betting calculations
 - [ ] Web interface
+- [x] ~~Line movement tracking~~ ✓ (tools/line_tracker.py)
+- [x] ~~Tax calculation~~ ✓ (tools/tax_calculator.py)
+- [x] ~~Portfolio optimization~~ ✓ (tools/portfolio_optimizer.py)
 
 ## Contact
 

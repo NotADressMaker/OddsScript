@@ -646,6 +646,215 @@ python3 tools/bankroll_sim.py -b 1000 -s percentage -w 0.54 -o -110 -n 100 --sim
 - ROI and profit
 - Bust rate (for multiple sims)
 
+### Portfolio Optimizer (`tools/portfolio_optimizer.py`)
+
+Optimize bet allocation across multiple opportunities using Modern Portfolio Theory.
+
+**Optimization Methods:**
+- Kelly Criterion
+- EV-Weighted allocation
+- Sharpe Ratio optimization
+- Equal allocation (baseline)
+
+**Features:**
+- Multi-bet portfolio optimization
+- Risk-adjusted returns
+- Correlation awareness
+- Side-by-side comparison
+
+**Usage:**
+```bash
+# Optimize 3-bet portfolio
+python3 tools/portfolio_optimizer.py -b 1000 \
+  --bet "Chiefs ML" -150 0.58 \
+  --bet "Lakers spread" -110 0.54 \
+  --bet "Over 48.5" +105 0.52 \
+  --max-allocation 0.10
+
+# Compare all methods
+python3 tools/portfolio_optimizer.py -b 5000 \
+  --bet "Bet1" -110 0.55 \
+  --bet "Bet2" +120 0.48 \
+  --bet "Bet3" -105 0.53 \
+  --compare
+```
+
+**Output:**
+- Optimal allocation per bet
+- Expected portfolio return
+- Portfolio variance/risk
+- Sharpe ratio
+- Method comparison table
+
+### Line Movement Tracker (`tools/line_tracker.py`)
+
+Track line movements and detect sharp/steam moves.
+
+**Features:**
+- Line movement history tracking
+- Steam move detection
+- Multi-book comparison
+- Reverse Line Movement (RLM) detection
+- CLV opportunity calculation
+
+**Usage:**
+```bash
+# Track single book
+python3 tools/line_tracker.py "Chiefs vs Bills" -3 \
+  -m -3.5 FanDuel -m -4 DraftKings -m -4.5 BetMGM
+
+# Multi-book comparison
+# (Use programmatically)
+```
+
+**Key Metrics:**
+- Total line movement
+- Number of movements
+- Movement pattern (upward/downward/stable)
+- Volatility
+- Steam moves detected
+- Potential RLM warnings
+
+### Poisson Calculator (`lib/poisson_calculator.py`)
+
+Calculate probabilities for goal/point-based sports using Poisson distribution.
+
+**Calculations:**
+- Match outcome probabilities (win/draw/loss)
+- Over/Under totals
+- Correct score probabilities
+- Both Teams To Score (BTTS)
+- Asian Handicap probabilities
+
+**Usage:**
+```bash
+# Soccer match analysis
+python3 lib/poisson_calculator.py match 1.8 1.2 --sport soccer
+
+# Over/Under analysis
+python3 lib/poisson_calculator.py over-under 1.8 1.2 2.5
+
+# Correct score
+python3 lib/poisson_calculator.py correct-score 1.8 1.2 2 1
+
+# BTTS probability
+python3 lib/poisson_calculator.py btts 1.8 1.2
+```
+
+**Use Cases:**
+- Soccer totals betting
+- Hockey goal betting
+- Basketball point modeling
+- Finding value in goal markets
+
+### Tax Calculator (`tools/tax_calculator.py`)
+
+Calculate US gambling taxes with 2024 tax brackets.
+
+**Features:**
+- Federal tax calculation (single & married filing)
+- Standard vs. itemized deduction comparison
+- Gambling loss deduction (up to winnings)
+- Withholding requirement check
+- Quarterly estimated payment calculation
+- State tax support
+
+**Usage:**
+```bash
+# Basic calculation
+python3 tools/tax_calculator.py -i 75000 -w 25000 -l 18000 --status single
+
+# With state tax
+python3 tools/tax_calculator.py -i 100000 -w 50000 -l 35000 \
+  --status married --state-tax 0.05
+```
+
+**Output:**
+- Recommended filing method (standard vs. itemized)
+- Total tax owed
+- Effective tax rate
+- Net gambling profit after tax
+- Withholding warnings
+- Quarterly payment amounts
+
+### Correlation Analysis (`lib/correlation_analysis.py`)
+
+Analyze correlations between parlay legs to avoid common mistakes.
+
+**Features:**
+- Correlation coefficient calculation
+- Same-game correlation detection
+- Parlay odds adjustment for correlation
+- Common scenario examples
+- Detailed warnings
+
+**Usage:**
+```bash
+# Show common correlation examples
+python3 lib/correlation_analysis.py --examples
+
+# Analyze a same-game parlay (BAD)
+python3 lib/correlation_analysis.py \
+  --leg moneyline -150 game1 Chiefs "Chiefs ML" \
+  --leg spread -110 game1 Chiefs "Chiefs -7" \
+  --leg total_over -110 game1 "" "Over 48.5"
+
+# Analyze multi-game parlay (GOOD)
+python3 lib/correlation_analysis.py \
+  --leg moneyline -150 game1 "" "Chiefs ML" \
+  --leg moneyline +120 game2 "" "Lions ML" \
+  --leg spread -110 game3 "" "Eagles -3"
+```
+
+**Key Warnings:**
+- ⛔ Perfect correlation (DO NOT parlay)
+- ⚠️ Strong correlation (not recommended)
+- ⚡ Moderate correlation (reduces value)
+- ✓ No correlation (acceptable)
+
+### Performance Attribution (`tools/performance_attribution.py`)
+
+Analyze betting performance across multiple dimensions to identify edge sources.
+
+**Dimensions:**
+- By sport (NFL, NBA, MLB, etc.)
+- By bet type (moneyline, spread, total, prop)
+- By sportsbook
+- By odds category (short/medium/long)
+- By CLV (positive vs negative)
+
+**Features:**
+- Top/bottom performer identification
+- Sharpe ratio by category
+- Comprehensive recommendations
+- JSON export for further analysis
+
+**Usage:**
+```bash
+# Full attribution report
+python3 tools/performance_attribution.py bets.csv
+
+# Specific dimension
+python3 tools/performance_attribution.py bets.csv --dimension sport
+
+# Export to JSON
+python3 tools/performance_attribution.py bets.csv --export report.json
+```
+
+**CSV Format:**
+```csv
+date,sport,bet_type,odds,stake,result,book,clv,description
+2024-01-15,nfl,spread,-110,100,win,fanduel,2.5,Chiefs -3
+2024-01-16,nba,moneyline,-150,50,loss,draftkings,-1.2,Lakers ML
+```
+
+**Output:**
+- Overall performance metrics
+- Performance by each dimension
+- Top 3 performers per dimension
+- Bottom 3 performers (areas to improve)
+- Actionable recommendations
+
 ---
 
 ## Complete Tool Reference
@@ -709,6 +918,42 @@ python3 lib/variance_calc.py -w 0.54 -o -110 -b 1000 -s 20 -n 100
 
 # Backtest a strategy
 python3 lib/backtesting.py
+
+# ===== PORTFOLIO OPTIMIZATION =====
+# Optimize bet allocation
+python3 tools/portfolio_optimizer.py -b 1000 \
+  --bet "Bet1" -110 0.55 --bet "Bet2" +120 0.52 --compare
+
+# ===== LINE TRACKING =====
+# Track line movements
+python3 tools/line_tracker.py "Game" -3 -m -3.5 Book1 -m -4 Book2
+
+# ===== POISSON ANALYSIS =====
+# Soccer match probabilities
+python3 lib/poisson_calculator.py match 1.8 1.2 --sport soccer
+
+# Over/under analysis
+python3 lib/poisson_calculator.py over-under 1.8 1.2 2.5
+
+# ===== TAX CALCULATION =====
+# Calculate gambling taxes
+python3 tools/tax_calculator.py -i 75000 -w 25000 -l 18000 --status single
+
+# ===== CORRELATION ANALYSIS =====
+# Check parlay correlations
+python3 lib/correlation_analysis.py --examples
+
+# Analyze specific parlay
+python3 lib/correlation_analysis.py \
+  --leg moneyline -150 game1 "" "Chiefs ML" \
+  --leg spread -110 game2 "" "Lakers -5"
+
+# ===== PERFORMANCE ATTRIBUTION =====
+# Analyze betting performance
+python3 tools/performance_attribution.py bets.csv
+
+# By specific dimension
+python3 tools/performance_attribution.py bets.csv --dimension sport
 ```
 
 ---
@@ -726,6 +971,12 @@ python3 lib/backtesting.py
 | bankroll_sim | Strategy simulation | Strategy, parameters | Visualization, stats |
 | variance_calc | Risk analysis | Win rate, odds | Variance, risk of ruin |
 | backtesting | Strategy testing | Historical data | Performance metrics |
+| portfolio_optimizer | Bet allocation | Multiple opportunities | Optimal allocation |
+| line_tracker | Line movements | Line history | Steam moves, RLM |
+| poisson_calculator | Goal probabilities | Expected goals | Match probabilities |
+| tax_calculator | Tax estimation | Income, winnings/losses | Tax owed, filing strategy |
+| correlation_analysis | Parlay safety | Parlay legs | Correlation warnings |
+| performance_attribution | Edge identification | Bet history | Performance by dimension |
 
 ---
 
