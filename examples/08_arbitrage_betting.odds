@@ -1,0 +1,81 @@
+# Arbitrage betting - guaranteed profit by betting both sides
+
+print("=== Arbitrage Betting Calculator ===")
+
+# Example: Different books have different odds on same game
+let book1_fav = -105  # Book 1: Favorite -105
+let book2_dog = 110   # Book 2: Underdog +110
+
+# Calculate implied probabilities
+let fav_prob = implied_probability(book1_fav)
+let dog_prob = implied_probability(book2_dog)
+
+print("Book 1 Favorite:")
+print(book1_fav)
+print("Implied prob %:")
+print(fav_prob * 100)
+
+print("Book 2 Underdog:")
+print(book2_dog)
+print("Implied prob %:")
+print(dog_prob * 100)
+
+# Total probability
+let total_prob = fav_prob + dog_prob
+print("Total probability:")
+print(total_prob * 100)
+
+# Check if arbitrage exists (total < 100%)
+if total_prob < 1 {
+    print("ARBITRAGE OPPORTUNITY DETECTED!")
+
+    # Calculate optimal bet sizing
+    let total_stake = 1000
+    let fav_stake = total_stake * (fav_prob / total_prob)
+    let dog_stake = total_stake * (dog_prob / total_prob)
+
+    print("Bet on favorite:")
+    print(fav_stake)
+    print("Bet on underdog:")
+    print(dog_stake)
+
+    # Calculate guaranteed profit
+    let fav_payout = fav_stake + (fav_stake * (100 / 105))
+    let dog_payout = dog_stake + (dog_stake * (110 / 100))
+
+    print("If favorite wins, payout:")
+    print(fav_payout)
+    print("If underdog wins, payout:")
+    print(dog_payout)
+
+    let guaranteed_profit = fav_payout - total_stake
+    print("Guaranteed profit:")
+    print(guaranteed_profit)
+
+    let arb_percentage = (guaranteed_profit / total_stake) * 100
+    print("Arbitrage %:")
+    print(arb_percentage)
+} else {
+    print("No arbitrage opportunity")
+    print("Total probability > 100%")
+}
+
+# Another example with clear arbitrage
+print("\n=== Example 2 ===")
+let odds_a = 110   # Book A
+let odds_b = 110   # Book B
+
+let prob_a = implied_probability(odds_a)
+let prob_b = implied_probability(odds_b)
+let total = prob_a + prob_b
+
+print("Total probability %:")
+print(total * 100)
+
+if total < 1 {
+    let arb_pct = ((1 / total) - 1) * 100
+    print("Arbitrage percentage:")
+    print(arb_pct)
+} else {
+    print("No arbitrage")
+}

@@ -1,0 +1,108 @@
+# Hedging calculator - lock in profit or minimize loss
+
+print("=== Hedging Calculator ===")
+
+# Scenario: You have a futures bet that's looking good
+# Original bet: Team to win championship at +500
+let original_stake = 100
+let original_odds = 500
+
+# Current odds to bet against
+let hedge_odds = -200  # Team now favorite in finals
+
+# Calculate potential profit from original bet
+let original_payout = original_stake * (original_odds / 100)
+print("Original bet:")
+print("Stake: $")
+print(original_stake)
+print("Odds:")
+print(original_odds)
+print("Potential profit: $")
+print(original_payout)
+
+# Calculate hedge bet size to guarantee profit
+print("\nHedge options:")
+
+# Option 1: Lock in MAXIMUM profit (let original bet run)
+print("\nOption 1: No hedge - let it ride")
+print("If wins: $")
+print(original_payout)
+print("If loses: -$")
+print(original_stake)
+
+# Option 2: Hedge to guarantee profit
+# Need to win enough on hedge to cover original stake
+let hedge_stake_breakeven = original_stake * (abs(hedge_odds) / 100)
+print("\nOption 2: Break-even hedge")
+print("Hedge stake: $")
+print(hedge_stake_breakeven)
+print("If original wins: $")
+print(original_payout - hedge_stake_breakeven)
+print("If hedge wins: $0 (break even)")
+
+# Option 3: Hedge to guarantee EQUAL profit either way
+# Total at risk from original = original_stake
+# Want: original_profit = hedge_profit
+
+let total_payout = original_stake + original_payout
+let hedge_to_equal = total_payout / american_to_decimal(hedge_odds)
+
+print("\nOption 3: Equal profit hedge")
+print("Hedge stake: $")
+print(hedge_to_equal)
+
+let hedge_profit = hedge_to_equal * (100 / abs(hedge_odds))
+let guaranteed_profit = hedge_profit - original_stake
+
+print("Guaranteed profit either way: $")
+print(guaranteed_profit)
+
+# Calculate middle opportunity
+# Check if we can win BOTH bets
+print("\n=== Middle Opportunity Check ===")
+
+# Example: You bet Over 220.5 points at +100
+# Now you can bet Under 221.5 at +100
+# If final score is exactly 221, you win BOTH!
+
+let over_line = 220.5
+let over_odds = 100
+let over_stake = 100
+
+let under_line = 221.5
+let under_odds = 100
+let under_stake = 100
+
+print("Over bet:")
+print(over_line)
+print("at")
+print(over_odds)
+print("stake $")
+print(over_stake)
+
+print("Under bet:")
+print(under_line)
+print("at")
+print(under_odds)
+print("stake $")
+print(under_stake)
+
+# If both hit (score = 221)
+let over_payout = over_stake * (over_odds / 100)
+let under_payout = under_stake * (under_odds / 100)
+let middle_profit = over_payout + under_payout
+
+print("If middle hits (score = 221):")
+print("Profit: $")
+print(middle_profit)
+
+# If only one hits
+print("If only one hits:")
+print("Break even or small profit")
+
+# Calculate probability needed for +EV middle
+let total_risk = over_stake + under_stake
+let middle_prob_needed = total_risk / middle_profit
+
+print("Probability needed for +EV middle:")
+print(middle_prob_needed * 100)

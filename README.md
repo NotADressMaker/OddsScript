@@ -4,12 +4,22 @@ OddsScript is a domain-specific programming language designed specifically for s
 
 ## Features
 
+### Core Language
 - **Betting-specific syntax**: Create bets, parlays, and manage bankrolls with dedicated language constructs
 - **Built-in betting functions**: Kelly criterion, expected value, odds conversions, vig calculator, and more
 - **Odds format support**: American, decimal, and fractional odds
 - **Bankroll management**: Tools for position sizing and risk management
 - **Full programming language**: Variables, functions, loops, conditionals, arrays, dictionaries
 - **Interactive REPL**: Test calculations and strategies interactively
+
+### Packages and Tools
+- **Standard Library**: Statistics module with betting-specific analytics
+- **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
+- **CLI Tools**: Odds calculator and bet performance tracker
+- **Testing Framework**: Comprehensive unit tests for all components
+- **10 Example Programs**: From basic bets to advanced arbitrage and hedging
+
+📚 **[View Complete Package Documentation](PACKAGES.md)**
 
 ## Installation
 
@@ -149,6 +159,7 @@ let bet_size = analyze_bet(0.60, -110, 100)
 
 The `examples/` directory contains comprehensive examples:
 
+### Basic Examples
 1. **01_basic_bet.odds** - Basic betting operations and calculations
 2. **02_kelly_criterion.odds** - Optimal bet sizing using Kelly criterion
 3. **03_parlay.odds** - Parlay betting and analysis
@@ -156,6 +167,11 @@ The `examples/` directory contains comprehensive examples:
 5. **05_bankroll_management.odds** - Bankroll management simulation
 6. **06_odds_conversion.odds** - Converting between odds formats
 7. **07_advanced_strategy.odds** - Advanced betting strategy with EV analysis
+
+### Advanced Examples
+8. **08_arbitrage_betting.odds** - Arbitrage opportunity detection
+9. **09_monte_carlo_simulation.odds** - Monte Carlo bankroll simulation
+10. **10_hedging_calculator.odds** - Hedging strategies and middle opportunities
 
 ### Running Examples
 
@@ -329,20 +345,53 @@ MIT License - feel free to use and modify as needed.
 
 This software is for educational and analytical purposes only. Sports betting involves risk. Always bet responsibly and within your means. Check your local laws regarding sports betting.
 
+## Packages and Utilities
+
+### Standard Library
+- **Statistics Module** (`lib/statistics.py`) - Mean, median, std dev, Sharpe ratio, max drawdown, and more
+
+### Betting Strategies
+- **Martingale** (`strategies/martingale.py`) - Classic doubling strategy (high risk)
+- **Fibonacci** (`strategies/fibonacci.py`) - Fibonacci sequence progression
+- **Flat Betting** (`strategies/flat_betting.py`) - Recommended safe strategy
+
+### Command-Line Tools
+- **Odds Calculator** (`tools/odds_calc.py`) - Quick calculations for Kelly, EV, parlays, vig
+- **Bet Tracker** (`tools/bet_tracker.py`) - Track and analyze your betting performance
+
+### Testing
+- **Test Suite** (`tests/test_interpreter.py`) - Comprehensive unit tests
+
+📚 **[Complete package documentation and usage examples](PACKAGES.md)**
+
+## Quick Tool Examples
+
+```bash
+# Calculate Kelly criterion
+python3 tools/odds_calc.py kelly --prob 0.55 --odds -110 --bankroll 1000
+
+# Track a bet
+python3 tools/bet_tracker.py add NFL "Chiefs vs Bills" "Chiefs -3" \
+    --odds -110 --stake 100
+
+# View your betting stats
+python3 tools/bet_tracker.py stats
+
+# Run tests
+python3 tests/test_interpreter.py
+```
+
 ## Future Enhancements
 
 Potential features for future versions:
 
 - [ ] Real-time odds API integration
 - [ ] Historical data analysis
-- [ ] Monte Carlo simulations
-- [ ] Sharpe ratio calculations
-- [ ] Unit testing framework
-- [ ] CSV/JSON data import/export
 - [ ] Graphical visualizations
 - [ ] Betting strategy backtesting
 - [ ] Multi-sport support with sport-specific functions
 - [ ] Live betting calculations
+- [ ] Web interface
 
 ## Contact
 
