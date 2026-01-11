@@ -855,6 +855,203 @@ date,sport,bet_type,odds,stake,result,book,clv,description
 - Bottom 3 performers (areas to improve)
 - Actionable recommendations
 
+### Arbitrage Calculator (`tools/arbitrage_calculator.py`)
+
+Find guaranteed profit opportunities across multiple sportsbooks.
+
+**Features:**
+- Two-way market arbitrage (over/under, moneyline)
+- Three-way market arbitrage (soccer 1X2)
+- Multi-book comparison to find best arb
+- Custom stake calculations
+
+**Usage:**
+```bash
+# Two-way arbitrage
+python3 tools/arbitrage_calculator.py --two-way -o1 -105 -o2 +100
+
+# Three-way arbitrage (soccer)
+python3 tools/arbitrage_calculator.py --three-way -o1 +200 -o2 +250 -o3 -110
+
+# Multi-book comparison
+python3 tools/arbitrage_calculator.py --multi-book \
+  --book FanDuel over -110 \
+  --book DraftKings over -108 \
+  --book BetMGM under +105 \
+  --book Caesars under +100
+
+# Custom stake
+python3 tools/arbitrage_calculator.py --two-way -o1 +105 -o2 -110 --stake 1000
+```
+
+**Output:**
+- Arbitrage exists (yes/no)
+- Profit margin percentage
+- Stake distribution
+- Guaranteed profit
+- Best books for each outcome
+
+### Advanced Hedge Calculator (`tools/hedge_calculator.py`)
+
+Calculate optimal hedges for parlays, futures, and multi-way outcomes.
+
+**Hedge Types:**
+1. **Parlay Hedging**
+   - Guarantee equal profit
+   - Maximize parlay upside
+   - Freeroll (get stakes back)
+
+2. **Futures Hedging**
+   - Lock in guaranteed profit
+   - Account for unrealized P/L
+
+3. **Middle Opportunities**
+   - Calculate middle scenarios
+   - Analyze best/worst case
+
+**Usage:**
+```bash
+# Parlay hedge (guarantee profit)
+python3 tools/hedge_calculator.py parlay \
+  --stake 100 --parlay-odds +800 --hedge-odds -110
+
+# Parlay freeroll
+python3 tools/hedge_calculator.py parlay \
+  --stake 50 --parlay-odds +500 --hedge-odds -110 --strategy freeroll
+
+# Futures hedge
+python3 tools/hedge_calculator.py futures \
+  --stake 100 --original-odds +2000 --current-odds +500 --hedge-odds -150
+
+# Middle opportunity
+python3 tools/hedge_calculator.py middle \
+  --odds1 -110 --odds2 -110 --spread1 -3 --spread2 +3.5 --stake 100
+```
+
+**Strategies:**
+- **Guarantee**: Equal profit both outcomes
+- **Maximize**: Let parlay ride but hedge some
+- **Freeroll**: Get original stake back
+
+### Market Maker Tool (`tools/market_maker.py`)
+
+Calculate fair odds, remove vig, and set profitable betting lines.
+
+**Features:**
+- Calculate bookmaker's vig/overround
+- Remove vig using proportional or power method
+- Set odds with target profit margin
+- Find value bets by comparing to true probabilities
+- Convert moneyline to spread
+
+**Usage:**
+```bash
+# Calculate vig
+python3 tools/market_maker.py vig -110 -110
+
+# Three-way vig (soccer)
+python3 tools/market_maker.py vig +180 +220 +150
+
+# Set odds with 5% margin
+python3 tools/market_maker.py set-odds --probs 0.55 0.45 --margin 5
+
+# Find value bets
+python3 tools/market_maker.py value \
+  --market "Team A" +150 --market "Team B" -170 \
+  --true-probs 0.45 0.55 --min-edge 0.03
+
+# Calculate spread odds
+python3 tools/market_maker.py spread --prob 0.55 --margin 4.55
+
+# Convert moneyline to spread
+python3 tools/market_maker.py ml-to-spread -180
+```
+
+**Key Calculations:**
+- Fair odds (vig-free)
+- True probabilities
+- Expected value
+- Profit margins
+- Value identification
+
+### Regression Analysis (`lib/regression_analysis.py`)
+
+Build simple betting models using linear and multiple regression.
+
+**Features:**
+- Simple linear regression (one predictor)
+- Multiple linear regression (multiple predictors)
+- R-squared and adjusted R-squared
+- Prediction with new data
+- CSV data import
+
+**Usage:**
+```bash
+# Simple linear regression
+python3 lib/regression_analysis.py --simple \
+  --x 1 2 3 4 5 --y 2 4 5 4 5
+
+# Multiple regression from CSV
+python3 lib/regression_analysis.py --csv training_data.csv
+
+# Predict new values
+python3 lib/regression_analysis.py --csv data.csv --predict 3.5 2.1 1.8
+```
+
+**CSV Format:**
+```csv
+offensive_rating,defensive_rating,total_points
+110,105,215
+115,98,225
+105,110,208
+```
+
+**Use Cases:**
+- Predict team totals from offensive/defensive stats
+- Forecast player props from historical data
+- Model win probability from power ratings
+- Build custom sports betting models
+
+### Multi-Outcome Kelly (`lib/multi_outcome_kelly.py`)
+
+Calculate Kelly Criterion for markets with 3+ outcomes.
+
+**Features:**
+- Kelly fractions for multiple simultaneous bets
+- Fractional Kelly support
+- Expected bankroll growth calculation
+- Portfolio optimization
+
+**Usage:**
+```bash
+# Horse racing (5 horses)
+python3 lib/multi_outcome_kelly.py -b 1000 --max-fraction 0.25 \
+  --outcome "Horse A" +300 0.35 \
+  --outcome "Horse B" +500 0.25 \
+  --outcome "Horse C" +800 0.15 \
+  --outcome "Horse D" +1200 0.10 \
+  --outcome "Horse E" +2000 0.15
+
+# Soccer 1X2
+python3 lib/multi_outcome_kelly.py -b 500 --max-fraction 0.20 \
+  --outcome "Home Win" -110 0.52 \
+  --outcome "Draw" +220 0.28 \
+  --outcome "Away Win" +180 0.20
+
+# Golf tournament
+python3 lib/multi_outcome_kelly.py -b 2000 --max-fraction 0.10 \
+  --outcome "Player 1" +800 0.15 \
+  --outcome "Player 2" +1200 0.10 \
+  --outcome "Player 3" +1500 0.08
+```
+
+**Output:**
+- Kelly fraction per outcome
+- Stake amounts
+- Expected value per bet
+- Total portfolio expected growth
+- Number of recommended bets
+
 ---
 
 ## Complete Tool Reference
@@ -954,6 +1151,40 @@ python3 tools/performance_attribution.py bets.csv
 
 # By specific dimension
 python3 tools/performance_attribution.py bets.csv --dimension sport
+
+# ===== ARBITRAGE =====
+# Two-way arbitrage
+python3 tools/arbitrage_calculator.py --two-way -o1 -105 -o2 +100
+
+# Three-way arbitrage
+python3 tools/arbitrage_calculator.py --three-way -o1 +200 -o2 +250 -o3 -110
+
+# ===== HEDGING =====
+# Parlay hedge
+python3 tools/hedge_calculator.py parlay -s 100 -p +800 -h -110
+
+# Futures hedge
+python3 tools/hedge_calculator.py futures -s 100 -o +2000 -c +500 -h -150
+
+# Middle opportunity
+python3 tools/hedge_calculator.py middle --odds1 -110 --odds2 -110 --spread1 -3 --spread2 +3.5
+
+# ===== MARKET MAKING =====
+# Calculate vig
+python3 tools/market_maker.py vig -110 -110
+
+# Find value bets
+python3 tools/market_maker.py value --market "Team A" +150 --market "Team B" -170 --true-probs 0.45 0.55
+
+# Set odds with margin
+python3 tools/market_maker.py set-odds --probs 0.55 0.45 --margin 5
+
+# ===== MODELING =====
+# Build regression model
+python3 lib/regression_analysis.py --csv training_data.csv
+
+# Multi-outcome Kelly
+python3 lib/multi_outcome_kelly.py -b 1000 --outcome "A" +300 0.35 --outcome "B" +500 0.25
 ```
 
 ---
@@ -977,6 +1208,11 @@ python3 tools/performance_attribution.py bets.csv --dimension sport
 | tax_calculator | Tax estimation | Income, winnings/losses | Tax owed, filing strategy |
 | correlation_analysis | Parlay safety | Parlay legs | Correlation warnings |
 | performance_attribution | Edge identification | Bet history | Performance by dimension |
+| arbitrage_calculator | Arbitrage finder | Multi-book odds | Guaranteed profit, stakes |
+| hedge_calculator | Hedging optimizer | Parlay/futures position | Optimal hedge strategy |
+| market_maker | Fair odds calculator | Market odds, true probs | No-vig odds, value bets |
+| regression_analysis | Model builder | Historical data | Predictions, R-squared |
+| multi_outcome_kelly | Multi-Kelly optimizer | Multiple outcomes | Kelly fractions, EV |
 
 ---
 

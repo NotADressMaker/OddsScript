@@ -13,21 +13,26 @@ OddsScript is a domain-specific programming language designed specifically for s
 - **Interactive REPL**: Test calculations and strategies interactively
 
 ### Packages and Tools
-- **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis
+- **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis, regression modeling, multi-outcome Kelly
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
-- **CLI Tools**: 15+ professional tools including odds calculator, bet tracker, portfolio optimizer, line tracker, tax calculator, and more
+- **CLI Tools**: 20+ professional tools including odds calculator, bet tracker, portfolio optimizer, line tracker, tax calculator, arbitrage finder, hedge calculator, market maker, and more
 - **Testing Framework**: Comprehensive unit tests for all components
 - **10 Example Programs**: From basic bets to advanced arbitrage and hedging
 
-📚 **[View Complete Package Documentation](PACKAGES.md)** - 15+ tools and libraries
+📚 **[View Complete Package Documentation](PACKAGES.md)** - 20+ tools and libraries
 
-**New Advanced Tools:**
+**Advanced Professional Tools:**
 - 🎯 **Portfolio Optimizer** - Optimize bet allocation using Modern Portfolio Theory
 - 📈 **Line Tracker** - Detect steam moves and sharp action
 - ⚽ **Poisson Calculator** - Goal/point probabilities for totals betting
 - 💰 **Tax Calculator** - US gambling tax calculator with 2024 brackets
 - 🔍 **Correlation Analysis** - Avoid correlated parlay mistakes
 - 📊 **Performance Attribution** - Identify your edge by sport, bet type, etc.
+- ⚡ **Arbitrage Calculator** - Find guaranteed profit across multiple books
+- 🛡️ **Hedge Calculator** - Optimal hedging for parlays, futures, middles
+- 🏢 **Market Maker** - Calculate fair odds, remove vig, find value
+- 📉 **Regression Analysis** - Build custom betting models
+- 🎲 **Multi-Outcome Kelly** - Kelly criterion for 3+ outcomes (horse racing, golf, etc.)
 
 ## Installation
 
@@ -362,6 +367,8 @@ This software is for educational and analytical purposes only. Sports betting in
 - **Variance Calculator** (`lib/variance_calc.py`) - Calculate variance, risk of ruin, required bankroll
 - **Poisson Calculator** (`lib/poisson_calculator.py`) - Goal/point probabilities for totals betting
 - **Correlation Analysis** (`lib/correlation_analysis.py`) - Detect correlated parlay legs
+- **Regression Analysis** (`lib/regression_analysis.py`) - Build betting models with linear/multiple regression
+- **Multi-Outcome Kelly** (`lib/multi_outcome_kelly.py`) - Kelly criterion for 3+ outcomes
 
 ### Betting Strategies
 - **Martingale** (`strategies/martingale.py`) - Classic doubling strategy (high risk)
@@ -380,6 +387,9 @@ This software is for educational and analytical purposes only. Sports betting in
 - **Round Robin Calculator** (`tools/round_robin_calc.py`) - All parlay combinations and scenarios
 - **Bonus Calculator** (`tools/bonus_calc.py`) - Optimize sportsbook bonuses and promos
 - **Tax Calculator** (`tools/tax_calculator.py`) - US gambling tax calculation (2024 brackets)
+- **Arbitrage Calculator** (`tools/arbitrage_calculator.py`) - Find guaranteed profit opportunities across books
+- **Hedge Calculator** (`tools/hedge_calculator.py`) - Optimal hedging for parlays, futures, and middles
+- **Market Maker** (`tools/market_maker.py`) - Calculate fair odds, remove vig, find value bets
 
 **Advanced Analysis:**
 - **Portfolio Optimizer** (`tools/portfolio_optimizer.py`) - Optimize bet allocation using Modern Portfolio Theory
