@@ -18,6 +18,8 @@ This document describes all the packages, libraries, and utilities available for
 
 Comprehensive statistical functions for betting analysis.
 
+Comprehensive statistical functions for betting analysis.
+
 #### Basic Statistics
 - `mean(values)` - Calculate average
 - `median(values)` - Find median value
@@ -453,3 +455,376 @@ To contribute a new package:
 ## License
 
 All packages are released under the MIT License, same as OddsScript.
+
+### Backtesting Framework (`lib/backtesting.py`)
+
+Test betting strategies against historical data or simulations.
+
+**Classes:**
+- `BetResult` - Single bet result
+- `BacktestResult` - Full backtest results with analytics
+- `Backtester` - Run backtests
+
+**Key Methods:**
+- `run_historical_backtest()` - Test on historical data
+- `run_monte_carlo_backtest()` - Monte Carlo simulation
+- `compare_strategies()` - Compare multiple strategies
+
+**Example:**
+```python
+from lib.backtesting import Backtester, generate_sample_data
+
+# Generate or load historical data
+data = generate_sample_data(100, win_rate=0.54)
+
+# Create backtester
+bt = Backtester(starting_bankroll=1000)
+
+# Test a strategy
+result = bt.run_historical_backtest(
+    "My Strategy",
+    lambda br, odds: br * 0.02,  # Bet 2% of bankroll
+    data
+)
+
+result.print_summary()
+```
+
+### Variance Calculator (`lib/variance_calc.py`)
+
+Understand variance and risk of ruin for betting strategies.
+
+**Key Functions:**
+- `calculate_variance()` - Variance per bet
+- `standard_deviation()` - Std dev over N bets
+- `confidence_interval()` - Confidence intervals for profit
+- `risk_of_ruin()` - Probability of going broke
+- `required_bankroll()` - Bankroll needed for risk tolerance
+- `kelly_variance()` - Variance when using Kelly
+
+**Example:**
+```bash
+python3 lib/variance_calc.py -w 0.54 -o -110 -b 1000 -s 20 -n 100
+```
+
+### Closing Line Value Tracker (`lib/clv_tracker.py`)
+
+Track whether you're beating the closing line - the #1 indicator of long-term success.
+
+**Key Methods:**
+- `add_bet()` - Add bet with your odds
+- `update_closing_line()` - Add closing line odds
+- `settle_bet()` - Record result
+- `get_stats()` - Comprehensive CLV statistics
+- `print_stats()` - Formatted CLV analysis
+
+**CLI Usage:**
+```bash
+# Add a bet
+python3 lib/clv_tracker.py add "Lakers vs Celtics" "Lakers -5" -110 -c -108
+
+# Update closing line
+python3 lib/clv_tracker.py close 0 -108
+
+# View stats
+python3 lib/clv_tracker.py stats
+```
+
+---
+
+## Advanced Tools
+
+### Teaser Calculator (`tools/teaser_calc.py`)
+
+Calculate teaser odds and payouts for NFL and NBA.
+
+**Features:**
+- NFL teasers: 6, 6.5, 7 points
+- NBA teasers: 4, 4.5, 5 points
+- Wong teaser detection (crossing key numbers 3 and 7)
+- Break-even analysis per leg
+
+**Usage:**
+```bash
+# NFL 6-point teaser
+python3 tools/teaser_calc.py nfl 6 -l "Chiefs" -7 -l "Bills" -3 -s 100
+
+# NBA 4.5-point teaser
+python3 tools/teaser_calc.py nba 4.5 -l "Lakers" -5.5 -l "Celtics" -4 -s 50
+
+# List available teasers
+python3 tools/teaser_calc.py nfl 6 --list
+```
+
+### Round Robin Calculator (`tools/round_robin_calc.py`)
+
+Calculate all parlay combinations for round robin bets.
+
+**Features:**
+- Supports any number of selections
+- Multiple parlay sizes (2-team, 3-team, etc.)
+- Scenario analysis (what if X teams win?)
+- Complete payout breakdown
+
+**Usage:**
+```bash
+# 4-team round robin with 2s and 3s
+python3 tools/round_robin_calc.py \
+  -l Chiefs -110 -l Bills -120 -l Ravens +150 -l Bengals -105 \
+  --sizes 2 3 --stake 10
+
+# 5-team round robin, just 2-teamers
+python3 tools/round_robin_calc.py \
+  -l T1 -110 -l T2 -110 -l T3 -110 -l T4 -110 -l T5 -110 \
+  --sizes 2 --stake 20
+```
+
+**Output includes:**
+- All parlay combinations
+- Total number of parlays
+- Total risk
+- Scenario payouts (0 wins, 1 win, 2 wins, etc.)
+
+### Bonus Calculator (`tools/bonus_calc.py`)
+
+Optimal strategies for sportsbook bonuses and promotions.
+
+**Bonus Types:**
+
+1. **Risk-Free Bets**
+```bash
+python3 tools/bonus_calc.py riskfree 100 -110
+```
+
+2. **Deposit Match**
+```bash
+python3 tools/bonus_calc.py deposit 1000 100 5
+# $1000 deposit, 100% match, 5x rollover
+```
+
+3. **Free Bet Conversion**
+```bash
+python3 tools/bonus_calc.py freebet 50 +200 --hedge -110
+```
+
+4. **Profit Boost**
+```bash
+python3 tools/bonus_calc.py boost 100 -110 50
+# $100 bet at -110 with 50% boost
+```
+
+### Bankroll Simulator (`tools/bankroll_sim.py`)
+
+Simulate betting strategies with ASCII visualization.
+
+**Strategies:**
+- Flat betting
+- Percentage betting
+- Kelly criterion
+- Martingale
+
+**Features:**
+- ASCII chart visualization
+- Detailed statistics
+- Monte Carlo simulations
+- Risk metrics
+
+**Usage:**
+```bash
+# Single simulation with visualization
+python3 tools/bankroll_sim.py -b 1000 -s kelly -w 0.55 -o -110 -n 100
+
+# Multiple simulations (Monte Carlo)
+python3 tools/bankroll_sim.py -b 1000 -s percentage -w 0.54 -o -110 -n 100 --sims 1000
+```
+
+**Output:**
+- Bankroll progression chart
+- Win/loss record
+- Peak and low values
+- Maximum drawdown
+- ROI and profit
+- Bust rate (for multiple sims)
+
+---
+
+## Complete Tool Reference
+
+### Quick Command Examples
+
+```bash
+# ===== ODDS CALCULATIONS =====
+# Convert odds
+python3 tools/odds_calc.py convert -110
+
+# Kelly criterion
+python3 tools/odds_calc.py kelly -p 0.55 -o -110 -b 1000
+
+# Expected value
+python3 tools/odds_calc.py ev -p 0.55 -o -110 -s 100
+
+# Parlay odds
+python3 tools/odds_calc.py parlay -110 -120 +150 -s 50
+
+# Vig calculator
+python3 tools/odds_calc.py vig -110 -110
+
+# ===== TEASERS & PARLAYS =====
+# NFL teaser
+python3 tools/teaser_calc.py nfl 6 -l "Chiefs" -7 -l "Bills" -3 -s 100
+
+# Round robin
+python3 tools/round_robin_calc.py -l T1 -110 -l T2 -120 -l T3 +150 --sizes 2 3 -s 10
+
+# ===== PERFORMANCE TRACKING =====
+# Add a bet
+python3 tools/bet_tracker.py add NFL "Chiefs vs Bills" "Chiefs -3" -o -110 -s 100
+
+# View stats
+python3 tools/bet_tracker.py stats --sport NFL --days 30
+
+# Settle bet
+python3 tools/bet_tracker.py settle 0 won
+
+# ===== CLV TRACKING =====
+# Add bet with CLV
+python3 lib/clv_tracker.py add "Game" "Pick" -110 -c -108
+
+# View CLV stats
+python3 lib/clv_tracker.py stats
+
+# ===== BONUSES =====
+# Risk-free bet hedge
+python3 tools/bonus_calc.py riskfree 100 -110
+
+# Free bet conversion
+python3 tools/bonus_calc.py freebet 50 +200
+
+# ===== SIMULATION =====
+# Bankroll simulation
+python3 tools/bankroll_sim.py -b 1000 -s kelly -w 0.55 -o -110 -n 100
+
+# Variance analysis
+python3 lib/variance_calc.py -w 0.54 -o -110 -b 1000 -s 20 -n 100
+
+# Backtest a strategy
+python3 lib/backtesting.py
+```
+
+---
+
+## Tool Comparison Matrix
+
+| Tool | Purpose | Input | Output |
+|------|---------|-------|--------|
+| odds_calc | Quick calculations | Odds, probabilities | EV, Kelly, conversions |
+| bet_tracker | Performance tracking | Your bets | Stats, analytics |
+| clv_tracker | Closing line value | Bet odds, closing odds | CLV analysis |
+| teaser_calc | Teaser analysis | Teams, lines, points | Teaser odds, Wong check |
+| round_robin_calc | Parlay combinations | Selections, sizes | All combos, scenarios |
+| bonus_calc | Bonus optimization | Bonus terms | Optimal strategy |
+| bankroll_sim | Strategy simulation | Strategy, parameters | Visualization, stats |
+| variance_calc | Risk analysis | Win rate, odds | Variance, risk of ruin |
+| backtesting | Strategy testing | Historical data | Performance metrics |
+
+---
+
+## Best Practices
+
+### Daily Workflow
+
+1. **Before Betting:**
+```bash
+# Calculate Kelly size
+python3 tools/odds_calc.py kelly -p 0.55 -o -110 -b 1000
+
+# Check EV
+python3 tools/odds_calc.py ev -p 0.55 -o -110 -s 100
+```
+
+2. **Place Bet:**
+```bash
+# Log the bet
+python3 tools/bet_tracker.py add NFL "Game" "Pick" -o -110 -s 100
+
+# Track CLV
+python3 lib/clv_tracker.py add "Game" "Pick" -110
+```
+
+3. **After Game:**
+```bash
+# Settle bet
+python3 tools/bet_tracker.py settle 0 won
+
+# Update closing line
+python3 lib/clv_tracker.py close 0 -108
+```
+
+4. **Weekly Review:**
+```bash
+# View stats
+python3 tools/bet_tracker.py stats --days 7
+
+# Check CLV
+python3 lib/clv_tracker.py stats
+
+# Review variance
+python3 lib/variance_calc.py -w 0.54 -o -110 -b 1000 -s 20 -n 100
+```
+
+### Strategy Development
+
+1. **Backtest** your strategy:
+```python
+from lib.backtesting import Backtester
+# Test with historical data
+```
+
+2. **Analyze variance**:
+```bash
+python3 lib/variance_calc.py -w 0.54 -o -110 -b 1000 -s 20 -n 100
+```
+
+3. **Run simulations**:
+```bash
+python3 tools/bankroll_sim.py -b 1000 -s kelly -w 0.54 -o -110 -n 1000 --sims 1000
+```
+
+4. **Calculate risk of ruin** and adjust bet sizing accordingly
+
+---
+
+## Integration Examples
+
+### Using Multiple Tools Together
+
+**Example: Evaluating a promotional bet**
+
+```bash
+# 1. Check base EV
+python3 tools/odds_calc.py ev -p 0.52 -o +150 -s 100
+
+# 2. Calculate profit boost value
+python3 tools/bonus_calc.py boost 100 +150 50
+
+# 3. Determine optimal hedge for risk-free component
+python3 tools/bonus_calc.py riskfree 100 +150
+
+# 4. Log the bet
+python3 tools/bet_tracker.py add NBA "Game" "Pick" -o +150 -s 100 -n "50% boost promo"
+```
+
+**Example: Analyzing a teaser vs straight bets**
+
+```bash
+# 1. Calculate 6-point teaser
+python3 tools/teaser_calc.py nfl 6 -l "Team1" -8.5 -l "Team2" -2.5 -s 100
+
+# 2. Compare to 2-team parlay
+python3 tools/odds_calc.py parlay -110 -110 -s 100
+
+# 3. Check if Wong teaser (built into teaser_calc)
+
+# 4. Decision based on EV
+```
+
