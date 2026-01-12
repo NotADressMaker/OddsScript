@@ -1,14 +1,20 @@
 """
 Command-line tools for OddsScript.
 
-This module will contain 18+ professional betting tools:
-- Bet tracker
-- Sharp money tracker
-- Public fade calculator
-- Parlay optimizer
-- Arbitrage calculator
-- Hedge calculator
+Contains 18+ professional betting tools using BaseTool architecture:
+- Odds Calculator (✓ refactored)
+- Bet tracker (pending)
+- Sharp money tracker (pending)
+- Public fade calculator (pending)
+- Parlay optimizer (pending)
+- Arbitrage calculator (pending)
+- Hedge calculator (pending)
 - And many more...
 """
 
-__all__ = []
+from oddsscript.tools.base_tool import BaseTool, cli_tool
+
+__all__ = [
+    'BaseTool',
+    'cli_tool',
+]
