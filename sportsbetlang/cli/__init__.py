@@ -1,7 +1,9 @@
 """
 Command-line interface for SportsBetLang.
 
-Provides unified CLI entry points for all tools.
+Provides unified CLI entry points for all tools and AI chat assistant.
 """
 
-__all__ = []
+from .chat_assistant import ChatAssistantCLI
+
+__all__ = ['ChatAssistantCLI']

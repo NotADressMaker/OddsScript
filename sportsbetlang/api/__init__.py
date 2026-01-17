@@ -1,7 +1,10 @@
 """
-Programmatic API for SportsBetLang.
+SportsBetLang API Module
 
-Use SportsBetLang as a library in your own applications.
+Provides REST API endpoints for AI-powered sports analytics chat assistant.
 """
 
-__all__ = []
+from .chat import ChatService, SportsAnalyticsService
+from .routes import app
+
+__all__ = ['ChatService', 'SportsAnalyticsService', 'app']

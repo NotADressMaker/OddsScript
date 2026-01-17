@@ -12,6 +12,15 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 - **Full programming language**: Variables, functions, loops, conditionals, arrays, dictionaries
 - **Interactive REPL**: Test calculations and strategies interactively
 
+### 🤖 NEW: AI Chat Assistant
+- **Natural Language Queries**: Ask questions in plain English - "Predict LeBron's points tonight"
+- **Conversational Sports Insights**: Player predictions, comparisons, and betting analysis
+- **Multi-Sport Support**: NBA, NFL, MLB, NHL analytics powered by Claude AI
+- **REST API**: FastAPI backend with interactive documentation
+- **Interactive CLI**: Chat interface for real-time sports analysis
+
+🚀 **[Quick Start Guide](QUICKSTART_AI_CHAT.md)** | 📖 **[Full AI Documentation](docs/AI_CHAT_ASSISTANT.md)**
+
 ### Packages and Tools
 - **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis, regression modeling, multi-outcome Kelly
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
