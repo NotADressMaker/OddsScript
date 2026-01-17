@@ -310,6 +310,159 @@ python3 tools/sports_analyzer.py nhl total -t1 3.2 -t2 2.7 -l 6.5
 
 ---
 
+## Game Log Analytics Pipeline
+
+End-to-end pipeline for ingesting, processing, and analyzing historical game data.
+
+### Pipeline Library (`lib/game_log_pipeline.py`)
+
+Core pipeline for data ingestion and statistical analysis.
+
+**Features:**
+- CSV and JSON data ingestion
+- Comprehensive team statistics calculation
+- Elo rating system implementation
+- Power rating calculations
+- Matchup projections
+- Export capabilities (CSV/JSON)
+
+**Core Functions:**
+```python
+from lib.game_log_pipeline import GameLogPipeline
+
+# Create pipeline
+pipeline = GameLogPipeline('nfl')
+
+# Ingest data
+pipeline.ingest_csv('games.csv')  # or ingest_json('games.json')
+
+# Calculate statistics
+pipeline.calculate_team_statistics()
+pipeline.calculate_elo_ratings(k_factor=32, home_advantage=100)
+
+# Access team stats
+stats = pipeline.team_stats['Chiefs']
+print(f"Elo: {stats['elo_rating']:.0f}")
+print(f"Record: {stats['wins']}-{stats['losses']}")
+print(f"PPG: {stats['ppg']:.2f}")
+
+# Get rankings
+rankings = pipeline.get_team_rankings('elo_rating')
+
+# Predict matchup
+projection = pipeline.get_matchup_projection('Chiefs', 'Bills')
+print(f"Win Prob: {projection['home_win_probability']*100:.1f}%")
+
+# Export results
+pipeline.export_team_stats('team_stats.csv')
+```
+
+**Calculated Statistics:**
+- Games, wins, losses, ties
+- Points for/against
+- Points per game (PPG)
+- Points against per game (PAPG)
+- Point differential
+- Win percentage
+- Home/away splits
+- Elo ratings
+- Power ratings
+
+### Game Log Manager Tool (`tools/game_log_manager.py`)
+
+CLI tool for managing game logs and generating insights.
+
+**Commands:**
+
+```bash
+# Ingest game logs
+python3 tools/game_log_manager.py ingest nfl games.csv
+
+# View team statistics
+python3 tools/game_log_manager.py stats nfl games.csv --sort-by elo_rating
+
+# Detailed team stats
+python3 tools/game_log_manager.py stats nfl games.csv --team "Chiefs"
+
+# Predict matchup
+python3 tools/game_log_manager.py predict nfl games.csv \
+  --home "Chiefs" --away "Bills" --spread -3.0
+
+# Export statistics
+python3 tools/game_log_manager.py export nfl games.csv -o stats.json
+```
+
+**Data Format (CSV):**
+```csv
+date,home_team,away_team,home_score,away_score,week,season
+2024-09-05,Chiefs,Ravens,27,20,1,2024
+2024-09-08,Bills,Cardinals,34,28,1,2024
+```
+
+**Data Format (JSON):**
+```json
+[
+  {
+    "date": "2024-09-05",
+    "home_team": "Chiefs",
+    "away_team": "Ravens",
+    "home_score": 27,
+    "away_score": 20
+  }
+]
+```
+
+**Elo Rating System:**
+- Starting rating: 1500 (average team)
+- K-factor: 32 (adjustable)
+- Home advantage: 100 Elo points (adjustable)
+- Updates dynamically after each game
+- Predictive of future performance
+
+**Integration with Sport Analytics:**
+```python
+# NFL Example
+from lib.game_log_pipeline import GameLogPipeline
+from lib.nfl_analytics import NFLAnalytics
+
+pipeline = GameLogPipeline('nfl')
+pipeline.ingest_csv('nfl_games.csv')
+pipeline.calculate_team_statistics()
+
+# Use pipeline data with NFL analytics
+chiefs_ppg = pipeline.team_stats['Chiefs']['ppg']
+bills_ppg = pipeline.team_stats['Bills']['ppg']
+
+spread_result = NFLAnalytics.calculate_spread_probability(
+    team_rating=chiefs_ppg,
+    opponent_rating=bills_ppg,
+    spread=-3.0,
+    is_home=True
+)
+```
+
+**Example Datasets:**
+- `data/examples/nfl_2024_sample.csv` - NFL sample data
+- `data/examples/nba_2024_sample.csv` - NBA sample data
+
+**Use Cases:**
+- Historical season analysis
+- Betting model development
+- Team performance evaluation
+- Matchup predictions
+- Power rankings generation
+- Strength of schedule calculations
+
+**Documentation:**
+See `GAME_LOG_PIPELINE_README.md` for comprehensive guide including:
+- Pipeline architecture
+- Data formats
+- API reference
+- Integration examples
+- Advanced features
+
+---
+
 ## Betting Strategies
 
 ### Martingale Strategy (`strategies/martingale.py`)
