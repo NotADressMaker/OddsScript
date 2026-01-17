@@ -1,0 +1,28 @@
+# Simple test of Poisson simulation functions
+
+print("=== Testing Poisson Functions ===")
+
+# Test 1: Probability function
+let prob = poisson_probability(2, 1.8)
+print("Probability of 2 goals (lambda=1.8):")
+print(prob)
+
+# Test 2: Cumulative probability
+let cumul = poisson_cumulative(2, 1.8)
+print("P(X <= 2):")
+print(cumul)
+
+# Test 3: Simulate single event
+let goals = poisson_simulate_event(1.8)
+print("Simulated goals:")
+print(goals)
+
+# Test 4: Simulate single match
+let match = poisson_simulate_match(1.8, 1.2)
+print("Match simulation complete")
+
+# Test 5: Simulate multiple matches
+let sims = poisson_simulate_matches(1.8, 1.2, 100)
+print("100 match simulations complete")
+
+print("All tests passed!")

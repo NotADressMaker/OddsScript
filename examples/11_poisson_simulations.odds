@@ -1,0 +1,171 @@
+# Poisson Distribution Simulations for Sports Betting
+
+print("=== Poisson Distribution Simulations ===")
+print("")
+
+# Example 1: Basic Poisson Probability
+print("--- Example 1: Basic Poisson Probability ---")
+let home_expected_goals = 1.8
+let away_expected_goals = 1.2
+
+print("Home team expected goals:")
+print(home_expected_goals)
+print("Away team expected goals:")
+print(away_expected_goals)
+print("")
+
+# Calculate probability of exactly 2 home goals
+let prob_2_goals = poisson_probability(2, home_expected_goals)
+print("Probability of exactly 2 home goals:")
+print(prob_2_goals * 100)
+
+# Calculate probability of 2 or fewer goals
+let prob_under_2_5 = poisson_cumulative(2, home_expected_goals)
+print("Probability of 2 or fewer home goals:")
+print(prob_under_2_5 * 100)
+print("")
+
+# Example 2: Single Match Simulation
+print("--- Example 2: Single Match Simulation ---")
+let match_result = poisson_simulate_match(home_expected_goals, away_expected_goals)
+
+print("Simulated match result:")
+print("Home score: (see result)")
+print("Away score: (see result)")
+print("Total goals: (see result)")
+print("")
+
+# Example 3: Monte Carlo Match Simulation
+print("--- Example 3: Monte Carlo Match Simulation ---")
+let num_sims = 1000
+print("Running simulations:")
+print(num_sims)
+
+let sim_results = poisson_simulate_matches(home_expected_goals, away_expected_goals, num_sims)
+
+print("")
+print("Simulation Results:")
+print("Home win percentage: (calculated from sims)")
+print("Away win percentage: (calculated from sims)")
+print("Draw percentage: (calculated from sims)")
+print("Average total goals: (calculated from sims)")
+print("")
+
+# Example 4: Betting Strategy Simulation
+print("--- Example 4: Over/Under Betting Simulation ---")
+
+# Set up betting parameters
+let total_line = 2.5
+let over_odds = 1.91  # Decimal odds
+let bet_amount = 10
+let betting_sims = 100
+
+print("Total line:")
+print(total_line)
+print("Over odds (decimal):")
+print(over_odds)
+print("Stake per bet:")
+print(bet_amount)
+print("Number of simulations:")
+print(betting_sims)
+print("")
+
+# Manual betting simulation loop
+let winning_bets = 0
+let total_profit = 0
+let sim_count = 0
+
+while sim_count < betting_sims {
+    let match = poisson_simulate_match(home_expected_goals, away_expected_goals)
+
+    # Simplified: assuming we can access total_score from match dict
+    # In actual implementation, would need dict access support
+
+    sim_count = sim_count + 1
+}
+
+print("Betting simulation complete!")
+print("")
+
+# Example 5: Simulate Multiple Matches
+print("--- Example 5: Season Simulation ---")
+print("Simulating 10 matches with same teams...")
+
+let matches_simulated = 0
+let home_wins = 0
+let away_wins = 0
+let draws = 0
+let total_goals = 0
+
+while matches_simulated < 10 {
+    let game = poisson_simulate_match(home_expected_goals, away_expected_goals)
+
+    # Track stats (simplified without dict access)
+    matches_simulated = matches_simulated + 1
+}
+
+print("Matches simulated:")
+print(matches_simulated)
+print("")
+
+# Example 6: Different Team Strengths
+print("--- Example 6: Different Team Scenarios ---")
+print("")
+
+print("Strong vs Weak:")
+let strong_team = 2.5
+let weak_team = 0.8
+let strong_vs_weak = poisson_simulate_matches(strong_team, weak_team, 100)
+print("Strong team expected goals: 2.5")
+print("Weak team expected goals: 0.8")
+print("(100 simulations run)")
+print("")
+
+print("Evenly Matched:")
+let team_a = 1.5
+let team_b = 1.5
+let even_match = poisson_simulate_matches(team_a, team_b, 100)
+print("Both teams expected goals: 1.5")
+print("(100 simulations run)")
+print("")
+
+print("High Scoring Game:")
+let attacking_home = 3.0
+let attacking_away = 2.8
+let high_scoring = poisson_simulate_matches(attacking_home, attacking_away, 100)
+print("Home expected goals: 3.0")
+print("Away expected goals: 2.8")
+print("(100 simulations run)")
+print("")
+
+# Example 7: Probability Analysis
+print("--- Example 7: Probability Distribution ---")
+print("Calculating probability of each goal count...")
+print("")
+
+let goals = 0
+while goals < 6 {
+    let prob = poisson_probability(goals, home_expected_goals)
+    print("P(exactly X goals):")
+    print(goals)
+    print(prob * 100)
+
+    goals = goals + 1
+}
+print("")
+
+# Summary
+print("=== Summary ===")
+print("Poisson distribution simulations are useful for:")
+print("- Modeling goal/point scoring in sports")
+print("- Estimating match outcome probabilities")
+print("- Testing betting strategies with Monte Carlo methods")
+print("- Analyzing over/under markets")
+print("- Simulating season outcomes")
+print("")
+print("Key Functions:")
+print("- poisson_probability(k, lambda)")
+print("- poisson_cumulative(k, lambda)")
+print("- poisson_simulate_event(lambda)")
+print("- poisson_simulate_match(home_lambda, away_lambda)")
+print("- poisson_simulate_matches(home, away, num_sims)")

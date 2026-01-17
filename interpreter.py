@@ -6,6 +6,7 @@ import math
 from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
+from lib.poisson_calculator import PoissonCalculator
 
 
 class ReturnValue(Exception):
@@ -188,6 +189,27 @@ class Interpreter:
             from math import comb
             return comb(bets_count, parlay_size)
 
+        # Poisson Distribution Simulation Functions
+        def poisson_probability(k: int, lambda_param: float) -> float:
+            """Calculate Poisson probability P(X = k)"""
+            return PoissonCalculator.poisson_probability(k, lambda_param)
+
+        def poisson_cumulative(k: int, lambda_param: float) -> float:
+            """Calculate cumulative Poisson probability P(X <= k)"""
+            return PoissonCalculator.poisson_cumulative(k, lambda_param)
+
+        def poisson_simulate_event(lambda_param: float) -> int:
+            """Simulate a single Poisson-distributed event (returns number of goals/points)"""
+            return PoissonCalculator.simulate_poisson_event(lambda_param)
+
+        def poisson_simulate_match(home_lambda: float, away_lambda: float) -> Dict:
+            """Simulate a single match outcome using Poisson distribution"""
+            return PoissonCalculator.simulate_match(home_lambda, away_lambda)
+
+        def poisson_simulate_matches(home_lambda: float, away_lambda: float, num_simulations: int) -> Dict:
+            """Run Monte Carlo simulation of multiple matches"""
+            return PoissonCalculator.simulate_matches(home_lambda, away_lambda, num_simulations)
+
         # Register built-in functions
         self.global_env.define('american_to_decimal', american_to_decimal)
         self.global_env.define('decimal_to_american', decimal_to_american)
@@ -210,6 +232,13 @@ class Interpreter:
         self.global_env.define('len', len)
         self.global_env.define('range', range)
         self.global_env.define('sum', sum)
+
+        # Poisson distribution functions
+        self.global_env.define('poisson_probability', poisson_probability)
+        self.global_env.define('poisson_cumulative', poisson_cumulative)
+        self.global_env.define('poisson_simulate_event', poisson_simulate_event)
+        self.global_env.define('poisson_simulate_match', poisson_simulate_match)
+        self.global_env.define('poisson_simulate_matches', poisson_simulate_matches)
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
