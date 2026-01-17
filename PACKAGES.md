@@ -5,10 +5,11 @@ This document describes all the packages, libraries, and utilities available for
 ## Table of Contents
 
 1. [Standard Library](#standard-library)
-2. [Betting Strategies](#betting-strategies)
-3. [Command-Line Tools](#command-line-tools)
-4. [Testing](#testing)
-5. [Examples](#examples)
+2. [Sport-Specific Analytics](#sport-specific-analytics)
+3. [Betting Strategies](#betting-strategies)
+4. [Command-Line Tools](#command-line-tools)
+5. [Testing](#testing)
+6. [Examples](#examples)
 
 ---
 
@@ -57,6 +58,255 @@ print(f"Std Dev: {std_dev(values)}")
 print(f"Win Rate: {win_rate(55, 45)}%")
 print(f"ROI: {roi(55, 45, -110)}%")
 ```
+
+---
+
+## Sport-Specific Analytics
+
+Sport-specific statistical models and betting tools optimized for NFL, NBA, MLB, and NHL.
+
+### NFL Analytics (`lib/nfl_analytics.py`)
+
+Statistical models designed specifically for NFL betting.
+
+**Features:**
+- Point spread probability calculations
+- Total points modeling using normal distribution
+- Key numbers analysis (3, 7, 10, 14 points)
+- Home field advantage adjustment (2.5 points)
+- Game simulations
+- Season simulations
+
+**Key Functions:**
+```python
+from lib.nfl_analytics import NFLAnalytics
+
+# Spread analysis
+result = NFLAnalytics.calculate_spread_probability(
+    team_rating=24.5,
+    opponent_rating=20.0,
+    spread=-7.5,
+    is_home=True
+)
+
+# Total analysis
+total = NFLAnalytics.calculate_total_probability(
+    team1_avg=25.5,
+    team2_avg=22.3,
+    total_line=47.5
+)
+
+# Key number analysis
+key_info = NFLAnalytics.analyze_key_numbers(-3.0)
+
+# Simulate game
+game = NFLAnalytics.simulate_game(24.5, 20.0, seed=42)
+```
+
+**Use Cases:**
+- Point spread betting with key number awareness
+- Over/under analysis
+- Season win total projections
+- Playoff probability modeling
+
+### NBA Analytics (`lib/nba_analytics.py`)
+
+Statistical models optimized for NBA basketball.
+
+**Features:**
+- Pace-adjusted scoring projections
+- Spread probability calculations
+- Total points modeling (higher scoring than other sports)
+- Player prop probability analysis
+- Home court advantage (3.5 points)
+- Offensive/defensive rating integration
+
+**Key Functions:**
+```python
+from lib.nba_analytics import NBAAnalytics
+
+# Pace-adjusted total
+pace_result = NBAAnalytics.calculate_pace_adjusted_total(
+    team1_pace=101.5,
+    team2_pace=98.2,
+    team1_off_rating=118.5,
+    team2_off_rating=112.3,
+    team1_def_rating=109.2,
+    team2_def_rating=111.8
+)
+
+# Spread analysis
+spread_result = NBAAnalytics.calculate_spread_probability(
+    team_rating=115.0,
+    opponent_rating=108.0,
+    spread=-7.5,
+    is_home=True
+)
+
+# Player prop analysis
+prop_result = NBAAnalytics.calculate_player_prop_probability(
+    player_avg=28.5,
+    prop_line=27.5,
+    player_std_dev=7.0,
+    usage_adjustment=1.1
+)
+```
+
+**Use Cases:**
+- Point spread betting
+- Over/under totals
+- Player props (points, rebounds, assists)
+- Pace-based analysis
+- Live betting adjustments
+
+### MLB Analytics (`lib/mlb_analytics.py`)
+
+Baseball-specific models using Poisson distribution for run scoring.
+
+**Features:**
+- Moneyline probability (win/loss/extra innings)
+- Run line analysis (standard -1.5/+1.5)
+- Total runs over/under
+- Pitcher quality adjustments
+- Park factor adjustments
+- Home field advantage (0.25 runs)
+
+**Key Functions:**
+```python
+from lib.mlb_analytics import MLBAnalytics
+
+# Moneyline probability
+ml_result = MLBAnalytics.calculate_moneyline_probability(
+    team_runs_avg=5.2,
+    opponent_runs_avg=4.1,
+    is_home=True
+)
+
+# Run line (-1.5)
+rl_result = MLBAnalytics.calculate_runline_probability(
+    team_runs_avg=5.2,
+    opponent_runs_avg=4.1,
+    runline=-1.5,
+    is_home=True
+)
+
+# Total with adjustments
+total_result = MLBAnalytics.calculate_total_probability(
+    team1_runs_avg=5.2,
+    team2_runs_avg=4.1,
+    total_line=8.5,
+    pitcher_adjustment=0.9,  # Strong pitchers
+    park_factor=1.1          # Hitter-friendly park
+)
+```
+
+**Use Cases:**
+- Moneyline betting
+- Run line analysis
+- Total runs over/under
+- Pitcher vs. hitter matchups
+- Park factor analysis
+
+### NHL Analytics (`lib/nhl_analytics.py`)
+
+Hockey-specific models using Poisson distribution for goal scoring.
+
+**Features:**
+- Moneyline probability (including OT/shootout)
+- Puck line analysis (standard -1.5/+1.5)
+- Total goals over/under
+- Regulation time betting
+- Goalie quality adjustments
+- Home ice advantage (0.25 goals)
+
+**Key Functions:**
+```python
+from lib.nhl_analytics import NHLAnalytics
+
+# Moneyline with OT/SO
+ml_result = NHLAnalytics.calculate_moneyline_probability(
+    team_goals_avg=3.2,
+    opponent_goals_avg=2.7,
+    is_home=True,
+    include_overtime=True
+)
+
+# Puck line (-1.5)
+pl_result = NHLAnalytics.calculate_puckline_probability(
+    team_goals_avg=3.2,
+    opponent_goals_avg=2.7,
+    puckline=-1.5,
+    is_home=True
+)
+
+# Regulation time probability
+reg_result = NHLAnalytics.calculate_regulation_time_probability(
+    team_goals_avg=3.2,
+    opponent_goals_avg=2.7,
+    is_home=True
+)
+```
+
+**Use Cases:**
+- Moneyline betting (3-way and regulation time)
+- Puck line analysis
+- Total goals over/under
+- Goalie matchup analysis
+- Regulation time markets
+
+### Sports Analyzer Tool (`tools/sports_analyzer.py`)
+
+Unified CLI tool for all sport-specific analytics.
+
+**Usage:**
+```bash
+# NFL spread analysis
+python3 tools/sports_analyzer.py nfl spread -t 24.5 -o 20.0 -s -7.5 --home
+
+# NFL total analysis
+python3 tools/sports_analyzer.py nfl total -t1 25.5 -t2 22.3 -l 47.5
+
+# NBA spread analysis
+python3 tools/sports_analyzer.py nba spread -t 118.5 -o 112.3 -s -6.5 --home
+
+# NBA total with pace adjustment
+python3 tools/sports_analyzer.py nba total -t1 118.5 -t2 112.3 -l 230.5 --pace 1.05
+
+# NBA player prop
+python3 tools/sports_analyzer.py nba prop -p 28.5 -l 27.5 --usage 1.1
+
+# MLB moneyline
+python3 tools/sports_analyzer.py mlb moneyline -t 5.2 -o 4.1 --home
+
+# MLB run line
+python3 tools/sports_analyzer.py mlb runline -t 5.2 -o 4.1 -r -1.5 --home
+
+# MLB total with park factor
+python3 tools/sports_analyzer.py mlb total -t1 5.2 -t2 4.1 -l 8.5 --park-factor 1.1
+
+# NHL moneyline
+python3 tools/sports_analyzer.py nhl moneyline -t 3.2 -o 2.7 --home
+
+# NHL puck line
+python3 tools/sports_analyzer.py nhl puckline -t 3.2 -o 2.7 -p -1.5
+
+# NHL total
+python3 tools/sports_analyzer.py nhl total -t1 3.2 -t2 2.7 -l 6.5
+```
+
+**Available Sports:**
+- `nfl` - National Football League
+- `nba` - National Basketball Association
+- `mlb` - Major League Baseball
+- `nhl` - National Hockey League
+
+**Analysis Types:**
+- Spread/point spread probability
+- Total points/runs/goals over/under
+- Moneyline win probability
+- Run line/puck line analysis
+- Player props (NBA)
+- Key numbers (NFL)
 
 ---
 
