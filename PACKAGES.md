@@ -646,6 +646,71 @@ python3 tools/bankroll_sim.py -b 1000 -s percentage -w 0.54 -o -110 -n 100 --sim
 - ROI and profit
 - Bust rate (for multiple sims)
 
+### Poisson Simulator (`tools/poisson_simulator.py`)
+
+Monte Carlo simulation tool using Poisson distribution for sports betting analysis.
+
+**Simulation Types:**
+- Match simulations (single or Monte Carlo)
+- Betting strategy testing with ROI analysis
+- Season simulations with multiple teams
+- Scenario comparison
+
+**Features:**
+- Accurate Poisson sampling (Knuth's algorithm)
+- Detailed statistical analysis
+- Expected value and variance calculations
+- Risk assessment and confidence intervals
+- Visual distribution charts
+- JSON export for detailed results
+
+**Usage:**
+```bash
+# Simulate a single match
+python3 tools/poisson_simulator.py match 1.8 1.2
+
+# Run 10,000 match simulations
+python3 tools/poisson_simulator.py match 1.8 1.2 -n 10000
+
+# Test Over 2.5 betting strategy
+python3 tools/poisson_simulator.py bet 1.8 1.2 over 2.5 -o 1.91 -s 10 -n 1000
+
+# Test home win bet
+python3 tools/poisson_simulator.py bet 2.0 1.2 home_win -o 2.10 -s 10 -n 1000
+
+# Simulate a season
+python3 tools/poisson_simulator.py season \
+  -t "Liverpool:2.0" -t "Man City:2.2" -t "Arsenal:1.8" -m 50
+
+# Compare different scenarios
+python3 tools/poisson_simulator.py compare -n 5000
+```
+
+**Output:**
+- Outcome probabilities (win/draw/loss)
+- Score distributions and most common results
+- Total goals distribution with charts
+- Win rate, ROI, and profit/loss
+- Standard deviation and volatility metrics
+- Risk assessment (LOW/MODERATE/HIGH)
+- 95% confidence intervals
+- Season standings and recent matches
+
+**Bet Types Supported:**
+- `home_win` - Home team to win
+- `away_win` - Away team to win
+- `draw` - Match to end in draw
+- `over` - Total goals over line
+- `under` - Total goals under line
+- `btts` - Both teams to score
+
+**Use Cases:**
+- Validate betting strategies before risking real money
+- Estimate expected variance in betting outcomes
+- Model team performance and season outcomes
+- Compare different betting approaches
+- Calculate true win probabilities from team stats
+
 ### Portfolio Optimizer (`tools/portfolio_optimizer.py`)
 
 Optimize bet allocation across multiple opportunities using Modern Portfolio Theory.
