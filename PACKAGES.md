@@ -726,6 +726,12 @@ Calculate probabilities for goal/point-based sports using Poisson distribution.
 - Both Teams To Score (BTTS)
 - Asian Handicap probabilities
 
+**Simulation Functions:**
+- Single match simulation
+- Monte Carlo match simulations
+- Betting strategy testing
+- Season simulations with multiple teams
+
 **Usage:**
 ```bash
 # Soccer match analysis
@@ -741,11 +747,38 @@ python3 lib/poisson_calculator.py correct-score 1.8 1.2 2 1
 python3 lib/poisson_calculator.py btts 1.8 1.2
 ```
 
+**SportsBetLang Built-in Functions:**
+```sportsbetlang
+# Basic probability calculations
+let prob = poisson_probability(2, 1.8)          # P(exactly 2 goals)
+let cumul = poisson_cumulative(2, 1.8)          # P(2 or fewer goals)
+
+# Simulate single events
+let goals = poisson_simulate_event(1.8)         # Simulate goal count
+
+# Simulate single match
+let match = poisson_simulate_match(1.8, 1.2)    # Returns match result dict
+
+# Monte Carlo simulation (1000 matches)
+let results = poisson_simulate_matches(1.8, 1.2, 1000)
+# Returns: home_win_pct, away_win_pct, draw_pct, avg_total
+```
+
+**Example Program:**
+See `examples/11_poisson_simulations.odds` for comprehensive examples including:
+- Probability calculations
+- Single match simulations
+- Monte Carlo betting strategy testing
+- Season outcome modeling
+- Different team strength scenarios
+
 **Use Cases:**
 - Soccer totals betting
 - Hockey goal betting
 - Basketball point modeling
 - Finding value in goal markets
+- Testing betting strategies with simulations
+- Estimating variance in betting outcomes
 
 ### Tax Calculator (`tools/tax_calculator.py`)
 

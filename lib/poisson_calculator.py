@@ -6,7 +6,8 @@ Particularly useful for soccer, hockey, and lower-scoring sports.
 """
 
 import math
-from typing import Dict, List, Tuple
+import random
+from typing import Dict, List, Tuple, Optional
 
 
 class PoissonCalculator:
@@ -246,6 +247,298 @@ class PoissonCalculator:
             'lose': lose_prob,
             'push': push_prob,
             'handicap': handicap
+        }
+
+    @staticmethod
+    def simulate_poisson_event(lambda_param: float, seed: Optional[int] = None) -> int:
+        """
+        Simulate a single Poisson-distributed random variable
+
+        Uses inverse transform sampling with cumulative probabilities.
+
+        Args:
+            lambda_param: Expected number of events
+            seed: Optional random seed for reproducibility
+
+        Returns:
+            Number of events (goals/points) simulated
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        # For small lambda, use direct simulation
+        if lambda_param < 30:
+            # Knuth's algorithm for Poisson sampling
+            L = math.exp(-lambda_param)
+            k = 0
+            p = 1.0
+
+            while p > L:
+                k += 1
+                p *= random.random()
+
+            return k - 1
+        else:
+            # For large lambda, use normal approximation
+            # Poisson(lambda) ≈ Normal(lambda, lambda)
+            return max(0, int(random.gauss(lambda_param, math.sqrt(lambda_param)) + 0.5))
+
+    @staticmethod
+    def simulate_match(
+        home_lambda: float,
+        away_lambda: float,
+        seed: Optional[int] = None
+    ) -> Dict:
+        """
+        Simulate a single match outcome using Poisson distribution
+
+        Args:
+            home_lambda: Expected home team goals/points
+            away_lambda: Expected away team goals/points
+            seed: Optional random seed for reproducibility
+
+        Returns:
+            Dictionary with match result
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        home_score = PoissonCalculator.simulate_poisson_event(home_lambda)
+        away_score = PoissonCalculator.simulate_poisson_event(away_lambda)
+
+        if home_score > away_score:
+            result = 'home_win'
+        elif away_score > home_score:
+            result = 'away_win'
+        else:
+            result = 'draw'
+
+        return {
+            'home_score': home_score,
+            'away_score': away_score,
+            'total_score': home_score + away_score,
+            'result': result
+        }
+
+    @staticmethod
+    def simulate_matches(
+        home_lambda: float,
+        away_lambda: float,
+        num_simulations: int = 1000,
+        seed: Optional[int] = None
+    ) -> Dict:
+        """
+        Run Monte Carlo simulation of multiple matches
+
+        Args:
+            home_lambda: Expected home team goals/points
+            away_lambda: Expected away team goals/points
+            num_simulations: Number of matches to simulate
+            seed: Optional random seed for reproducibility
+
+        Returns:
+            Dictionary with simulation statistics
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        results = {
+            'home_wins': 0,
+            'away_wins': 0,
+            'draws': 0,
+            'scores': [],
+            'total_scores': []
+        }
+
+        for _ in range(num_simulations):
+            match = PoissonCalculator.simulate_match(home_lambda, away_lambda)
+
+            if match['result'] == 'home_win':
+                results['home_wins'] += 1
+            elif match['result'] == 'away_win':
+                results['away_wins'] += 1
+            else:
+                results['draws'] += 1
+
+            results['scores'].append((match['home_score'], match['away_score']))
+            results['total_scores'].append(match['total_score'])
+
+        # Calculate statistics
+        results['home_win_pct'] = results['home_wins'] / num_simulations
+        results['away_win_pct'] = results['away_wins'] / num_simulations
+        results['draw_pct'] = results['draws'] / num_simulations
+        results['avg_total'] = sum(results['total_scores']) / num_simulations
+        results['num_simulations'] = num_simulations
+
+        return results
+
+    @staticmethod
+    def simulate_betting_strategy(
+        home_lambda: float,
+        away_lambda: float,
+        bet_type: str,
+        bet_target: any,
+        odds: float,
+        stake: float,
+        num_simulations: int = 1000,
+        seed: Optional[int] = None
+    ) -> Dict:
+        """
+        Simulate a betting strategy over multiple matches
+
+        Args:
+            home_lambda: Expected home team goals/points
+            away_lambda: Expected away team goals/points
+            bet_type: Type of bet ('home_win', 'away_win', 'draw', 'over', 'under', 'btts')
+            bet_target: Target value (e.g., total for over/under)
+            odds: Decimal odds
+            stake: Bet stake amount
+            num_simulations: Number of matches to simulate
+            seed: Optional random seed for reproducibility
+
+        Returns:
+            Dictionary with betting results and statistics
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        wins = 0
+        losses = 0
+        total_profit = 0
+        results_list = []
+
+        for _ in range(num_simulations):
+            match = PoissonCalculator.simulate_match(home_lambda, away_lambda)
+
+            # Determine if bet wins
+            bet_wins = False
+
+            if bet_type == 'home_win':
+                bet_wins = match['result'] == 'home_win'
+            elif bet_type == 'away_win':
+                bet_wins = match['result'] == 'away_win'
+            elif bet_type == 'draw':
+                bet_wins = match['result'] == 'draw'
+            elif bet_type == 'over':
+                bet_wins = match['total_score'] > bet_target
+            elif bet_type == 'under':
+                bet_wins = match['total_score'] < bet_target
+            elif bet_type == 'btts':
+                bet_wins = match['home_score'] > 0 and match['away_score'] > 0
+
+            # Calculate profit/loss
+            if bet_wins:
+                profit = stake * (odds - 1)
+                wins += 1
+            else:
+                profit = -stake
+                losses += 1
+
+            total_profit += profit
+            results_list.append(profit)
+
+        # Calculate statistics
+        win_rate = wins / num_simulations
+        avg_profit_per_bet = total_profit / num_simulations
+        roi = (total_profit / (stake * num_simulations)) * 100
+
+        # Calculate variance and standard deviation
+        variance = sum((r - avg_profit_per_bet) ** 2 for r in results_list) / num_simulations
+        std_dev = math.sqrt(variance)
+
+        return {
+            'num_simulations': num_simulations,
+            'wins': wins,
+            'losses': losses,
+            'win_rate': win_rate,
+            'total_profit': total_profit,
+            'avg_profit_per_bet': avg_profit_per_bet,
+            'roi': roi,
+            'std_dev': std_dev,
+            'bet_type': bet_type,
+            'odds': odds,
+            'stake': stake
+        }
+
+    @staticmethod
+    def simulate_season(
+        teams: Dict[str, float],
+        num_matches: int,
+        home_advantage: float = 0.3,
+        seed: Optional[int] = None
+    ) -> Dict:
+        """
+        Simulate a season of matches between teams
+
+        Args:
+            teams: Dictionary of team names to their base lambda (scoring rate)
+            num_matches: Number of matches to simulate
+            home_advantage: Additional goals added to home team lambda
+            seed: Optional random seed for reproducibility
+
+        Returns:
+            Dictionary with season results
+        """
+        if seed is not None:
+            random.seed(seed)
+
+        team_names = list(teams.keys())
+        standings = {team: {'wins': 0, 'draws': 0, 'losses': 0, 'gf': 0, 'ga': 0, 'pts': 0}
+                    for team in team_names}
+
+        matches_played = []
+
+        for _ in range(num_matches):
+            # Randomly select two different teams
+            home_team = random.choice(team_names)
+            away_team = random.choice([t for t in team_names if t != home_team])
+
+            # Get lambdas with home advantage
+            home_lambda = teams[home_team] + home_advantage
+            away_lambda = teams[away_team]
+
+            # Simulate match
+            match = PoissonCalculator.simulate_match(home_lambda, away_lambda)
+
+            # Update standings
+            standings[home_team]['gf'] += match['home_score']
+            standings[home_team]['ga'] += match['away_score']
+            standings[away_team]['gf'] += match['away_score']
+            standings[away_team]['ga'] += match['home_score']
+
+            if match['result'] == 'home_win':
+                standings[home_team]['wins'] += 1
+                standings[home_team]['pts'] += 3
+                standings[away_team]['losses'] += 1
+            elif match['result'] == 'away_win':
+                standings[away_team]['wins'] += 1
+                standings[away_team]['pts'] += 3
+                standings[home_team]['losses'] += 1
+            else:
+                standings[home_team]['draws'] += 1
+                standings[home_team]['pts'] += 1
+                standings[away_team]['draws'] += 1
+                standings[away_team]['pts'] += 1
+
+            matches_played.append({
+                'home': home_team,
+                'away': away_team,
+                'home_score': match['home_score'],
+                'away_score': match['away_score'],
+                'result': match['result']
+            })
+
+        # Sort standings by points
+        sorted_standings = sorted(
+            standings.items(),
+            key=lambda x: (x[1]['pts'], x[1]['gf'] - x[1]['ga']),
+            reverse=True
+        )
+
+        return {
+            'standings': dict(sorted_standings),
+            'matches': matches_played,
+            'num_matches': num_matches
         }
 
 
