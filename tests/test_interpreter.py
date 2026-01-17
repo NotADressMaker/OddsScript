@@ -1,5 +1,5 @@
 """
-Unit tests for OddsScript interpreter
+Unit tests for SportsBetLang interpreter
 """
 
 import unittest
@@ -15,10 +15,10 @@ from interpreter import Interpreter
 
 
 class TestInterpreter(unittest.TestCase):
-    """Test OddsScript interpreter"""
+    """Test SportsBetLang interpreter"""
 
     def run_code(self, code: str):
-        """Helper to run OddsScript code"""
+        """Helper to run SportsBetLang code"""
         lexer = Lexer(code)
         tokens = lexer.tokenize()
         parser = Parser(tokens)
@@ -190,7 +190,7 @@ class TestInterpreter(unittest.TestCase):
 
 
 class TestLexer(unittest.TestCase):
-    """Test OddsScript lexer"""
+    """Test SportsBetLang lexer"""
 
     def test_tokenize_numbers(self):
         """Test number tokenization"""
@@ -235,7 +235,7 @@ class TestLexer(unittest.TestCase):
 
 
 class TestParser(unittest.TestCase):
-    """Test OddsScript parser"""
+    """Test SportsBetLang parser"""
 
     def parse(self, code: str):
         """Helper to parse code"""

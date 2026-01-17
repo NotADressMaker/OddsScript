@@ -1,12 +1,16 @@
 """
-SportsBetLang Standard Library - Statistics Module
+SportsBetLang Analytics - Statistics Module
 
 Provides statistical functions useful for sports betting analysis.
+Refactored to use shared utilities from sportsbetlang.common.
 """
 
-from typing import List, Union
+from typing import List, Union, Tuple
 import math
+from collections import Counter
 
+
+# ===== Basic Statistical Functions =====
 
 def mean(values: List[Union[int, float]]) -> float:
     """Calculate the arithmetic mean of a list of numbers"""
@@ -31,7 +35,6 @@ def mode(values: List[Union[int, float]]) -> Union[int, float]:
     """Find the most common value in a list"""
     if not values:
         raise ValueError("Cannot calculate mode of empty list")
-    from collections import Counter
     counts = Counter(values)
     return counts.most_common(1)[0][0]
 
@@ -133,10 +136,20 @@ def weighted_average(values: List[float], weights: List[float]) -> float:
     return sum(v * w for v, w in zip(values, weights)) / total_weight
 
 
-# Betting-specific statistical functions
+# ===== Betting-Specific Statistical Functions =====
 
-def win_rate(wins: int, losses: int) -> float:
-    """Calculate win rate as a percentage"""
+def win_rate(wins: int, losses: int, pushes: int = 0) -> float:
+    """
+    Calculate win rate as a percentage
+
+    Args:
+        wins: Number of wins
+        losses: Number of losses
+        pushes: Number of pushes (optional, not counted in win rate)
+
+    Returns:
+        Win rate percentage
+    """
     total = wins + losses
     if total == 0:
         return 0.0
@@ -144,11 +157,24 @@ def win_rate(wins: int, losses: int) -> float:
 
 
 def units_won(wins: int, losses: int, avg_odds: float = -110, unit_size: float = 1.0) -> float:
-    """Calculate total units won/lost"""
-    if avg_odds > 0:
-        win_amount = unit_size * (avg_odds / 100)
-    else:
-        win_amount = unit_size * (100 / abs(avg_odds))
+    """
+    Calculate total units won/lost
+
+    Uses shared odds conversion utilities.
+
+    Args:
+        wins: Number of wins
+        losses: Number of losses
+        avg_odds: Average American odds
+        unit_size: Size of one unit
+
+    Returns:
+        Total units profit/loss
+    """
+    from sportsbetlang.common.odds import american_to_decimal
+
+    decimal_odds = float(american_to_decimal(avg_odds))
+    win_amount = unit_size * (decimal_odds - 1)
 
     total_won = wins * win_amount
     total_lost = losses * unit_size
@@ -156,7 +182,17 @@ def units_won(wins: int, losses: int, avg_odds: float = -110, unit_size: float =
 
 
 def roi(wins: int, losses: int, avg_odds: float = -110) -> float:
-    """Calculate ROI as a percentage"""
+    """
+    Calculate ROI as a percentage
+
+    Args:
+        wins: Number of wins
+        losses: Number of losses
+        avg_odds: Average American odds
+
+    Returns:
+        ROI percentage
+    """
     total_bets = wins + losses
     if total_bets == 0:
         return 0.0
@@ -166,7 +202,18 @@ def roi(wins: int, losses: int, avg_odds: float = -110) -> float:
 
 
 def sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
-    """Calculate Sharpe ratio for betting performance"""
+    """
+    Calculate Sharpe ratio for betting performance
+
+    Measures risk-adjusted returns.
+
+    Args:
+        returns: List of returns (as decimals, e.g., 0.1 = 10%)
+        risk_free_rate: Risk-free rate of return
+
+    Returns:
+        Sharpe ratio
+    """
     if not returns:
         return 0.0
 
@@ -182,7 +229,15 @@ def sharpe_ratio(returns: List[float], risk_free_rate: float = 0.0) -> float:
 
 
 def max_drawdown(bankroll_history: List[float]) -> float:
-    """Calculate maximum drawdown from bankroll history"""
+    """
+    Calculate maximum drawdown from bankroll history
+
+    Args:
+        bankroll_history: List of bankroll values over time
+
+    Returns:
+        Maximum drawdown as a percentage
+    """
     if not bankroll_history:
         return 0.0
 
@@ -200,20 +255,50 @@ def max_drawdown(bankroll_history: List[float]) -> float:
 
 
 def profit_factor(gross_wins: float, gross_losses: float) -> float:
-    """Calculate profit factor (gross wins / gross losses)"""
+    """
+    Calculate profit factor (gross wins / gross losses)
+
+    A profit factor > 1.0 indicates profitability.
+
+    Args:
+        gross_wins: Total gross winnings
+        gross_losses: Total gross losses
+
+    Returns:
+        Profit factor
+    """
     if gross_losses == 0:
         return float('inf') if gross_wins > 0 else 0
     return gross_wins / gross_losses
 
 
-def expectancy(win_rate: float, avg_win: float, avg_loss: float) -> float:
-    """Calculate expectancy (average profit per bet)"""
-    loss_rate = 1 - win_rate
-    return (win_rate * avg_win) - (loss_rate * avg_loss)
+def expectancy(win_rate_pct: float, avg_win: float, avg_loss: float) -> float:
+    """
+    Calculate expectancy (average profit per bet)
+
+    Args:
+        win_rate_pct: Win rate as decimal (0.55 = 55%)
+        avg_win: Average win amount
+        avg_loss: Average loss amount (positive number)
+
+    Returns:
+        Expected profit per bet
+    """
+    loss_rate = 1 - win_rate_pct
+    return (win_rate_pct * avg_win) - (loss_rate * avg_loss)
 
 
-def confidence_interval(values: List[float], confidence: float = 0.95) -> tuple:
-    """Calculate confidence interval for a dataset"""
+def confidence_interval(values: List[float], confidence: float = 0.95) -> Tuple[float, float]:
+    """
+    Calculate confidence interval for a dataset
+
+    Args:
+        values: Dataset
+        confidence: Confidence level (0.90, 0.95, or 0.99)
+
+    Returns:
+        Tuple of (lower_bound, upper_bound)
+    """
     if len(values) < 2:
         raise ValueError("Need at least 2 values for confidence interval")
 
@@ -236,10 +321,45 @@ def confidence_interval(values: List[float], confidence: float = 0.95) -> tuple:
     return (avg - margin, avg + margin)
 
 
+def calculate_breakeven_rate(odds: float) -> float:
+    """
+    Calculate break-even win rate for given odds
+
+    Uses shared utilities for calculation.
+
+    Args:
+        odds: American odds
+
+    Returns:
+        Break-even win rate as decimal (0.55 = 55%)
+    """
+    from sportsbetlang.common.odds import implied_probability
+    return float(implied_probability(odds))
+
+
+def kelly_growth_rate(edge: float, kelly_fraction: float) -> float:
+    """
+    Calculate expected bankroll growth rate using Kelly
+
+    Args:
+        edge: Your edge (as decimal, e.g., 0.05 = 5%)
+        kelly_fraction: Fraction of Kelly to use
+
+    Returns:
+        Expected growth rate per bet
+    """
+    # Growth rate approximation: g ≈ edge * kelly_fraction
+    return edge * kelly_fraction
+
+
 # Export all functions
 __all__ = [
+    # Basic stats
     'mean', 'median', 'mode', 'variance', 'std_dev', 'percentile',
     'correlation', 'z_score', 'moving_average', 'weighted_average',
+
+    # Betting stats
     'win_rate', 'units_won', 'roi', 'sharpe_ratio', 'max_drawdown',
-    'profit_factor', 'expectancy', 'confidence_interval'
+    'profit_factor', 'expectancy', 'confidence_interval',
+    'calculate_breakeven_rate', 'kelly_growth_rate'
 ]

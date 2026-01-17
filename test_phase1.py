@@ -21,7 +21,7 @@ def test_odds_conversion():
     print("Testing Odds Conversion Utilities")
     print("="*80)
 
-    from oddsscript.common.odds import (
+    from sportsbetlang.common.odds import (
         american_to_decimal,
         decimal_to_american,
         implied_probability,
@@ -68,7 +68,7 @@ def test_kelly_criterion():
     print("Testing Kelly Criterion Utilities")
     print("="*80)
 
-    from oddsscript.common.kelly import calculate_kelly
+    from sportsbetlang.common.kelly import calculate_kelly
 
     # Test basic Kelly
     result = calculate_kelly(
@@ -114,7 +114,7 @@ def test_validators():
     print("Testing Input Validators")
     print("="*80)
 
-    from oddsscript.common.validators import (
+    from sportsbetlang.common.validators import (
         Validators,
         ValidationError
     )
@@ -176,7 +176,7 @@ def test_configuration():
     print("Testing Configuration System")
     print("="*80)
 
-    from oddsscript.config import get_config, set_config, OddsScriptConfig
+    from sportsbetlang.config import get_config, set_config, SportsBetLangConfig
 
     # Get default config
     config = get_config()
@@ -188,7 +188,7 @@ def test_configuration():
     print(f"  Max Workers: {config.max_workers}")
 
     # Test custom config
-    custom_config = OddsScriptConfig(
+    custom_config = SportsBetLangConfig(
         kelly_fraction=0.5,
         storage_backend='sqlite',
         enable_multiprocessing=False
@@ -214,7 +214,7 @@ def test_storage_csv():
     print("Testing CSV Storage Backend")
     print("="*80)
 
-    from oddsscript.data import create_storage
+    from sportsbetlang.data import create_storage
     from pathlib import Path
     import tempfile
     import shutil
@@ -299,7 +299,7 @@ def test_storage_sqlite():
     print("Testing SQLite Storage Backend")
     print("="*80)
 
-    from oddsscript.data import create_storage
+    from sportsbetlang.data import create_storage
     from pathlib import Path
     import tempfile
     import shutil
@@ -372,7 +372,7 @@ def test_package_imports():
     print("="*80)
 
     # Test main package
-    import oddsscript
+    import sportsbetlang
     print(f"✓ oddsscript imported")
     print(f"  Version: {oddsscript.__version__}")
 
