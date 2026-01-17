@@ -110,6 +110,13 @@ BETTING OPERATIONS:
   bet spread "Chiefs" odds -110 stake 50        # Spread bet
   parlay [bet1, bet2, bet3] stake 100          # Create parlay
 
+BETTING SHORTCUTS (New!):
+  quick "Lakers" -110 to_win 100               # Quick bet: calc stake to win amount
+  quick "Lakers" -110 risk 100                 # Quick bet: risk specific amount
+  teaser [bet1, bet2] points 6 odds -110 stake 100  # Teaser bet
+  round_robin [bet1, bet2, bet3] legs 2 stake_per 50  # Round robin parlays
+  if_win bet1 then bet2                        # Conditional betting
+
 BUILT-IN FUNCTIONS:
   american_to_decimal(odds)           # Convert American to decimal odds
   decimal_to_american(odds)           # Convert decimal to American odds

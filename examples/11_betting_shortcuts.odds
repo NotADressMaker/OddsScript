@@ -1,0 +1,96 @@
+# SportsBetLang: Betting Shortcuts Demo
+# This example demonstrates the new domain-specific shortcuts for common betting scenarios
+
+print("=== BETTING SHORTCUTS DEMO ===")
+print("")
+
+# 1. QUICK BET - Shorthand for simple moneyline bets
+print("1. Quick Bet Examples:")
+print("")
+
+# Quick bet: specify what you want to WIN
+quick "Lakers" -110 to_win 100
+# This automatically calculates: need to risk $110 to win $100
+
+# Quick bet: specify what you want to RISK
+quick "Celtics" +150 risk 100
+# This automatically calculates: risk $100 to win $150
+
+print("")
+
+# 2. TEASER - Adjust point spreads in your favor
+print("2. Teaser Example:")
+print("")
+
+# First, create individual bets for the teaser
+let game1 = bet spread "Patriots" odds -110 stake 0 spread -3.5
+let game2 = bet spread "Chiefs" odds -120 stake 0 spread -7.5
+
+# Create a 6-point teaser (moves spreads 6 points in your favor)
+# Patriots -3.5 becomes +2.5, Chiefs -7.5 becomes -1.5
+teaser [game1, game2] points 6 odds -110 stake 100
+
+print("")
+
+# 3. ROUND ROBIN - All combinations of parlays
+print("3. Round Robin Example:")
+print("")
+
+# Create three individual bets
+let bet1 = bet "Lakers" odds -110 stake 50
+let bet2 = bet "Warriors" odds +120 stake 50
+let bet3 = bet "Suns" odds -105 stake 50
+
+# Round robin: all 2-leg parlays from 3 bets
+# Creates 3 parlays: (bet1+bet2), (bet1+bet3), (bet2+bet3)
+round_robin [bet1, bet2, bet3] legs 2 stake_per 50
+
+print("")
+
+# 4. IF-WIN - Conditional betting (action betting)
+print("4. If-Win Example:")
+print("")
+
+# Place two bets for the if-win
+let first = bet "Dodgers" odds -150 stake 100
+let second = bet "Giants" odds +110 stake 0
+
+# If first bet wins, use entire payout ($166.67) as stake for second bet
+if_win first then second
+
+print("")
+
+# 5. COMBINING SHORTCUTS - Real-world scenario
+print("5. Real-World Scenario:")
+print("You have $500 bankroll and want to bet on NFL Sunday")
+print("")
+
+# Quick bets on your favorite teams
+print("Making quick bets on favorites:")
+quick "Bills" -140 risk 70
+quick "49ers" -175 to_win 100
+
+print("")
+
+# Build a teaser with your less confident picks
+print("Building a 6.5-point teaser:")
+let spread1 = bet spread "Broncos" odds -110 stake 0 spread -4.5
+let spread2 = bet spread "Ravens" odds -110 stake 0 spread -8.5
+let spread3 = bet spread "Eagles" odds -110 stake 0 spread -6.0
+
+teaser [spread1, spread2, spread3] points 6.5 odds -120 stake 60
+
+print("")
+
+# Round robin for hedging
+print("Round robin as hedge:")
+let underdog1 = bet "Jaguars" odds +180 stake 0
+let underdog2 = bet "Cardinals" odds +210 stake 0
+let underdog3 = bet "Panthers" odds +165 stake 0
+
+round_robin [underdog1, underdog2, underdog3] legs 2 stake_per 25
+
+print("")
+print("=== SHORTCUTS MAKE BETTING MORE ACCESSIBLE ===")
+print("No need to manually calculate stakes, odds, or combinations!")
+print("Perfect for casual bettors who want simplicity without sacrificing control.")

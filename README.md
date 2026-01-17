@@ -6,6 +6,7 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 
 ### Core Language
 - **Betting-specific syntax**: Create bets, parlays, and manage bankrolls with dedicated language constructs
+- **Betting shortcuts**: Quick bets, teasers, round robins, and conditional betting with intuitive syntax
 - **Built-in betting functions**: Kelly criterion, expected value, odds conversions, vig calculator, and more
 - **Odds format support**: American, decimal, and fractional odds
 - **Bankroll management**: Tools for position sizing and risk management
@@ -17,7 +18,7 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
 - **CLI Tools**: 20+ professional tools including odds calculator, bet tracker, portfolio optimizer, line tracker, tax calculator, arbitrage finder, hedge calculator, market maker, and more
 - **Testing Framework**: Comprehensive unit tests for all components
-- **10 Example Programs**: From basic bets to advanced arbitrage and hedging
+- **11 Example Programs**: From basic bets to advanced arbitrage, hedging, and betting shortcuts
 
 📚 **[View Complete Package Documentation](PACKAGES.md)** - 20+ tools and libraries
 
@@ -82,6 +83,34 @@ bet spread "Chiefs" odds -110 stake 50
 # Parlay
 parlay [bet1, bet2, bet3] stake 100
 ```
+
+### Betting Shortcuts (New!)
+
+SportsBetLang now includes domain-specific shortcuts for common betting scenarios, making it even more accessible for casual bettors:
+
+```sportsbetlang
+# Quick Bet - Shorthand for simple bets
+quick "Lakers" -110 to_win 100   # Calculates stake needed to win $100
+quick "Celtics" +150 risk 100    # Risk $100 at +150 odds
+
+# Teaser - Adjust spreads/totals in your favor
+let game1 = bet spread "Patriots" odds -110 stake 0 spread -3.5
+let game2 = bet spread "Chiefs" odds -120 stake 0 spread -7.5
+teaser [game1, game2] points 6 odds -110 stake 100  # 6-point teaser
+
+# Round Robin - All parlay combinations
+let bet1 = bet "Lakers" odds -110 stake 50
+let bet2 = bet "Warriors" odds +120 stake 50
+let bet3 = bet "Suns" odds -105 stake 50
+round_robin [bet1, bet2, bet3] legs 2 stake_per 50  # Creates 3 two-leg parlays
+
+# If-Win - Conditional betting (action betting)
+let first = bet "Dodgers" odds -150 stake 100
+let second = bet "Giants" odds +110 stake 0
+if_win first then second  # If first bet wins, use payout for second bet
+```
+
+These shortcuts reduce boilerplate and make SportsBetLang more intuitive for non-programmers while maintaining full expressiveness for advanced users.
 
 ### Odds Calculations
 

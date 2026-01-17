@@ -326,6 +326,18 @@ class Interpreter:
         elif isinstance(node, ParlayStatement):
             return self.eval_parlay_statement(node, env)
 
+        elif isinstance(node, TeaserStatement):
+            return self.eval_teaser_statement(node, env)
+
+        elif isinstance(node, RoundRobinStatement):
+            return self.eval_round_robin_statement(node, env)
+
+        elif isinstance(node, QuickBetStatement):
+            return self.eval_quick_bet_statement(node, env)
+
+        elif isinstance(node, IfWinStatement):
+            return self.eval_if_win_statement(node, env)
+
         else:
             raise RuntimeError(f"Unknown node type: {type(node)}")
 
@@ -367,6 +379,8 @@ class Interpreter:
 
         if node.operator == TokenType.MINUS:
             return -operand
+        elif node.operator == TokenType.PLUS:
+            return +operand
         elif node.operator == TokenType.NOT:
             return not self.is_truthy(operand)
         else:
@@ -447,6 +461,157 @@ class Interpreter:
 
         print(f"Parlay created: {len(bets)} legs, ${stake:.2f} to win ${potential_payout:.2f}")
         return parlay
+
+    def eval_teaser_statement(self, node: TeaserStatement, env: Environment) -> Dict[str, Any]:
+        """Evaluate a teaser bet - adjusts spreads/totals in favor of bettor"""
+        bets = [self.eval_node(bet_node, env) for bet_node in node.bets]
+        points = self.eval_node(node.points, env)
+        odds = self.eval_node(node.odds, env)
+        stake = self.eval_node(node.stake, env)
+
+        # Create adjusted bets for the teaser
+        adjusted_bets = []
+        for bet in bets:
+            if isinstance(bet, Bet):
+                # Adjust spread/total by teaser points
+                if bet.spread is not None:
+                    adjusted_spread = bet.spread + points if bet.spread < 0 else bet.spread - points
+                    adjusted_bet = Bet(bet.bet_type, bet.team, odds, 0, spread=adjusted_spread)
+                    adjusted_bets.append(adjusted_bet)
+                else:
+                    # For totals or moneylines, just use the teaser odds
+                    adjusted_bet = Bet(bet.bet_type, bet.team, odds, 0)
+                    adjusted_bets.append(adjusted_bet)
+
+        # Calculate payout based on teaser odds
+        if odds > 0:
+            potential_payout = stake * (odds / 100)
+        else:
+            potential_payout = stake * (100 / abs(odds))
+
+        teaser = {
+            'type': 'teaser',
+            'bets': adjusted_bets,
+            'original_bets': bets,
+            'points': points,
+            'stake': stake,
+            'odds': odds,
+            'potential_payout': potential_payout,
+            'total_return': stake + potential_payout
+        }
+
+        print(f"Teaser created: {len(bets)} legs, {points} points, ${stake:.2f} @ {odds:+d} to win ${potential_payout:.2f}")
+        return teaser
+
+    def eval_round_robin_statement(self, node: RoundRobinStatement, env: Environment) -> Dict[str, Any]:
+        """Evaluate a round robin bet - creates all combinations of parlays"""
+        from itertools import combinations
+
+        bets = [self.eval_node(bet_node, env) for bet_node in node.bets]
+        legs = int(self.eval_node(node.legs, env))
+        stake_per = self.eval_node(node.stake_per, env)
+
+        # Generate all combinations
+        bet_combinations = list(combinations(bets, legs))
+
+        parlays = []
+        total_stake = len(bet_combinations) * stake_per
+        total_potential_payout = 0
+
+        for combo in bet_combinations:
+            # Calculate parlay odds for this combination
+            combined_decimal = 1
+            for bet in combo:
+                if isinstance(bet, Bet):
+                    combined_decimal *= bet.to_decimal_odds()
+
+            potential_payout = stake_per * (combined_decimal - 1)
+            total_potential_payout += potential_payout
+
+            parlays.append({
+                'bets': combo,
+                'stake': stake_per,
+                'decimal_odds': combined_decimal,
+                'potential_payout': potential_payout
+            })
+
+        round_robin = {
+            'type': 'round_robin',
+            'all_bets': bets,
+            'legs': legs,
+            'parlays': parlays,
+            'num_parlays': len(bet_combinations),
+            'stake_per_parlay': stake_per,
+            'total_stake': total_stake,
+            'total_potential_payout': total_potential_payout,
+            'total_return': total_stake + total_potential_payout
+        }
+
+        print(f"Round Robin created: {len(bets)} picks, {legs}-leg parlays = {len(bet_combinations)} parlays")
+        print(f"Total stake: ${total_stake:.2f}, Max win: ${total_potential_payout:.2f}")
+        return round_robin
+
+    def eval_quick_bet_statement(self, node: QuickBetStatement, env: Environment) -> Bet:
+        """Evaluate a quick bet - shorthand for simple bets"""
+        team = self.eval_node(node.team, env)
+        odds = self.eval_node(node.odds, env)
+        amount = self.eval_node(node.amount, env)
+
+        if node.mode == 'to_win':
+            # Calculate stake needed to win the target amount
+            if odds > 0:
+                stake = amount / (odds / 100)
+            else:
+                stake = amount / (100 / abs(odds))
+            print(f"Quick bet: Risk ${stake:.2f} to win ${amount:.2f} on {team} @ {odds:+d}")
+        else:  # mode == 'risk'
+            stake = amount
+            if odds > 0:
+                payout = stake * (odds / 100)
+            else:
+                payout = stake * (100 / abs(odds))
+            print(f"Quick bet: Risk ${stake:.2f} to win ${payout:.2f} on {team} @ {odds:+d}")
+
+        bet = Bet('moneyline', team, odds, stake)
+        return bet
+
+    def eval_if_win_statement(self, node: IfWinStatement, env: Environment) -> Dict[str, Any]:
+        """Evaluate an if-win bet - conditional betting where second bet uses payout from first"""
+        first_bet = self.eval_node(node.first_bet, env)
+        second_bet = self.eval_node(node.second_bet, env)
+
+        # Calculate first bet payout
+        if isinstance(first_bet, Bet):
+            first_payout = first_bet.calculate_total_return()
+        else:
+            raise RuntimeError("First bet in if_win must be a Bet object")
+
+        # Use first bet's total return as stake for second bet
+        if isinstance(second_bet, Bet):
+            # Create a new bet with the first bet's payout as stake
+            second_bet_adjusted = Bet(
+                second_bet.bet_type,
+                second_bet.team,
+                second_bet.odds,
+                first_payout,
+                spread=second_bet.spread
+            )
+            final_payout = second_bet_adjusted.calculate_payout()
+        else:
+            raise RuntimeError("Second bet in if_win must be a Bet object")
+
+        if_win = {
+            'type': 'if_win',
+            'first_bet': first_bet,
+            'second_bet': second_bet_adjusted,
+            'initial_stake': first_bet.stake,
+            'if_win_stake': first_payout,
+            'potential_payout': final_payout,
+            'total_return': first_payout + final_payout
+        }
+
+        print(f"If-Win created: ${first_bet.stake:.2f} -> ${first_payout:.2f} -> ${final_payout:.2f}")
+        return if_win
 
     def is_truthy(self, value: Any) -> bool:
         """Determine if a value is truthy"""

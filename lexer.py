@@ -47,6 +47,18 @@ class TokenType(Enum):
     IMPLIED = auto()
     PROBABILITY = auto()
 
+    # Betting shortcuts
+    TEASER = auto()
+    ROUND_ROBIN = auto()
+    QUICK = auto()
+    IF_WIN = auto()
+    THEN = auto()
+    POINTS = auto()
+    LEGS = auto()
+    STAKE_PER = auto()
+    TO_WIN = auto()
+    RISK = auto()
+
     # Operators
     PLUS = auto()
     MINUS = auto()
@@ -117,6 +129,17 @@ class Lexer:
         'and': TokenType.AND,
         'or': TokenType.OR,
         'not': TokenType.NOT,
+        # Betting shortcuts
+        'teaser': TokenType.TEASER,
+        'round_robin': TokenType.ROUND_ROBIN,
+        'quick': TokenType.QUICK,
+        'if_win': TokenType.IF_WIN,
+        'then': TokenType.THEN,
+        'points': TokenType.POINTS,
+        'legs': TokenType.LEGS,
+        'stake_per': TokenType.STAKE_PER,
+        'to_win': TokenType.TO_WIN,
+        'risk': TokenType.RISK,
     }
 
     def __init__(self, source: str):

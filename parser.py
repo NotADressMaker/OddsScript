@@ -133,6 +133,35 @@ class ParlayStatement(ASTNode):
     stake: ASTNode
 
 
+@dataclass
+class TeaserStatement(ASTNode):
+    bets: List[ASTNode]
+    points: ASTNode
+    odds: ASTNode
+    stake: ASTNode
+
+
+@dataclass
+class RoundRobinStatement(ASTNode):
+    bets: List[ASTNode]
+    legs: ASTNode
+    stake_per: ASTNode
+
+
+@dataclass
+class QuickBetStatement(ASTNode):
+    team: ASTNode
+    odds: ASTNode
+    mode: str  # 'to_win' or 'risk'
+    amount: ASTNode
+
+
+@dataclass
+class IfWinStatement(ASTNode):
+    first_bet: ASTNode
+    second_bet: ASTNode
+
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
@@ -196,6 +225,14 @@ class Parser:
             return self.parse_bet_statement()
         elif token.type == TokenType.PARLAY:
             return self.parse_parlay_statement()
+        elif token.type == TokenType.TEASER:
+            return self.parse_teaser_statement()
+        elif token.type == TokenType.ROUND_ROBIN:
+            return self.parse_round_robin_statement()
+        elif token.type == TokenType.QUICK:
+            return self.parse_quick_bet_statement()
+        elif token.type == TokenType.IF_WIN:
+            return self.parse_if_win_statement()
         elif token.type == TokenType.PRINT:
             return self.parse_print_statement()
         elif token.type == TokenType.IDENTIFIER:
@@ -376,6 +413,104 @@ class Parser:
 
         return ParlayStatement(bets, stake)
 
+    def parse_teaser_statement(self) -> TeaserStatement:
+        """Parse teaser statement: teaser [bet1, bet2] points 6 odds -110 stake 100"""
+        self.expect(TokenType.TEASER)
+        self.expect(TokenType.LBRACKET)
+
+        bets = []
+        while self.current_token().type != TokenType.RBRACKET:
+            bet = self.parse_expression()
+            bets.append(bet)
+
+            if self.current_token().type == TokenType.COMMA:
+                self.advance()
+
+        self.expect(TokenType.RBRACKET)
+
+        # Parse points
+        self.expect(TokenType.POINTS)
+        points = self.parse_expression()
+
+        # Parse odds
+        self.expect(TokenType.ODDS)
+        odds = self.parse_expression()
+
+        # Parse stake
+        self.expect(TokenType.STAKE)
+        stake = self.parse_expression()
+
+        return TeaserStatement(bets, points, odds, stake)
+
+    def parse_round_robin_statement(self) -> RoundRobinStatement:
+        """Parse round robin: round_robin [bet1, bet2, bet3] legs 2 stake_per 50"""
+        self.expect(TokenType.ROUND_ROBIN)
+        self.expect(TokenType.LBRACKET)
+
+        bets = []
+        while self.current_token().type != TokenType.RBRACKET:
+            bet = self.parse_expression()
+            bets.append(bet)
+
+            if self.current_token().type == TokenType.COMMA:
+                self.advance()
+
+        self.expect(TokenType.RBRACKET)
+
+        # Parse legs
+        self.expect(TokenType.LEGS)
+        legs = self.parse_expression()
+
+        # Parse stake_per
+        self.expect(TokenType.STAKE_PER)
+        stake_per = self.parse_expression()
+
+        return RoundRobinStatement(bets, legs, stake_per)
+
+    def parse_quick_bet_statement(self) -> QuickBetStatement:
+        """Parse quick bet: quick "Lakers" -110 to_win 100 OR quick "Lakers" -110 risk 100"""
+        self.expect(TokenType.QUICK)
+
+        # Parse team (should be a string or identifier only, not a full expression)
+        team = self.parse_primary_expression()
+
+        # Parse odds (handle negative numbers: -110, 150, etc.)
+        if self.current_token().type == TokenType.MINUS:
+            self.advance()
+            num_token = self.expect(TokenType.NUMBER)
+            odds = NumberLiteral(-num_token.value)
+        elif self.current_token().type == TokenType.PLUS:
+            self.advance()
+            num_token = self.expect(TokenType.NUMBER)
+            odds = NumberLiteral(num_token.value)
+        elif self.current_token().type == TokenType.NUMBER:
+            num_token = self.current_token()
+            self.advance()
+            odds = NumberLiteral(num_token.value)
+        else:
+            raise SyntaxError(f"Expected odds value after team in quick bet at {self.current_token().line}:{self.current_token().column}")
+
+        # Check if to_win or risk
+        if self.current_token().type == TokenType.TO_WIN:
+            self.advance()
+            amount_token = self.expect(TokenType.NUMBER)
+            return QuickBetStatement(team, odds, 'to_win', NumberLiteral(amount_token.value))
+        elif self.current_token().type == TokenType.RISK:
+            self.advance()
+            amount_token = self.expect(TokenType.NUMBER)
+            return QuickBetStatement(team, odds, 'risk', NumberLiteral(amount_token.value))
+        else:
+            raise SyntaxError(f"Expected 'to_win' or 'risk' after odds in quick bet at {self.current_token().line}:{self.current_token().column}")
+
+    def parse_if_win_statement(self) -> IfWinStatement:
+        """Parse if-win statement: if_win bet1 then bet2"""
+        self.expect(TokenType.IF_WIN)
+        first_bet = self.parse_expression()
+        self.expect(TokenType.THEN)
+        second_bet = self.parse_expression()
+
+        return IfWinStatement(first_bet, second_bet)
+
     def parse_print_statement(self) -> FunctionCall:
         self.expect(TokenType.PRINT)
         self.expect(TokenType.LPAREN)
@@ -463,7 +598,7 @@ class Parser:
         return left
 
     def parse_unary_expression(self) -> ASTNode:
-        if self.current_token().type in [TokenType.MINUS, TokenType.NOT]:
+        if self.current_token().type in [TokenType.MINUS, TokenType.PLUS, TokenType.NOT]:
             op = self.current_token().type
             self.advance()
             operand = self.parse_unary_expression()
@@ -528,6 +663,10 @@ class Parser:
         elif token.type == TokenType.IDENTIFIER:
             self.advance()
             return Identifier(token.value)
+
+        # Allow bet statements as expressions
+        elif token.type == TokenType.BET:
+            return self.parse_bet_statement()
 
         elif token.type == TokenType.LPAREN:
             self.advance()
