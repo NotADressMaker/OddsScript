@@ -21,6 +21,16 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 
 🚀 **[Quick Start Guide](QUICKSTART_AI_CHAT.md)** | 📖 **[Full AI Documentation](docs/AI_CHAT_ASSISTANT.md)**
 
+### 👥 NEW: Social Features
+- **User-Generated Predictions**: Share predictions and track performance publicly
+- **Community Leaderboards**: Compete globally or by sport on ROI, win rate, streak
+- **Discussion Threads**: Forums for strategy, analysis, and betting insights
+- **Follow Analysts**: Follow top performers and get their activity feeds
+- **Engagement**: Like, comment, and interact with the community
+- **Reputation System**: Build credibility with verified performance
+
+🚀 **[Quick Start Guide](QUICKSTART_SOCIAL.md)** | 📖 **[Full Social Documentation](docs/SOCIAL_FEATURES.md)**
+
 ### Packages and Tools
 - **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis, regression modeling, multi-outcome Kelly
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations

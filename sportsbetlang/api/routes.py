@@ -12,12 +12,13 @@ from datetime import datetime
 import uuid
 
 from .chat import ChatService, SportsAnalyticsService
+from .social_routes import social_router
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="SportsBetLang AI Chat API",
-    description="Natural language interface for sports analytics and predictions",
-    version="1.0.0"
+    title="SportsBetLang API",
+    description="Natural language sports analytics and social betting community",
+    version="2.0.0"
 )
 
 # Add CORS middleware
@@ -271,9 +272,14 @@ async def health_check():
         "timestamp": datetime.now().isoformat(),
         "services": {
             "chat": chat_service is not None,
-            "analytics": True
+            "analytics": True,
+            "social": True
         }
     }
+
+
+# Include social features router
+app.include_router(social_router)
 
 
 if __name__ == "__main__":
