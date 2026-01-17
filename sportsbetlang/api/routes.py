@@ -13,12 +13,13 @@ import uuid
 
 from .chat import ChatService, SportsAnalyticsService
 from .social_routes import social_router
+from .developer_routes import developer_router
 
 # Initialize FastAPI app
 app = FastAPI(
     title="SportsBetLang API",
-    description="Natural language sports analytics and social betting community",
-    version="2.0.0"
+    description="Natural language sports analytics, social betting community, and developer platform",
+    version="3.0.0"
 )
 
 # Add CORS middleware
@@ -273,13 +274,15 @@ async def health_check():
         "services": {
             "chat": chat_service is not None,
             "analytics": True,
-            "social": True
+            "social": True,
+            "developer": True
         }
     }
 
 
-# Include social features router
+# Include feature routers
 app.include_router(social_router)
+app.include_router(developer_router)
 
 
 if __name__ == "__main__":

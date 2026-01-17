@@ -31,6 +31,16 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 
 🚀 **[Quick Start Guide](QUICKSTART_SOCIAL.md)** | 📖 **[Full Social Documentation](docs/SOCIAL_FEATURES.md)**
 
+### 🔌 NEW: Developer API (Pro)
+- **API Keys**: Generate keys for third-party integrations
+- **Webhooks**: Real-time event notifications for your apps
+- **Custom Data Feeds**: Export predictions, leaderboards, and analytics
+- **Rate Limiting**: Tier-based limits (Free: 1k/day, Pro: 100k/day, Enterprise: Unlimited)
+- **White-Label Solutions**: Custom-branded platforms (Enterprise)
+- **Full REST API**: Complete programmatic access to all features
+
+📖 **[Developer Documentation](docs/DEVELOPER_API.md)** | 🔧 **[API Examples](examples/developer_examples.py)**
+
 ### Packages and Tools
 - **Standard Library**: Statistics, backtesting, CLV tracking, variance analysis, Poisson calculator, correlation analysis, regression modeling, multi-outcome Kelly
 - **Betting Strategies**: Martingale, Fibonacci, Flat Betting implementations
