@@ -1,6 +1,6 @@
-# OddsScript Packages and Tools
+# SportsBetLang Packages and Tools
 
-This document describes all the packages, libraries, and utilities available for OddsScript.
+This document describes all the packages, libraries, and utilities available for SportsBetLang.
 
 ## Table of Contents
 

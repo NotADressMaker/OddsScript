@@ -38,7 +38,7 @@ env/
 .DS_Store
 Thumbs.db
 
-# OddsScript specific
+# SportsBetLang specific
 *.pyc
 
 # Analysis reports (local only)

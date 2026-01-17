@@ -1,6 +1,6 @@
-# OddsScript - A Programming Language for Sports Betting
+# SportsBetLang - A Programming Language for Sports Betting
 
-OddsScript is a domain-specific programming language designed specifically for sports betting analysis, bankroll management, and betting strategy development. It provides built-in functions for common betting calculations and a simple, intuitive syntax for betting operations.
+SportsBetLang is a domain-specific programming language designed specifically for sports betting analysis, bankroll management, and betting strategy development. It provides built-in functions for common betting calculations and a simple, intuitive syntax for betting operations.
 
 ## Features
 
@@ -36,7 +36,7 @@ OddsScript is a domain-specific programming language designed specifically for s
 
 ## Installation
 
-OddsScript requires Python 3.7 or higher.
+SportsBetLang requires Python 3.7 or higher.
 
 ```bash
 # Clone the repository
@@ -44,20 +44,20 @@ git clone <repository-url>
 cd programminglangauage
 
 # Make the main script executable
-chmod +x oddsscript.py
+chmod +x sportsbetlang.py
 
 # Run the REPL
-./oddsscript.py
+./sportsbetlang.py
 
 # Or run a script
-./oddsscript.py examples/01_basic_bet.odds
+./sportsbetlang.py examples/01_basic_bet.odds
 ```
 
 ## Quick Start
 
 ### Basic Syntax
 
-```oddsscript
+```sportsbetlang
 # Variables
 let bankroll = 1000
 const unit_size = 10
@@ -72,7 +72,7 @@ let total = bankroll + profit
 
 ### Creating Bets
 
-```oddsscript
+```sportsbetlang
 # Moneyline bet
 bet "Lakers" odds -110 stake 100
 
@@ -85,7 +85,7 @@ parlay [bet1, bet2, bet3] stake 100
 
 ### Odds Calculations
 
-```oddsscript
+```sportsbetlang
 # Convert American odds to decimal
 let decimal_odds = american_to_decimal(-110)  # Returns 1.909
 
@@ -101,7 +101,7 @@ let kelly = kelly_criterion(0.55, -110)
 
 ### Control Flow
 
-```oddsscript
+```sportsbetlang
 # Conditionals
 if ev > 0 {
     print("Positive EV - place the bet!")
@@ -121,7 +121,7 @@ while bankroll > 0 {
 
 ### Functions
 
-```oddsscript
+```sportsbetlang
 func analyze_bet(true_prob, odds, stake) {
     let ev = calculate_ev(true_prob, odds, stake)
     let kelly = kelly_criterion(true_prob, odds)
@@ -190,10 +190,10 @@ The `examples/` directory contains comprehensive examples:
 
 ```bash
 # Run an example
-./oddsscript.py examples/02_kelly_criterion.odds
+./sportsbetlang.py examples/02_kelly_criterion.odds
 
 # Or using Python directly
-python3 oddsscript.py examples/02_kelly_criterion.odds
+python3 sportsbetlang.py examples/02_kelly_criterion.odds
 ```
 
 ## Language Reference
@@ -229,11 +229,11 @@ true, false, and, or, not
 Start the interactive REPL:
 
 ```bash
-./oddsscript.py
+./sportsbetlang.py
 ```
 
 ```
-OddsScript v1.0 - Sports Betting Programming Language
+SportsBetLang v1.0 - Sports Betting Programming Language
 Type 'exit' or 'quit' to exit, 'help' for help
 
 >>> let odds = -110
@@ -247,7 +247,7 @@ Type 'exit' or 'quit' to exit, 'help' for help
 
 ### Bankroll Management
 
-```oddsscript
+```sportsbetlang
 let bankroll = 5000
 let unit = bankroll * 0.01  # 1% units
 
@@ -259,7 +259,7 @@ func calculate_bet_size(edge, odds) {
 
 ### Line Shopping
 
-```oddsscript
+```sportsbetlang
 let book1_odds = -110
 let book2_odds = -105
 let book3_odds = -108
@@ -270,7 +270,7 @@ print("Best odds: " + best_odds)
 
 ### Expected Value Analysis
 
-```oddsscript
+```sportsbetlang
 func should_bet(team, my_probability, market_odds, min_edge) {
     let market_prob = implied_probability(market_odds)
     let edge = my_probability - market_prob
@@ -288,7 +288,7 @@ should_bet("Lakers", 0.58, -110, 0.05)
 
 ### Parlay Analysis
 
-```oddsscript
+```sportsbetlang
 # Analyze a 3-leg parlay
 let leg1 = -110
 let leg2 = -120
@@ -305,7 +305,7 @@ print("Win probability: " + (prob * 100) + "%")
 
 ### Custom Betting Systems
 
-```oddsscript
+```sportsbetlang
 func martingale(base_bet, losses) {
     let multiplier = pow(2, losses)
     return base_bet * multiplier
@@ -321,7 +321,7 @@ func fibonacci_bet(base_bet, position) {
 
 ### Portfolio Management
 
-```oddsscript
+```sportsbetlang
 let bets = [
     {"team": "Lakers", "odds": -110, "stake": 100},
     {"team": "Chiefs", "odds": -120, "stake": 150},
