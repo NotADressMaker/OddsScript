@@ -63,7 +63,7 @@ print(f"ROI: {roi(55, 45, -110)}%")
 
 ## Sport-Specific Analytics
 
-Sport-specific statistical models and betting tools optimized for NFL, NBA, MLB, and NHL.
+Sport-specific statistical models and betting tools optimized for professional sports (NFL, NBA, MLB, NHL), college sports (CFB, CBB), and horse racing.
 
 ### NFL Analytics (`lib/nfl_analytics.py`)
 
@@ -253,6 +253,199 @@ reg_result = NHLAnalytics.calculate_regulation_time_probability(
 - Total goals over/under
 - Goalie matchup analysis
 - Regulation time markets
+
+### College Football Analytics (`lib/cfb_analytics.py`)
+
+Statistical models designed specifically for college football betting with college-specific adjustments.
+
+**Features:**
+- Point spread probability with conference strength adjustments
+- Total points modeling with weather impact
+- Rivalry game analysis (spread compression)
+- Conference championship probability
+- First half betting analysis
+- Playoff probability calculations
+- Larger home field advantage (3.5 points, up to 7 for elite venues)
+- Higher variance than NFL due to talent disparities
+
+**Key Functions:**
+```python
+from lib.cfb_analytics import CFBAnalytics, Conference
+
+# Spread analysis with conference adjustment
+result = CFBAnalytics.calculate_spread_probability(
+    team_rating=35.0,
+    opponent_rating=28.0,
+    spread=-10.5,
+    is_home=True,
+    team_conference=Conference.SEC,
+    opponent_conference=Conference.ACC,
+    rivalry_game=False
+)
+
+# Total with weather impact
+total = CFBAnalytics.calculate_total_probability(
+    team1_avg=32.0,
+    team2_avg=28.0,
+    total_line=58.5,
+    weather_impact="heavy_wind"
+)
+
+# Rivalry game analysis
+rivalry = CFBAnalytics.analyze_rivalry_game(
+    team1_rating=32.0,
+    team2_rating=28.0,
+    spread=-7.0,
+    historical_record={'team1_wins': 8, 'team2_wins': 12}
+)
+
+# Playoff probability
+playoff = CFBAnalytics.calculate_playoff_probability(
+    team_rating=38.0,
+    current_record=(10, 0),
+    games_remaining=2,
+    conference_rank=1,
+    strength_of_schedule=75.0
+)
+```
+
+**Use Cases:**
+- College football spread betting
+- Over/under totals with weather considerations
+- Rivalry game betting (spreads often too high)
+- Conference championship games
+- College Football Playoff futures
+- First half betting markets
+
+### College Basketball Analytics (`lib/cbb_analytics.py`)
+
+Statistical models designed specifically for college basketball betting with March Madness support.
+
+**Features:**
+- Point spread probability with conference strength adjustments
+- Pace-adjusted total calculations
+- March Madness upset probability (seed-based)
+- Tournament advancement probabilities by seed
+- First half betting analysis
+- Conference game adjustments
+- Higher variance than NBA (shorter games, less consistency)
+- Larger home court advantage (4.0 points, up to 8 for elite venues)
+
+**Key Functions:**
+```python
+from lib.cbb_analytics import CBBAnalytics, CBBConference
+
+# Spread analysis
+result = CBBAnalytics.calculate_spread_probability(
+    team_rating=78.0,
+    opponent_rating=70.0,
+    spread=-6.5,
+    is_home=True,
+    team_conference=CBBConference.BIG_EAST,
+    opponent_conference=CBBConference.AAC
+)
+
+# Pace-adjusted total
+pace_result = CBBAnalytics.calculate_pace_adjusted_total(
+    team1_pace=72.0,
+    team2_pace=68.0,
+    team1_off_rating=108.0,
+    team2_off_rating=105.0,
+    team1_def_rating=98.0,
+    team2_def_rating=100.0
+)
+
+# March Madness upset probability
+upset = CBBAnalytics.calculate_march_madness_upset_probability(
+    higher_seed=5,
+    lower_seed=12,
+    rating_diff=10.0
+)
+
+# Tournament advancement probabilities
+tournament = CBBAnalytics.calculate_tournament_probability(
+    team_seed=3,
+    team_rating=25.0,
+    bracket_region="East"
+)
+```
+
+**Use Cases:**
+- College basketball spread betting
+- Over/under totals with pace adjustments
+- March Madness bracket predictions
+- Tournament futures (Final Four, Championship)
+- Conference tournament betting
+- First half betting markets
+
+### Horse Racing Analytics (`lib/horse_racing_analytics.py`)
+
+Comprehensive analytics toolkit for horse racing betting including speed ratings, position analysis, and exotic bets.
+
+**Features:**
+- Beyer-style speed rating models with track adjustments
+- Post position bias analysis (sprint vs route)
+- Exotic bet calculators (exacta, trifecta, superfecta)
+- Distance and surface specialization models
+- Jockey and trainer statistical tracking
+- Form trend analysis
+- Track condition and weather impact
+- Complete race analyzer with EV identification
+
+**Key Functions:**
+```python
+from horse_racing_analytics import (
+    HorseRacingAnalyzer, SpeedRatingModel,
+    PostPositionAnalysis, ExoticBetCalculator,
+    TrackSurface, TrackCondition
+)
+
+# Calculate speed figure
+speed_fig = SpeedRatingModel.calculate_speed_figure(
+    final_time=96.0,
+    distance_furlongs=8.0,
+    track_surface=TrackSurface.DIRT,
+    track_condition=TrackCondition.FAST
+)
+
+# Post position bias
+bias = PostPositionAnalysis.calculate_post_bias(
+    post_position=2,
+    num_horses=10,
+    distance_furlongs=6.0
+)
+
+# Exacta expected value
+exacta = ExoticBetCalculator.calculate_exacta_expected_value(
+    horse1_odds=300,
+    horse2_odds=500,
+    horse1_true_prob=0.30,
+    horse2_true_prob=0.25,
+    bet_amount=2.0
+)
+
+# Complete race analysis
+analyzer = HorseRacingAnalyzer()
+analyses = analyzer.analyze_race(
+    horses,  # List of Horse objects
+    race_distance_furlongs=8.0,
+    race_surface=TrackSurface.DIRT
+)
+
+# Find betting opportunities
+opportunities = analyzer.find_betting_opportunities(
+    analyses,
+    min_edge=0.05
+)
+```
+
+**Use Cases:**
+- Win, place, show betting
+- Exotic bet wagering (exacta, trifecta, superfecta)
+- Speed figure handicapping
+- Post position advantage analysis
+- Track condition adjustments
+- Jockey/trainer-based betting
 
 ### Sports Analyzer Tool (`tools/sports_analyzer.py`)
 
