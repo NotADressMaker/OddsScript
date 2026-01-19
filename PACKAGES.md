@@ -63,7 +63,7 @@ print(f"ROI: {roi(55, 45, -110)}%")
 
 ## Sport-Specific Analytics
 
-Sport-specific statistical models and betting tools optimized for professional sports (NFL, NBA, MLB, NHL), college sports (CFB, CBB), and horse racing.
+Sport-specific statistical models and betting tools optimized for professional sports (NFL, NBA, MLB, NHL), college sports (CFB, CBB), soccer, and horse racing.
 
 ### NFL Analytics (`lib/nfl_analytics.py`)
 
@@ -446,6 +446,103 @@ opportunities = analyzer.find_betting_opportunities(
 - Post position advantage analysis
 - Track condition adjustments
 - Jockey/trainer-based betting
+
+### Soccer Analytics (`lib/soccer_analytics.py`)
+
+Comprehensive soccer (football) betting analytics with support for major leagues and all common betting markets.
+
+**Features:**
+- 3-way moneyline probability (home win, draw, away win)
+- Double chance calculations (1X, X2, 12)
+- Asian handicap probability
+- Total goals over/under
+- Both teams to score (BTTS) analysis
+- Correct score probabilities
+- Expected goals (xG) integration
+- First half betting markets
+- League-specific adjustments (EPL, La Liga, Bundesliga, Serie A, etc.)
+- Poisson distribution-based goal modeling
+
+**Key Functions:**
+```python
+from lib.soccer_analytics import SoccerAnalytics, League
+
+# 3-way moneyline
+result = SoccerAnalytics.calculate_3way_moneyline(
+    home_goals_avg=2.1,  # Average goals per game
+    away_goals_avg=1.8,
+    league=League.PREMIER_LEAGUE
+)
+# Returns: home_win, draw, away_win probabilities
+
+# Asian handicap
+handicap = SoccerAnalytics.calculate_asian_handicap(
+    home_goals_avg=2.3,
+    away_goals_avg=1.2,
+    handicap=-1.0,  # Home giving 1 goal
+    league=League.PREMIER_LEAGUE
+)
+
+# Total goals
+total = SoccerAnalytics.calculate_total_goals(
+    home_goals_avg=2.1,
+    away_goals_avg=1.8,
+    total_line=2.5,
+    league=League.PREMIER_LEAGUE
+)
+
+# Both teams to score
+btts = SoccerAnalytics.calculate_both_teams_to_score(
+    home_goals_avg=2.0,
+    away_goals_avg=1.7,
+    home_goals_against_avg=1.1,
+    away_goals_against_avg=1.3,
+    league=League.PREMIER_LEAGUE
+)
+
+# Most likely correct scores
+scores = SoccerAnalytics.calculate_correct_score_probabilities(
+    home_goals_avg=2.1,
+    away_goals_avg=1.8,
+    league=League.PREMIER_LEAGUE,
+    top_n=5
+)
+
+# Expected goals (xG) based analysis
+xg_result = SoccerAnalytics.calculate_expected_goals_probability(
+    home_xg=2.3,  # Pre-match xG
+    away_xg=1.1,
+    league=League.PREMIER_LEAGUE
+)
+
+# League characteristics
+analysis = SoccerAnalytics.analyze_league_characteristics(
+    League.BUNDESLIGA
+)
+# Returns: avg goals, draw rate, betting advice
+```
+
+**Supported Leagues:**
+- **Top 5 European:** Premier League, La Liga, Bundesliga, Serie A, Ligue 1
+- **Other Major:** MLS, Eredivisie, Liga MX, Primeira Liga, Scottish Premiership
+- **International:** Champions League, Europa League, World Cup, Euros
+
+**League-Specific Characteristics:**
+- **Bundesliga**: Highest scoring (3.15 goals/game), fewer draws (24%)
+- **Serie A**: More defensive (2.70 goals/game), tactical play
+- **Premier League**: Balanced (2.82 goals/game, 26% draws)
+- **La Liga**: Technical, moderate draws (28%)
+- **World Cup/Euros**: Lower scoring, high draw rates (30-32%)
+
+**Use Cases:**
+- 3-way moneyline betting (home/draw/away)
+- Asian handicap markets (-0.5, -1.0, -1.5, etc.)
+- Over/under goals (most common: 2.5, 3.5)
+- Both teams to score (BTTS) Yes/No
+- Correct score betting
+- Double chance betting
+- First half markets
+- xG-based value identification
 
 ### Sports Analyzer Tool (`tools/sports_analyzer.py`)
 
