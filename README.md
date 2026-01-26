@@ -36,22 +36,52 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 
 ## Installation
 
-SportsBetLang requires Python 3.7 or higher.
+SportsBetLang works on **desktop, laptop, Jupyter notebooks, Google Colab, and online Python environments**. Requires Python 3.7 or higher.
 
+### 🖥️ Desktop / Laptop (Recommended)
+
+**Quick Install:**
 ```bash
-# Clone the repository
+pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+```
+
+Then use in Python:
+```python
+from lib import SBL, EasySportModel, quick_nba_prediction
+
+# Calculate Kelly
+kelly = SBL.kelly(win_prob=0.55, odds=2.0)
+
+# Quick NBA prediction
+prob = quick_nba_prediction(115, 108, 110, 109, home=True)
+```
+
+📚 **[Desktop Quick Start Guide](DESKTOP_QUICKSTART.md)** - Complete desktop setup with examples
+
+**Alternative - Clone Repository:**
+```bash
+# Clone and install
 git clone <repository-url>
 cd programminglangauage
+pip install -e .
 
-# Make the main script executable
-chmod +x sportsbetlang.py
-
-# Run the REPL
+# Use the domain-specific language REPL
 ./sportsbetlang.py
 
 # Or run a script
 ./sportsbetlang.py examples/01_basic_bet.odds
 ```
+
+### 🌐 Online Python Environments
+
+**pythononline.net, Google Colab, Jupyter:**
+```python
+!pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+
+from lib import SBL, EasySportModel
+```
+
+📚 **[Installation Guide](INSTALL.md)** - All installation methods
 
 ## Quick Start
 
