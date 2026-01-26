@@ -34,11 +34,19 @@ from lib.ml_models import (
 # Import simplified API
 from lib.simple_api import SBL, Bet, Compare
 
+# Import model builder
+from lib.model_builder import Model, ModelBuilder, DataHelper
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
     'Bet',
     'Compare',
+
+    # ML Model Builder (easy model creation)
+    'Model',
+    'ModelBuilder',
+    'DataHelper',
 
     # Advanced statistics
     'AdvancedStats',
