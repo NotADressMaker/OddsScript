@@ -358,6 +358,135 @@ MIT License - feel free to use and modify as needed.
 
 This software is for educational and analytical purposes only. Sports betting involves risk. Always bet responsibly and within your means. Check your local laws regarding sports betting.
 
+## Python Library
+
+SportsBetLang can also be used as a Python library with powerful analytics and machine learning capabilities.
+
+### Simplified API
+
+Quick one-liners for common betting calculations:
+
+```python
+from lib.simple_api import SBL, Bet, Compare
+
+# Kelly Criterion
+kelly = SBL.kelly(win_prob=0.55, odds=2.0)
+
+# Expected Value
+ev = SBL.ev(win_prob=0.55, odds=2.0, bet_amount=100)
+
+# Analyze a bet
+bet = (Bet(100)
+       .at_odds(2.1)
+       .with_probability(0.58)
+       .from_bankroll(1000))
+bet.print_summary()
+
+# Compare multiple bets
+comp = Compare(bankroll=1000)
+comp.add("Bet A", prob=0.58, odds=2.1)
+comp.add("Bet B", prob=0.52, odds=2.3)
+comp.print_comparison()
+```
+
+📚 **[Simplified API Guide](docs/simple_api_guide.md)** - Complete guide with 30+ functions
+
+### ML Model Builder
+
+Build custom machine learning models for sports betting:
+
+```python
+from lib.model_builder import Model, ModelBuilder, split_data
+
+# Split your data
+X_train, X_test, y_train, y_test = split_data(X, y, test_size=0.2)
+
+# Build a custom model
+model = (Model()
+         .named("NBA Game Predictor")
+         .for_classification()
+         .using_random_forest(n_trees=100, max_depth=10)
+         .with_features(['team_rating', 'opp_rating', 'home'])
+         .with_normalization('standard')
+         .train(X_train, y_train))
+
+# Evaluate
+model.print_performance(X_test, y_test)
+
+# Or use pre-built templates
+model = ModelBuilder.game_prediction_model()
+model.train(X_train, y_train)
+```
+
+📚 **[ML Model Builder Guide](docs/ml_model_builder_guide.md)** - Build your own models
+
+### Advanced Statistics & Machine Learning
+
+Zero-dependency implementations of advanced techniques:
+
+```python
+from lib.advanced_stats import AdvancedStats
+from lib.ml_models import RandomForest, NeuralNetwork
+
+# Bayesian inference
+result = AdvancedStats.bayesian_win_probability(wins=12, losses=5)
+
+# Monte Carlo simulation
+def simulate_season():
+    return sum(1 for _ in range(16) if random.random() < 0.6)
+
+result = AdvancedStats.monte_carlo_simulation(simulate_season, n=10000)
+
+# Machine learning
+model = RandomForest(n_trees=100, max_depth=10)
+model.fit(X_train, y_train)
+predictions = model.predict(X_test)
+```
+
+📚 **[Advanced Stats Guide](docs/advanced_stats_guide.md)** - Statistical methods
+📚 **[ML Models Guide](docs/ml_models_guide.md)** - Machine learning details
+
+### Sport-Specific Analytics
+
+Dedicated packages for each sport:
+
+```python
+from lib.nhl_analytics import NHLAdvancedAnalytics
+from lib.cfb_analytics import CFBAnalytics
+from lib.soccer_analytics import SoccerAnalytics
+from lib.horse_racing_analytics import HorseRacingAnalytics
+
+# NHL Expected Goals
+xg = NHLAdvancedAnalytics.calculate_expected_goals(
+    shot_distance=15, shot_angle=20, shot_type='wrist'
+)
+
+# College Football with conference adjustments
+prediction = CFBAnalytics.predict_game_ml(home_team, away_team)
+
+# Soccer 3-way moneyline
+odds = SoccerAnalytics.calculate_3way_moneyline(
+    home_goals_avg=1.8, away_goals_avg=1.2
+)
+```
+
+📚 **[NHL Analytics Guide](docs/nhl_analytics_guide.md)** - Hockey analytics
+📚 See `lib/` directory for all sport-specific packages
+
+### Installation
+
+```bash
+# Install from GitHub
+pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+
+# Or clone and install locally
+git clone <repository-url>
+cd programminglangauage
+pip install -e .
+```
+
+📚 **[Installation Guide](INSTALL.md)** - Detailed installation instructions
+
 ## Packages and Utilities
 
 ### Standard Library

@@ -63,7 +63,7 @@ print(f"ROI: {roi(55, 45, -110)}%")
 
 ## Sport-Specific Analytics
 
-Sport-specific statistical models and betting tools optimized for NFL, NBA, MLB, and NHL.
+Sport-specific statistical models and betting tools optimized for professional sports (NFL, NBA, MLB, NHL), college sports (CFB, CBB), soccer, and horse racing.
 
 ### NFL Analytics (`lib/nfl_analytics.py`)
 
@@ -253,6 +253,296 @@ reg_result = NHLAnalytics.calculate_regulation_time_probability(
 - Total goals over/under
 - Goalie matchup analysis
 - Regulation time markets
+
+### College Football Analytics (`lib/cfb_analytics.py`)
+
+Statistical models designed specifically for college football betting with college-specific adjustments.
+
+**Features:**
+- Point spread probability with conference strength adjustments
+- Total points modeling with weather impact
+- Rivalry game analysis (spread compression)
+- Conference championship probability
+- First half betting analysis
+- Playoff probability calculations
+- Larger home field advantage (3.5 points, up to 7 for elite venues)
+- Higher variance than NFL due to talent disparities
+
+**Key Functions:**
+```python
+from lib.cfb_analytics import CFBAnalytics, Conference
+
+# Spread analysis with conference adjustment
+result = CFBAnalytics.calculate_spread_probability(
+    team_rating=35.0,
+    opponent_rating=28.0,
+    spread=-10.5,
+    is_home=True,
+    team_conference=Conference.SEC,
+    opponent_conference=Conference.ACC,
+    rivalry_game=False
+)
+
+# Total with weather impact
+total = CFBAnalytics.calculate_total_probability(
+    team1_avg=32.0,
+    team2_avg=28.0,
+    total_line=58.5,
+    weather_impact="heavy_wind"
+)
+
+# Rivalry game analysis
+rivalry = CFBAnalytics.analyze_rivalry_game(
+    team1_rating=32.0,
+    team2_rating=28.0,
+    spread=-7.0,
+    historical_record={'team1_wins': 8, 'team2_wins': 12}
+)
+
+# Playoff probability
+playoff = CFBAnalytics.calculate_playoff_probability(
+    team_rating=38.0,
+    current_record=(10, 0),
+    games_remaining=2,
+    conference_rank=1,
+    strength_of_schedule=75.0
+)
+```
+
+**Use Cases:**
+- College football spread betting
+- Over/under totals with weather considerations
+- Rivalry game betting (spreads often too high)
+- Conference championship games
+- College Football Playoff futures
+- First half betting markets
+
+### College Basketball Analytics (`lib/cbb_analytics.py`)
+
+Statistical models designed specifically for college basketball betting with March Madness support.
+
+**Features:**
+- Point spread probability with conference strength adjustments
+- Pace-adjusted total calculations
+- March Madness upset probability (seed-based)
+- Tournament advancement probabilities by seed
+- First half betting analysis
+- Conference game adjustments
+- Higher variance than NBA (shorter games, less consistency)
+- Larger home court advantage (4.0 points, up to 8 for elite venues)
+
+**Key Functions:**
+```python
+from lib.cbb_analytics import CBBAnalytics, CBBConference
+
+# Spread analysis
+result = CBBAnalytics.calculate_spread_probability(
+    team_rating=78.0,
+    opponent_rating=70.0,
+    spread=-6.5,
+    is_home=True,
+    team_conference=CBBConference.BIG_EAST,
+    opponent_conference=CBBConference.AAC
+)
+
+# Pace-adjusted total
+pace_result = CBBAnalytics.calculate_pace_adjusted_total(
+    team1_pace=72.0,
+    team2_pace=68.0,
+    team1_off_rating=108.0,
+    team2_off_rating=105.0,
+    team1_def_rating=98.0,
+    team2_def_rating=100.0
+)
+
+# March Madness upset probability
+upset = CBBAnalytics.calculate_march_madness_upset_probability(
+    higher_seed=5,
+    lower_seed=12,
+    rating_diff=10.0
+)
+
+# Tournament advancement probabilities
+tournament = CBBAnalytics.calculate_tournament_probability(
+    team_seed=3,
+    team_rating=25.0,
+    bracket_region="East"
+)
+```
+
+**Use Cases:**
+- College basketball spread betting
+- Over/under totals with pace adjustments
+- March Madness bracket predictions
+- Tournament futures (Final Four, Championship)
+- Conference tournament betting
+- First half betting markets
+
+### Horse Racing Analytics (`lib/horse_racing_analytics.py`)
+
+Comprehensive analytics toolkit for horse racing betting including speed ratings, position analysis, and exotic bets.
+
+**Features:**
+- Beyer-style speed rating models with track adjustments
+- Post position bias analysis (sprint vs route)
+- Exotic bet calculators (exacta, trifecta, superfecta)
+- Distance and surface specialization models
+- Jockey and trainer statistical tracking
+- Form trend analysis
+- Track condition and weather impact
+- Complete race analyzer with EV identification
+
+**Key Functions:**
+```python
+from horse_racing_analytics import (
+    HorseRacingAnalyzer, SpeedRatingModel,
+    PostPositionAnalysis, ExoticBetCalculator,
+    TrackSurface, TrackCondition
+)
+
+# Calculate speed figure
+speed_fig = SpeedRatingModel.calculate_speed_figure(
+    final_time=96.0,
+    distance_furlongs=8.0,
+    track_surface=TrackSurface.DIRT,
+    track_condition=TrackCondition.FAST
+)
+
+# Post position bias
+bias = PostPositionAnalysis.calculate_post_bias(
+    post_position=2,
+    num_horses=10,
+    distance_furlongs=6.0
+)
+
+# Exacta expected value
+exacta = ExoticBetCalculator.calculate_exacta_expected_value(
+    horse1_odds=300,
+    horse2_odds=500,
+    horse1_true_prob=0.30,
+    horse2_true_prob=0.25,
+    bet_amount=2.0
+)
+
+# Complete race analysis
+analyzer = HorseRacingAnalyzer()
+analyses = analyzer.analyze_race(
+    horses,  # List of Horse objects
+    race_distance_furlongs=8.0,
+    race_surface=TrackSurface.DIRT
+)
+
+# Find betting opportunities
+opportunities = analyzer.find_betting_opportunities(
+    analyses,
+    min_edge=0.05
+)
+```
+
+**Use Cases:**
+- Win, place, show betting
+- Exotic bet wagering (exacta, trifecta, superfecta)
+- Speed figure handicapping
+- Post position advantage analysis
+- Track condition adjustments
+- Jockey/trainer-based betting
+
+### Soccer Analytics (`lib/soccer_analytics.py`)
+
+Comprehensive soccer (football) betting analytics with support for major leagues and all common betting markets.
+
+**Features:**
+- 3-way moneyline probability (home win, draw, away win)
+- Double chance calculations (1X, X2, 12)
+- Asian handicap probability
+- Total goals over/under
+- Both teams to score (BTTS) analysis
+- Correct score probabilities
+- Expected goals (xG) integration
+- First half betting markets
+- League-specific adjustments (EPL, La Liga, Bundesliga, Serie A, etc.)
+- Poisson distribution-based goal modeling
+
+**Key Functions:**
+```python
+from lib.soccer_analytics import SoccerAnalytics, League
+
+# 3-way moneyline
+result = SoccerAnalytics.calculate_3way_moneyline(
+    home_goals_avg=2.1,  # Average goals per game
+    away_goals_avg=1.8,
+    league=League.PREMIER_LEAGUE
+)
+# Returns: home_win, draw, away_win probabilities
+
+# Asian handicap
+handicap = SoccerAnalytics.calculate_asian_handicap(
+    home_goals_avg=2.3,
+    away_goals_avg=1.2,
+    handicap=-1.0,  # Home giving 1 goal
+    league=League.PREMIER_LEAGUE
+)
+
+# Total goals
+total = SoccerAnalytics.calculate_total_goals(
+    home_goals_avg=2.1,
+    away_goals_avg=1.8,
+    total_line=2.5,
+    league=League.PREMIER_LEAGUE
+)
+
+# Both teams to score
+btts = SoccerAnalytics.calculate_both_teams_to_score(
+    home_goals_avg=2.0,
+    away_goals_avg=1.7,
+    home_goals_against_avg=1.1,
+    away_goals_against_avg=1.3,
+    league=League.PREMIER_LEAGUE
+)
+
+# Most likely correct scores
+scores = SoccerAnalytics.calculate_correct_score_probabilities(
+    home_goals_avg=2.1,
+    away_goals_avg=1.8,
+    league=League.PREMIER_LEAGUE,
+    top_n=5
+)
+
+# Expected goals (xG) based analysis
+xg_result = SoccerAnalytics.calculate_expected_goals_probability(
+    home_xg=2.3,  # Pre-match xG
+    away_xg=1.1,
+    league=League.PREMIER_LEAGUE
+)
+
+# League characteristics
+analysis = SoccerAnalytics.analyze_league_characteristics(
+    League.BUNDESLIGA
+)
+# Returns: avg goals, draw rate, betting advice
+```
+
+**Supported Leagues:**
+- **Top 5 European:** Premier League, La Liga, Bundesliga, Serie A, Ligue 1
+- **Other Major:** MLS, Eredivisie, Liga MX, Primeira Liga, Scottish Premiership
+- **International:** Champions League, Europa League, World Cup, Euros
+
+**League-Specific Characteristics:**
+- **Bundesliga**: Highest scoring (3.15 goals/game), fewer draws (24%)
+- **Serie A**: More defensive (2.70 goals/game), tactical play
+- **Premier League**: Balanced (2.82 goals/game, 26% draws)
+- **La Liga**: Technical, moderate draws (28%)
+- **World Cup/Euros**: Lower scoring, high draw rates (30-32%)
+
+**Use Cases:**
+- 3-way moneyline betting (home/draw/away)
+- Asian handicap markets (-0.5, -1.0, -1.5, etc.)
+- Over/under goals (most common: 2.5, 3.5)
+- Both teams to score (BTTS) Yes/No
+- Correct score betting
+- Double chance betting
+- First half markets
+- xG-based value identification
 
 ### Sports Analyzer Tool (`tools/sports_analyzer.py`)
 
