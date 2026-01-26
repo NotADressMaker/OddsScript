@@ -51,6 +51,16 @@ from lib.sport_features import (
     get_sport_features
 )
 
+# Import easy sport models (simplified interface)
+from lib.easy_sport_models import (
+    EasySportModel,
+    quick_nba_prediction,
+    quick_nfl_prediction,
+    quick_soccer_btts,
+    train_and_predict,
+    AutoFeatures
+)
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
@@ -83,6 +93,14 @@ __all__ = [
     'SoccerFeatures',
     'HorseRacingFeatures',
     'get_sport_features',
+
+    # Easy Sport Models (simplified interface)
+    'EasySportModel',
+    'quick_nba_prediction',
+    'quick_nfl_prediction',
+    'quick_soccer_btts',
+    'train_and_predict',
+    'AutoFeatures',
 
     # Advanced statistics
     'AdvancedStats',

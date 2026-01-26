@@ -420,9 +420,68 @@ model.train(X_train, y_train)
 
 📚 **[ML Model Builder Guide](docs/ml_model_builder_guide.md)** - Build your own models
 
-### Sport-Specific Models
+### Easy Sport Models (Simplified Interface)
 
-Pre-configured models optimized for each sport:
+The easiest way to build sport-specific models - use dictionaries instead of arrays:
+
+```python
+from lib.easy_sport_models import EasySportModel, quick_nba_prediction
+
+# Train with dictionary data (no arrays needed!)
+games = [
+    {
+        'team_offensive_rating': 115.0,
+        'team_defensive_rating': 107.5,
+        'opponent_offensive_rating': 110.2,
+        'opponent_defensive_rating': 109.8,
+        'home_court': 1,
+        'rest_days_team': 2,
+        'rest_days_opponent': 1,
+        'pace': 100.5,
+        'result': 1  # Win
+    },
+    # ... more games
+]
+
+model = EasySportModel('nba', 'game_winner')
+model.fit(games)
+
+# Predict with dictionary (no arrays!)
+new_game = {
+    'team_offensive_rating': 116.0,
+    'team_defensive_rating': 108.0,
+    'opponent_offensive_rating': 111.0,
+    'opponent_defensive_rating': 110.0,
+    'home_court': 1,
+    'rest_days_team': 2,
+    'rest_days_opponent': 2,
+    'pace': 101.0
+}
+
+prediction = model.predict(new_game)
+probability = model.predict_proba(new_game)
+
+# Or use quick prediction functions (no training!)
+prob = quick_nba_prediction(
+    team_off_rtg=115.0, team_def_rtg=107.5,
+    opp_off_rtg=110.2, opp_def_rtg=109.8,
+    home=True
+)
+```
+
+**Features:**
+- Use dictionaries instead of arrays (more readable)
+- Automatic feature extraction and validation
+- Quick prediction functions (no training needed)
+- AutoFeatures helper for easy data preparation
+- End-to-end workflow in one function call
+- Same interface for all sports
+
+📚 **[Easy Sport Models Guide](docs/easy_sport_models_guide.md)** - Simplified interface
+
+### Sport-Specific Models (Advanced)
+
+Pre-configured models optimized for each sport (advanced interface):
 
 ```python
 from lib.sport_models import NBAModels, NFLModels, get_sport_model
