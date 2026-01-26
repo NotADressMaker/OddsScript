@@ -72,7 +72,28 @@ pip install -e .
 ./sportsbetlang.py examples/01_basic_bet.odds
 ```
 
-### 🌐 Online Python Environments
+### 🌐 Replit.com (Easiest - Start in 60 Seconds!)
+
+**Perfect for beginners - code in your browser:**
+
+1. Go to [replit.com](https://replit.com/) → Create Python Repl
+2. In Shell: `pip install git+https://github.com/NotADressMaker/SportsBetLang.git`
+3. Start coding!
+
+```python
+from lib import SBL, quick_nba_prediction
+
+# Calculate Kelly
+kelly = SBL.kelly(0.55, 2.0)
+
+# Quick prediction
+prob = quick_nba_prediction(115, 108, 110, 109, home=True)
+```
+
+📚 **[Replit Guide](REPLIT_GUIDE.md)** - Complete Replit guide with examples
+🚀 **[Try replit_example.py](replit_example.py)** - Ready-to-run examples
+
+### 🌐 Other Online Environments
 
 **pythononline.net, Google Colab, Jupyter:**
 ```python
