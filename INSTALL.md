@@ -1,6 +1,36 @@
 # Installation Guide for SportsBetLang
 
-## Quick Start for Online Python Environments
+## Quick Start for Replit.com (Easiest!)
+
+### Using Replit (Recommended for Beginners)
+
+[Replit.com](https://replit.com/) is the easiest way to start - no installation needed, just your browser!
+
+#### Steps:
+
+1. **Go to [replit.com](https://replit.com/)**
+2. **Create Python Repl** (click "+ Create Repl", choose Python)
+3. **Install SportsBetLang** - In Shell tab at bottom:
+   ```bash
+   pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+   ```
+4. **Start Coding** - In `main.py`:
+   ```python
+   from lib import SBL, quick_nba_prediction
+
+   # Calculate Kelly
+   kelly = SBL.kelly(0.55, 2.0)
+   print(f"Kelly: {kelly:.2%}")
+
+   # Quick prediction
+   prob = quick_nba_prediction(115, 108, 110, 109, home=True)
+   print(f"Win probability: {prob:.1%}")
+   ```
+5. **Click Run** ▶️
+
+📚 **[Complete Replit Guide](REPLIT_GUIDE.md)** - Full guide with examples, workflows, and tips
+
+## Quick Start for Other Online Python Environments
 
 ### Using pythononline.net or Similar Platforms
 

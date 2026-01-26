@@ -61,6 +61,9 @@ from lib.easy_sport_models import (
     AutoFeatures
 )
 
+# Import database
+from lib.database import BettingDatabase, create_database
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
@@ -101,6 +104,10 @@ __all__ = [
     'quick_soccer_btts',
     'train_and_predict',
     'AutoFeatures',
+
+    # Database (betting tracking)
+    'BettingDatabase',
+    'create_database',
 
     # Advanced statistics
     'AdvancedStats',

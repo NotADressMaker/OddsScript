@@ -72,7 +72,28 @@ pip install -e .
 ./sportsbetlang.py examples/01_basic_bet.odds
 ```
 
-### 🌐 Online Python Environments
+### 🌐 Replit.com (Easiest - Start in 60 Seconds!)
+
+**Perfect for beginners - code in your browser:**
+
+1. Go to [replit.com](https://replit.com/) → Create Python Repl
+2. In Shell: `pip install git+https://github.com/NotADressMaker/SportsBetLang.git`
+3. Start coding!
+
+```python
+from lib import SBL, quick_nba_prediction
+
+# Calculate Kelly
+kelly = SBL.kelly(0.55, 2.0)
+
+# Quick prediction
+prob = quick_nba_prediction(115, 108, 110, 109, home=True)
+```
+
+📚 **[Replit Guide](REPLIT_GUIDE.md)** - Complete Replit guide with examples
+🚀 **[Try replit_example.py](replit_example.py)** - Ready-to-run examples
+
+### 🌐 Other Online Environments
 
 **pythononline.net, Google Colab, Jupyter:**
 ```python
@@ -420,6 +441,58 @@ comp.print_comparison()
 ```
 
 📚 **[Simplified API Guide](docs/simple_api_guide.md)** - Complete guide with 30+ functions
+
+### Database - Track Everything
+
+Store and track all your betting activity:
+
+```python
+from lib import BettingDatabase
+
+# Create database
+db = BettingDatabase()
+
+# Save a bet
+bet_id = db.save_bet(
+    matchup="Lakers vs Celtics",
+    amount=100,
+    odds=2.1,
+    predicted_prob=0.58,
+    sport='nba'
+)
+
+# Save result
+db.save_result(bet_id, won=True)
+
+# Track predictions
+pred_id = db.save_prediction(
+    matchup="Warriors vs Nets",
+    predicted_value=1,
+    predicted_prob=0.65,
+    model_used='NBA ML Model'
+)
+
+# View performance
+db.print_performance()  # Shows win rate, ROI, profit/loss
+
+# Track bankroll
+db.update_bankroll(1110, change=110, reason="Lakers win")
+
+# Get prediction accuracy
+accuracy = db.get_prediction_accuracy()
+print(f"Model accuracy: {accuracy['accuracy']:.1%}")
+```
+
+**Features:**
+- Track bets with automatic Kelly/EV calculation
+- Save predictions and measure accuracy
+- Store historical games for ML training
+- Monitor bankroll over time
+- Performance analytics (ROI, win rate, profit/loss)
+- Works everywhere (desktop, Replit, SQLite-compatible)
+- No external dependencies
+
+📚 **[Database Guide](docs/database_guide.md)** - Complete tracking system
 
 ### ML Model Builder
 
