@@ -442,6 +442,58 @@ comp.print_comparison()
 
 📚 **[Simplified API Guide](docs/simple_api_guide.md)** - Complete guide with 30+ functions
 
+### Database - Track Everything
+
+Store and track all your betting activity:
+
+```python
+from lib import BettingDatabase
+
+# Create database
+db = BettingDatabase()
+
+# Save a bet
+bet_id = db.save_bet(
+    matchup="Lakers vs Celtics",
+    amount=100,
+    odds=2.1,
+    predicted_prob=0.58,
+    sport='nba'
+)
+
+# Save result
+db.save_result(bet_id, won=True)
+
+# Track predictions
+pred_id = db.save_prediction(
+    matchup="Warriors vs Nets",
+    predicted_value=1,
+    predicted_prob=0.65,
+    model_used='NBA ML Model'
+)
+
+# View performance
+db.print_performance()  # Shows win rate, ROI, profit/loss
+
+# Track bankroll
+db.update_bankroll(1110, change=110, reason="Lakers win")
+
+# Get prediction accuracy
+accuracy = db.get_prediction_accuracy()
+print(f"Model accuracy: {accuracy['accuracy']:.1%}")
+```
+
+**Features:**
+- Track bets with automatic Kelly/EV calculation
+- Save predictions and measure accuracy
+- Store historical games for ML training
+- Monitor bankroll over time
+- Performance analytics (ROI, win rate, profit/loss)
+- Works everywhere (desktop, Replit, SQLite-compatible)
+- No external dependencies
+
+📚 **[Database Guide](docs/database_guide.md)** - Complete tracking system
+
 ### ML Model Builder
 
 Build custom machine learning models for sports betting:
