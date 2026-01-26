@@ -5,6 +5,7 @@ Build custom machine learning models for sports betting predictions with ease.
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Sport-Specific Models](#sport-specific-models-new)
 - [Model Class (Fluent API)](#model-class-fluent-api)
 - [ModelBuilder Templates](#modelbuilder-templates)
 - [DataHelper Utilities](#datahelper-utilities)
@@ -29,6 +30,131 @@ model = quick_model(X_train, y_train, task='classification')
 metrics = model.evaluate(X_test, y_test)
 print(f"Accuracy: {metrics['accuracy']:.3f}")
 ```
+
+## Sport-Specific Models (NEW!)
+
+Pre-configured models optimized for each sport with sport-specific features and tuning.
+
+### Quick Start with Sport Models
+
+```python
+from lib.sport_models import NBAModels, NFLModels, get_sport_model
+from lib.sport_features import NBAFeatures
+
+# Option 1: Use sport model class
+nba_model = NBAModels.game_winner_model()
+nba_model.train(X_train, y_train)
+
+# Option 2: Use helper function
+nfl_model = get_sport_model('nfl', 'spread_model')
+nfl_model.train(X_train, y_train)
+
+# Create sport-specific features
+rating_diff = NBAFeatures.create_rating_differential(
+    team_off_rtg=112.5, team_def_rtg=108.2,
+    opp_off_rtg=110.1, opp_def_rtg=109.5
+)
+```
+
+### Available Sports
+
+- **NBA**: Game winner, spread, total points, player props
+- **NFL**: Game winner, spread, total points
+- **NHL**: Game winner, puck line, total goals
+- **MLB**: Game winner, run line, total runs
+- **College Football (CFB)**: Game winner, spread, total points
+- **College Basketball (CBB)**: Game winner, spread, March Madness upsets
+- **Soccer**: 3-way result, BTTS, total goals
+- **Horse Racing**: Win probability, exacta, speed rating
+
+### Example: NBA Game Prediction
+
+```python
+from lib.sport_models import NBAModels
+from lib.model_builder import split_data
+
+# NBA model comes pre-configured with:
+# - Random Forest (150 trees, depth 12)
+# - Standard normalization
+# - Feature names documented
+
+model = NBAModels.game_winner_model()
+
+# Expected features (in order):
+# 1. team_offensive_rating
+# 2. team_defensive_rating
+# 3. opponent_offensive_rating
+# 4. opponent_defensive_rating
+# 5. home_court (1/0)
+# 6. rest_days_team
+# 7. rest_days_opponent
+# 8. pace
+
+X_train, X_test, y_train, y_test = split_data(X, y)
+model.train(X_train, y_train)
+model.print_performance(X_test, y_test)
+```
+
+### Example: NFL with Weather
+
+```python
+from lib.sport_models import NFLModels
+from lib.sport_features import NFLFeatures
+
+# Create weather factor
+weather = NFLFeatures.create_weather_factor(
+    temperature=28,
+    wind_speed=18,
+    precipitation=0.3
+)
+
+# NFL spread model includes weather
+model = NFLModels.spread_model()
+# Features: dvoa_diff, spread, home, weather, rest_advantage
+```
+
+### Example: March Madness Upsets
+
+```python
+from lib.sport_models import CollegeBasketballModels
+from lib.sport_features import CollegeBasketballFeatures
+
+# Special model for tournament upsets
+model = CollegeBasketballModels.march_madness_upset_model()
+
+# Calculate tournament experience
+tourney_exp = CollegeBasketballFeatures.create_tournament_experience_factor(
+    games_played=8,
+    final_four_appearances=2,
+    championship_appearances=1
+)
+```
+
+### Example: Horse Racing
+
+```python
+from lib.sport_models import HorseRacingModels
+from lib.sport_features import HorseRacingFeatures
+
+model = HorseRacingModels.win_probability_model()
+
+# Post position advantage
+post_factor = HorseRacingFeatures.create_post_position_factor(
+    post_position=1,
+    field_size=10,
+    distance_furlongs=6
+)
+```
+
+### Why Use Sport-Specific Models?
+
+1. **Pre-Tuned Parameters** - Trees, depth, epochs optimized for each sport
+2. **Sport Characteristics** - Accounts for sport-specific patterns
+3. **Feature Documentation** - Clear expected features and order
+4. **Built-in Normalization** - Appropriate scaling for each sport
+5. **Domain Knowledge** - Rivalry games, weather, park factors, etc.
+
+📚 **[Complete Sport Models Guide](sport_specific_models_guide.md)** - Detailed guide for all sports
 
 ## Model Class (Fluent API)
 

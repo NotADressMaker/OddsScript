@@ -420,6 +420,40 @@ model.train(X_train, y_train)
 
 📚 **[ML Model Builder Guide](docs/ml_model_builder_guide.md)** - Build your own models
 
+### Sport-Specific Models
+
+Pre-configured models optimized for each sport:
+
+```python
+from lib.sport_models import NBAModels, NFLModels, get_sport_model
+from lib.sport_features import NBAFeatures
+
+# NBA game winner model (pre-tuned)
+nba_model = NBAModels.game_winner_model()
+nba_model.train(X_train, y_train)
+
+# Or use helper function
+nfl_model = get_sport_model('nfl', 'spread_model')
+
+# Create sport-specific features
+rating_diff = NBAFeatures.create_rating_differential(
+    team_off_rtg=112.5, team_def_rtg=108.2,
+    opp_off_rtg=110.1, opp_def_rtg=109.5
+)
+```
+
+**Available Sport Models:**
+- **NBA**: Game winner, spread, totals, player props
+- **NFL**: Game winner, spread, totals (with weather)
+- **NHL**: Game winner, puck line, totals (with xG)
+- **MLB**: Game winner, run line, totals (with park factors)
+- **CFB**: Game winner, spread, totals (with conference adjustments)
+- **CBB**: Game winner, spread, March Madness upsets
+- **Soccer**: 3-way result, BTTS, totals
+- **Horse Racing**: Win probability, exacta, speed ratings
+
+📚 **[Sport-Specific Models Guide](docs/sport_specific_models_guide.md)** - Models for every sport
+
 ### Advanced Statistics & Machine Learning
 
 Zero-dependency implementations of advanced techniques:

@@ -37,6 +37,20 @@ from lib.simple_api import SBL, Bet, Compare
 # Import model builder
 from lib.model_builder import Model, ModelBuilder, DataHelper
 
+# Import sport-specific models and features
+from lib.sport_models import (
+    NBAModels, NFLModels, NHLModels, MLBModels,
+    CollegeFootballModels, CollegeBasketballModels,
+    SoccerModels, HorseRacingModels,
+    get_sport_model
+)
+from lib.sport_features import (
+    NBAFeatures, NFLFeatures, NHLFeatures, MLBFeatures,
+    CollegeFootballFeatures, CollegeBasketballFeatures,
+    SoccerFeatures, HorseRacingFeatures,
+    get_sport_features
+)
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
@@ -47,6 +61,28 @@ __all__ = [
     'Model',
     'ModelBuilder',
     'DataHelper',
+
+    # Sport-Specific Models
+    'NBAModels',
+    'NFLModels',
+    'NHLModels',
+    'MLBModels',
+    'CollegeFootballModels',
+    'CollegeBasketballModels',
+    'SoccerModels',
+    'HorseRacingModels',
+    'get_sport_model',
+
+    # Sport-Specific Features
+    'NBAFeatures',
+    'NFLFeatures',
+    'NHLFeatures',
+    'MLBFeatures',
+    'CollegeFootballFeatures',
+    'CollegeBasketballFeatures',
+    'SoccerFeatures',
+    'HorseRacingFeatures',
+    'get_sport_features',
 
     # Advanced statistics
     'AdvancedStats',
