@@ -36,22 +36,52 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 
 ## Installation
 
-SportsBetLang requires Python 3.7 or higher.
+SportsBetLang works on **desktop, laptop, Jupyter notebooks, Google Colab, and online Python environments**. Requires Python 3.7 or higher.
 
+### 🖥️ Desktop / Laptop (Recommended)
+
+**Quick Install:**
 ```bash
-# Clone the repository
+pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+```
+
+Then use in Python:
+```python
+from lib import SBL, EasySportModel, quick_nba_prediction
+
+# Calculate Kelly
+kelly = SBL.kelly(win_prob=0.55, odds=2.0)
+
+# Quick NBA prediction
+prob = quick_nba_prediction(115, 108, 110, 109, home=True)
+```
+
+📚 **[Desktop Quick Start Guide](DESKTOP_QUICKSTART.md)** - Complete desktop setup with examples
+
+**Alternative - Clone Repository:**
+```bash
+# Clone and install
 git clone <repository-url>
 cd programminglangauage
+pip install -e .
 
-# Make the main script executable
-chmod +x sportsbetlang.py
-
-# Run the REPL
+# Use the domain-specific language REPL
 ./sportsbetlang.py
 
 # Or run a script
 ./sportsbetlang.py examples/01_basic_bet.odds
 ```
+
+### 🌐 Online Python Environments
+
+**pythononline.net, Google Colab, Jupyter:**
+```python
+!pip install git+https://github.com/NotADressMaker/SportsBetLang.git
+
+from lib import SBL, EasySportModel
+```
+
+📚 **[Installation Guide](INSTALL.md)** - All installation methods
 
 ## Quick Start
 
@@ -419,6 +449,99 @@ model.train(X_train, y_train)
 ```
 
 📚 **[ML Model Builder Guide](docs/ml_model_builder_guide.md)** - Build your own models
+
+### Easy Sport Models (Simplified Interface)
+
+The easiest way to build sport-specific models - use dictionaries instead of arrays:
+
+```python
+from lib.easy_sport_models import EasySportModel, quick_nba_prediction
+
+# Train with dictionary data (no arrays needed!)
+games = [
+    {
+        'team_offensive_rating': 115.0,
+        'team_defensive_rating': 107.5,
+        'opponent_offensive_rating': 110.2,
+        'opponent_defensive_rating': 109.8,
+        'home_court': 1,
+        'rest_days_team': 2,
+        'rest_days_opponent': 1,
+        'pace': 100.5,
+        'result': 1  # Win
+    },
+    # ... more games
+]
+
+model = EasySportModel('nba', 'game_winner')
+model.fit(games)
+
+# Predict with dictionary (no arrays!)
+new_game = {
+    'team_offensive_rating': 116.0,
+    'team_defensive_rating': 108.0,
+    'opponent_offensive_rating': 111.0,
+    'opponent_defensive_rating': 110.0,
+    'home_court': 1,
+    'rest_days_team': 2,
+    'rest_days_opponent': 2,
+    'pace': 101.0
+}
+
+prediction = model.predict(new_game)
+probability = model.predict_proba(new_game)
+
+# Or use quick prediction functions (no training!)
+prob = quick_nba_prediction(
+    team_off_rtg=115.0, team_def_rtg=107.5,
+    opp_off_rtg=110.2, opp_def_rtg=109.8,
+    home=True
+)
+```
+
+**Features:**
+- Use dictionaries instead of arrays (more readable)
+- Automatic feature extraction and validation
+- Quick prediction functions (no training needed)
+- AutoFeatures helper for easy data preparation
+- End-to-end workflow in one function call
+- Same interface for all sports
+
+📚 **[Easy Sport Models Guide](docs/easy_sport_models_guide.md)** - Simplified interface
+
+### Sport-Specific Models (Advanced)
+
+Pre-configured models optimized for each sport (advanced interface):
+
+```python
+from lib.sport_models import NBAModels, NFLModels, get_sport_model
+from lib.sport_features import NBAFeatures
+
+# NBA game winner model (pre-tuned)
+nba_model = NBAModels.game_winner_model()
+nba_model.train(X_train, y_train)
+
+# Or use helper function
+nfl_model = get_sport_model('nfl', 'spread_model')
+
+# Create sport-specific features
+rating_diff = NBAFeatures.create_rating_differential(
+    team_off_rtg=112.5, team_def_rtg=108.2,
+    opp_off_rtg=110.1, opp_def_rtg=109.5
+)
+```
+
+**Available Sport Models:**
+- **NBA**: Game winner, spread, totals, player props
+- **NFL**: Game winner, spread, totals (with weather)
+- **NHL**: Game winner, puck line, totals (with xG)
+- **MLB**: Game winner, run line, totals (with park factors)
+- **CFB**: Game winner, spread, totals (with conference adjustments)
+- **CBB**: Game winner, spread, March Madness upsets
+- **Soccer**: 3-way result, BTTS, totals
+- **Horse Racing**: Win probability, exacta, speed ratings
+
+📚 **[Sport-Specific Models Guide](docs/sport_specific_models_guide.md)** - Models for every sport
 
 ### Advanced Statistics & Machine Learning
 

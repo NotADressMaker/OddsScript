@@ -37,6 +37,30 @@ from lib.simple_api import SBL, Bet, Compare
 # Import model builder
 from lib.model_builder import Model, ModelBuilder, DataHelper
 
+# Import sport-specific models and features
+from lib.sport_models import (
+    NBAModels, NFLModels, NHLModels, MLBModels,
+    CollegeFootballModels, CollegeBasketballModels,
+    SoccerModels, HorseRacingModels,
+    get_sport_model
+)
+from lib.sport_features import (
+    NBAFeatures, NFLFeatures, NHLFeatures, MLBFeatures,
+    CollegeFootballFeatures, CollegeBasketballFeatures,
+    SoccerFeatures, HorseRacingFeatures,
+    get_sport_features
+)
+
+# Import easy sport models (simplified interface)
+from lib.easy_sport_models import (
+    EasySportModel,
+    quick_nba_prediction,
+    quick_nfl_prediction,
+    quick_soccer_btts,
+    train_and_predict,
+    AutoFeatures
+)
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
@@ -47,6 +71,36 @@ __all__ = [
     'Model',
     'ModelBuilder',
     'DataHelper',
+
+    # Sport-Specific Models
+    'NBAModels',
+    'NFLModels',
+    'NHLModels',
+    'MLBModels',
+    'CollegeFootballModels',
+    'CollegeBasketballModels',
+    'SoccerModels',
+    'HorseRacingModels',
+    'get_sport_model',
+
+    # Sport-Specific Features
+    'NBAFeatures',
+    'NFLFeatures',
+    'NHLFeatures',
+    'MLBFeatures',
+    'CollegeFootballFeatures',
+    'CollegeBasketballFeatures',
+    'SoccerFeatures',
+    'HorseRacingFeatures',
+    'get_sport_features',
+
+    # Easy Sport Models (simplified interface)
+    'EasySportModel',
+    'quick_nba_prediction',
+    'quick_nfl_prediction',
+    'quick_soccer_btts',
+    'train_and_predict',
+    'AutoFeatures',
 
     # Advanced statistics
     'AdvancedStats',
