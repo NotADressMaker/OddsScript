@@ -176,6 +176,111 @@ Content-Type: application/json
 }
 ```
 
+### Quick College Basketball Prediction
+
+```http
+POST /predict/cbb/quick
+Content-Type: application/json
+
+{
+    "team_kenpom_rating": 25.5,
+    "opp_kenpom_rating": 18.2,
+    "team_adj_em": 20.5,
+    "opp_adj_em": 15.2,
+    "home": true,
+    "conference_game": false,
+    "tournament": false
+}
+```
+
+**Response:**
+```json
+{
+    "win_probability": 0.68,
+    "win_percentage": "68.0%",
+    "metric": "KenPom Adjusted Efficiency Margin",
+    "home_advantage": "6.5%",
+    "conference_game": false,
+    "tournament": false
+}
+```
+
+**Notes:**
+- Uses KenPom ratings and Adjusted Efficiency Margin
+- `tournament`: Set to `true` for March Madness (increases upset potential)
+- `conference_game`: Set to `true` for conference matchups (reduces favorite's edge)
+- Home court advantage: 6.5% (stronger than NBA)
+
+### Quick College Football Prediction
+
+```http
+POST /predict/cfb/quick
+Content-Type: application/json
+
+{
+    "team_sp_rating": 18.5,
+    "opp_sp_rating": 12.3,
+    "team_recruiting_rank": 25,
+    "opp_recruiting_rank": 50,
+    "home": true,
+    "rivalry_game": false,
+    "conference_game": false
+}
+```
+
+**Response:**
+```json
+{
+    "win_probability": 0.72,
+    "win_percentage": "72.0%",
+    "metric": "SP+ Rating",
+    "home_advantage": "8%",
+    "rivalry_game": false,
+    "conference_game": false
+}
+```
+
+**Notes:**
+- Uses SP+ (Success Rate Plus) ratings from Bill Connelly
+- `rivalry_game`: Set to `true` for rivalry games (favorites perform worse)
+- `conference_game`: Set to `true` for conference matchups
+- `team_recruiting_rank`: 247Sports composite rank (1-130)
+- Home field advantage: 8% (strongest in major sports)
+
+### Quick WNBA Prediction
+
+```http
+POST /predict/wnba/quick
+Content-Type: application/json
+
+{
+    "team_off_rtg": 105.0,
+    "team_def_rtg": 100.0,
+    "opp_off_rtg": 102.0,
+    "opp_def_rtg": 101.0,
+    "home": true,
+    "rest_days_team": 2,
+    "rest_days_opp": 2
+}
+```
+
+**Response:**
+```json
+{
+    "win_probability": 0.61,
+    "win_percentage": "61.0%",
+    "metric": "Net Rating (Off - Def)",
+    "home_advantage": "6%",
+    "rest_advantage": "0 days"
+}
+```
+
+**Notes:**
+- Uses offensive and defensive ratings (similar to NBA)
+- Rest days are important due to compressed WNBA schedule
+- Rest advantage kicks in at 2+ day difference
+- Home court advantage: 6% (similar to NBA)
+
 ## Database Operations
 
 ### Save Bet

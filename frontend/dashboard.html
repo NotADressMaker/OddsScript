@@ -496,6 +496,115 @@
                     <button onclick="predictNHL()">Predict Game</button>
                     <div id="nhl-results"></div>
                 </div>
+
+                <div class="card">
+                    <h2>🏀 College Basketball</h2>
+                    <div class="form-group">
+                        <label>Team KenPom Rating</label>
+                        <input type="number" id="cbb-team-kenpom" value="25.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent KenPom Rating</label>
+                        <input type="number" id="cbb-opp-kenpom" value="18.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Adjusted EM</label>
+                        <input type="number" id="cbb-team-em" value="20.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Adjusted EM</label>
+                        <input type="number" id="cbb-opp-em" value="15.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cbb-home" checked> Home Court Advantage
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cbb-conference"> Conference Game
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cbb-tournament"> Tournament Game (March Madness)
+                        </label>
+                    </div>
+                    <button onclick="predictCBB()">Predict Game</button>
+                    <div id="cbb-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🏈 College Football</h2>
+                    <div class="form-group">
+                        <label>Team SP+ Rating</label>
+                        <input type="number" id="cfb-team-sp" value="18.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent SP+ Rating</label>
+                        <input type="number" id="cfb-opp-sp" value="12.3" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Recruiting Rank</label>
+                        <input type="number" id="cfb-team-recruit" value="25" step="1" min="1" max="130">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Recruiting Rank</label>
+                        <input type="number" id="cfb-opp-recruit" value="50" step="1" min="1" max="130">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cfb-home" checked> Home Field Advantage
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cfb-rivalry"> Rivalry Game
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="cfb-conference"> Conference Game
+                        </label>
+                    </div>
+                    <button onclick="predictCFB()">Predict Game</button>
+                    <div id="cfb-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🏀 WNBA Prediction</h2>
+                    <div class="form-group">
+                        <label>Team Offensive Rating</label>
+                        <input type="number" id="wnba-team-off" value="105" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Defensive Rating</label>
+                        <input type="number" id="wnba-team-def" value="100" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Offensive Rating</label>
+                        <input type="number" id="wnba-opp-off" value="102" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Defensive Rating</label>
+                        <input type="number" id="wnba-opp-def" value="101" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Rest Days</label>
+                        <input type="number" id="wnba-team-rest" value="2" step="1" min="0" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Rest Days</label>
+                        <input type="number" id="wnba-opp-rest" value="2" step="1" min="0" max="10">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="wnba-home" checked> Home Court Advantage
+                        </label>
+                    </div>
+                    <button onclick="predictWNBA()">Predict Game</button>
+                    <div id="wnba-results"></div>
+                </div>
             </div>
         </div>
 
@@ -849,6 +958,149 @@
                         <div class="result-item">
                             <span class="result-label">Metric:</span>
                             <span class="result-value">${data.metric}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // College Basketball Prediction
+        async function predictCBB() {
+            const resultsDiv = document.getElementById('cbb-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/cbb/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_kenpom_rating: parseFloat(document.getElementById('cbb-team-kenpom').value),
+                        opp_kenpom_rating: parseFloat(document.getElementById('cbb-opp-kenpom').value),
+                        team_adj_em: parseFloat(document.getElementById('cbb-team-em').value),
+                        opp_adj_em: parseFloat(document.getElementById('cbb-opp-em').value),
+                        home: document.getElementById('cbb-home').checked,
+                        conference_game: document.getElementById('cbb-conference').checked,
+                        tournament: document.getElementById('cbb-tournament').checked
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Metric:</span>
+                            <span class="result-value">${data.metric}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Home Advantage:</span>
+                            <span class="result-value">${data.home_advantage}</span>
+                        </div>
+                        ${data.tournament ? `
+                        <div class="alert alert-info">
+                            🏆 March Madness Mode: Upset potential increased
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // College Football Prediction
+        async function predictCFB() {
+            const resultsDiv = document.getElementById('cfb-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/cfb/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_sp_rating: parseFloat(document.getElementById('cfb-team-sp').value),
+                        opp_sp_rating: parseFloat(document.getElementById('cfb-opp-sp').value),
+                        team_recruiting_rank: parseFloat(document.getElementById('cfb-team-recruit').value),
+                        opp_recruiting_rank: parseFloat(document.getElementById('cfb-opp-recruit').value),
+                        home: document.getElementById('cfb-home').checked,
+                        rivalry_game: document.getElementById('cfb-rivalry').checked,
+                        conference_game: document.getElementById('cfb-conference').checked
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Metric:</span>
+                            <span class="result-value">${data.metric}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Home Advantage:</span>
+                            <span class="result-value">${data.home_advantage}</span>
+                        </div>
+                        ${data.rivalry_game ? `
+                        <div class="alert alert-info">
+                            🏆 Rivalry Game: Expect closer contest
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // WNBA Prediction
+        async function predictWNBA() {
+            const resultsDiv = document.getElementById('wnba-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/wnba/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_off_rtg: parseFloat(document.getElementById('wnba-team-off').value),
+                        team_def_rtg: parseFloat(document.getElementById('wnba-team-def').value),
+                        opp_off_rtg: parseFloat(document.getElementById('wnba-opp-off').value),
+                        opp_def_rtg: parseFloat(document.getElementById('wnba-opp-def').value),
+                        home: document.getElementById('wnba-home').checked,
+                        rest_days_team: parseInt(document.getElementById('wnba-team-rest').value),
+                        rest_days_opp: parseInt(document.getElementById('wnba-opp-rest').value)
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Metric:</span>
+                            <span class="result-value">${data.metric}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Home Advantage:</span>
+                            <span class="result-value">${data.home_advantage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Rest Advantage:</span>
+                            <span class="result-value">${data.rest_advantage}</span>
                         </div>
                     </div>
                 `;

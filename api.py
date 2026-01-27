@@ -162,6 +162,33 @@ class QuickHorseRacingRequest(BaseModel):
     distance: float
     surface: str = 'dirt'
 
+class QuickCollegeBasketballRequest(BaseModel):
+    team_kenpom_rating: float
+    opp_kenpom_rating: float
+    team_adj_em: float
+    opp_adj_em: float
+    home: bool = True
+    conference_game: bool = False
+    tournament: bool = False
+
+class QuickCollegeFootballRequest(BaseModel):
+    team_sp_rating: float
+    opp_sp_rating: float
+    team_recruiting_rank: float = 50
+    opp_recruiting_rank: float = 50
+    home: bool = True
+    rivalry_game: bool = False
+    conference_game: bool = False
+
+class QuickWNBARequest(BaseModel):
+    team_off_rtg: float
+    team_def_rtg: float
+    opp_off_rtg: float
+    opp_def_rtg: float
+    home: bool = True
+    rest_days_team: int = 2
+    rest_days_opp: int = 2
+
 class TrainModelRequest(BaseModel):
     sport: str
     model_type: str
@@ -411,6 +438,124 @@ async def predict_horse_racing_quick(request: QuickHorseRacingRequest):
         "win_percentage": f"{prob:.1%}",
         "speed_rating": request.speed_rating,
         "post_position": request.post_position,
+        "input": request.dict()
+    }
+
+@app.post("/predict/cbb/quick")
+async def predict_college_basketball_quick(request: QuickCollegeBasketballRequest):
+    """Quick College Basketball prediction using KenPom ratings"""
+    try:
+        from lib.easy_sport_models import quick_cbb_prediction
+        prob = quick_cbb_prediction(
+            request.team_kenpom_rating, request.opp_kenpom_rating,
+            request.team_adj_em, request.opp_adj_em,
+            request.home, request.conference_game, request.tournament
+        )
+    except ImportError:
+        # Fallback calculation using adjusted efficiency margin
+        em_diff = request.team_adj_em - request.opp_adj_em
+
+        # Home court advantage (stronger in college)
+        home_advantage = 0.065 if request.home else -0.065
+
+        # Conference game adjustment (familiarity reduces favorites' edge)
+        conference_adjustment = -0.01 if request.conference_game and abs(em_diff) > 10 else 0
+
+        # Tournament adjustment (upsets more common)
+        tournament_adjustment = -0.02 if request.tournament and em_diff > 15 else 0
+
+        # Convert efficiency margin difference to probability
+        prob = 0.5 + (em_diff / 50) + home_advantage + conference_adjustment + tournament_adjustment
+        prob = max(0.05, min(0.95, prob))
+
+    return {
+        "win_probability": prob,
+        "win_percentage": f"{prob:.1%}",
+        "metric": "KenPom Adjusted Efficiency Margin",
+        "home_advantage": "6.5%" if request.home else "0%",
+        "conference_game": request.conference_game,
+        "tournament": request.tournament,
+        "input": request.dict()
+    }
+
+@app.post("/predict/cfb/quick")
+async def predict_college_football_quick(request: QuickCollegeFootballRequest):
+    """Quick College Football prediction using SP+ ratings"""
+    try:
+        from lib.easy_sport_models import quick_cfb_prediction
+        prob = quick_cfb_prediction(
+            request.team_sp_rating, request.opp_sp_rating,
+            request.home, request.rivalry_game, request.conference_game,
+            request.team_recruiting_rank, request.opp_recruiting_rank
+        )
+    except ImportError:
+        # Fallback calculation using SP+ ratings
+        sp_diff = request.team_sp_rating - request.opp_sp_rating
+
+        # Home field advantage (stronger in college football)
+        home_advantage = 0.08 if request.home else -0.08
+
+        # Rivalry game adjustment (favorites perform worse)
+        rivalry_adjustment = -0.03 if request.rivalry_game and sp_diff > 15 else 0
+
+        # Conference game adjustment
+        conference_adjustment = -0.015 if request.conference_game and abs(sp_diff) > 20 else 0
+
+        # Talent/recruiting adjustment for large disparities
+        recruiting_diff = request.opp_recruiting_rank - request.team_recruiting_rank
+        talent_adjustment = recruiting_diff / 500  # Subtle effect
+
+        # Convert SP+ difference to probability
+        prob = 0.5 + (sp_diff / 40) + home_advantage + rivalry_adjustment + conference_adjustment + talent_adjustment
+        prob = max(0.05, min(0.95, prob))
+
+    return {
+        "win_probability": prob,
+        "win_percentage": f"{prob:.1%}",
+        "metric": "SP+ Rating",
+        "home_advantage": "8%" if request.home else "0%",
+        "rivalry_game": request.rivalry_game,
+        "conference_game": request.conference_game,
+        "input": request.dict()
+    }
+
+@app.post("/predict/wnba/quick")
+async def predict_wnba_quick(request: QuickWNBARequest):
+    """Quick WNBA game prediction using offensive/defensive ratings"""
+    try:
+        from lib.easy_sport_models import quick_wnba_prediction
+        prob = quick_wnba_prediction(
+            request.team_off_rtg, request.team_def_rtg,
+            request.opp_off_rtg, request.opp_def_rtg,
+            request.home, request.rest_days_team, request.rest_days_opp
+        )
+    except ImportError:
+        # Fallback calculation (similar to NBA but adjusted for WNBA)
+        team_net_rtg = request.team_off_rtg - request.team_def_rtg
+        opp_net_rtg = request.opp_off_rtg - request.opp_def_rtg
+        net_rtg_diff = team_net_rtg - opp_net_rtg
+
+        # Home court advantage (similar to NBA)
+        home_advantage = 0.06 if request.home else -0.06
+
+        # Rest advantage (important in WNBA with compressed schedules)
+        rest_diff = request.rest_days_team - request.rest_days_opp
+        rest_advantage = 0
+        if rest_diff >= 2:
+            rest_advantage = 0.03
+        elif rest_diff <= -2:
+            rest_advantage = -0.03
+
+        # Convert net rating difference to probability
+        prob = 0.5 + (net_rtg_diff / 30) + home_advantage + rest_advantage
+        prob = max(0.1, min(0.9, prob))
+
+    return {
+        "win_probability": prob,
+        "win_percentage": f"{prob:.1%}",
+        "metric": "Net Rating (Off - Def)",
+        "home_advantage": "6%" if request.home else "0%",
+        "rest_advantage": f"{request.rest_days_team - request.rest_days_opp} days",
         "input": request.dict()
     }
 

@@ -1,5 +1,55 @@
 # What's New in SportsBetLang Full-Stack 2.0
 
+## 🆕 Latest Update: 3 New Sports Added!
+
+### New Sports Support (Version 2.1)
+
+**Added 3 More Sports:**
+
+1. **🏀 College Basketball (CBB)**
+   - KenPom ratings integration
+   - Adjusted Efficiency Margin calculations
+   - March Madness mode (increased upset potential)
+   - Conference game adjustments
+   - Home court advantage: 6.5%
+
+2. **🏈 College Football (CFB)**
+   - SP+ ratings from Bill Connelly
+   - Recruiting rank integration (247Sports)
+   - Rivalry game detection (favorites perform worse)
+   - Conference game adjustments
+   - Home field advantage: 8% (strongest in sports)
+
+3. **🏀 WNBA**
+   - Offensive/Defensive ratings
+   - Rest advantage calculations (important for compressed schedule)
+   - Home court advantage: 6%
+   - Similar to NBA but adjusted for WNBA dynamics
+
+**Total Sports Now Supported: 9**
+- NBA
+- NFL
+- NHL
+- MLB
+- College Basketball (NEW)
+- College Football (NEW)
+- WNBA (NEW)
+- Soccer
+- Horse Racing
+
+**New API Endpoints:**
+- `/predict/cbb/quick` - College Basketball predictions
+- `/predict/cfb/quick` - College Football predictions
+- `/predict/wnba/quick` - WNBA predictions
+
+**Enhanced Dashboard:**
+- Added 3 new prediction cards in the dashboard
+- College Basketball with March Madness toggle
+- College Football with rivalry game detection
+- WNBA with rest day tracking
+
+---
+
 ## 🚀 Major Enhancements
 
 ### API Improvements
@@ -178,12 +228,17 @@
 ### Sports Support
 
 **Before:** 3 sports (NBA, NFL, Soccer)
-**Now:** 6 sports (+3)
+**Now:** 9 sports (+6)
 
-**Added:**
+**Added in v2.0:**
 - NHL (Expected Goals)
 - MLB (Park Factors)
 - Horse Racing (Speed Ratings)
+
+**Added in v2.1:**
+- College Basketball (KenPom, March Madness)
+- College Football (SP+, rivalry games)
+- WNBA (rest advantage)
 
 ### Frontend Interfaces
 
@@ -196,7 +251,7 @@
 **New Tools:**
 - Kelly Calculator
 - Bet Analyzer
-- Multi-sport Predictions (5 sports)
+- Multi-sport Predictions (9 sports)
 - Bet Recommendations Engine
 - Arbitrage Finder
 - Performance Dashboard
@@ -241,15 +296,15 @@
 ## 📊 Statistics
 
 **API Enhancements:**
-- +8 new endpoints
-- +3 new sports
+- +11 new endpoints (v2.0: 8, v2.1: 3)
+- +6 new sports (v2.0: 3, v2.1: 3)
 - +5 advanced features
-- +100% prediction coverage
+- Total: 26 endpoints, 9 sports
 
 **Frontend:**
 - +1 complete dashboard
 - +6 professional tools
-- +5 sport interfaces
+- +9 sport interfaces (3 more in v2.1)
 - +3 advanced calculators
 
 **Documentation:**

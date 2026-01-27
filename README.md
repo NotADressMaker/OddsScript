@@ -547,11 +547,14 @@ print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
 - `/calculate/edge` - Betting edge calculation
 - `/analyze/bet` - Complete bet analysis with recommendations
 
-*Quick Predictions (5 Sports):*
+*Quick Predictions (9 Sports):*
 - `/predict/nba/quick` - Fast NBA predictions
 - `/predict/nfl/quick` - Fast NFL predictions (with weather)
 - `/predict/nhl/quick` - Fast NHL predictions (Expected Goals)
 - `/predict/mlb/quick` - Fast MLB predictions (park factors)
+- `/predict/cbb/quick` - College Basketball (KenPom ratings, March Madness)
+- `/predict/cfb/quick` - College Football (SP+ ratings, rivalry games)
+- `/predict/wnba/quick` - WNBA predictions (with rest advantage)
 - `/predict/soccer/btts` - Soccer BTTS predictions
 - `/predict/horse-racing/quick` - Horse racing win probability
 
@@ -598,11 +601,12 @@ docker-compose up -d
 - REST API with all betting calculations
 - WebSocket support for real-time updates
 - Database operations (save bets, track performance)
-- Sport-specific predictions (NBA, NFL, Soccer)
+- Sport-specific predictions (9 sports: NBA, NFL, NHL, MLB, CBB, CFB, WNBA, Soccer, Horse Racing)
+- Advanced features (recommendations, arbitrage detection, bet comparison)
 - Production-ready with Docker
 - Auto-generated API documentation (Swagger/OpenAPI)
 - CORS enabled for frontend integration
-- Frontend examples (Vanilla JS, React)
+- Frontend examples (Vanilla JS, React, Advanced Dashboard)
 
 📚 **[Full-Stack Guide](docs/FULLSTACK_GUIDE.md)** - Complete API reference, frontend examples, deployment
 📚 **[API Reference](docs/API_REFERENCE.md)** - Quick endpoint reference
