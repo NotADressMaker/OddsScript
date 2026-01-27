@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./api_betting.db:/app/api_betting.db
+    environment:
+      - DATABASE_PATH=/app/data/betting.db
+    restart: unless-stopped
+
+  # Optional: Add nginx for production
+  # nginx:
+  #   image: nginx:alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #   depends_on:
+  #     - api

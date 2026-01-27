@@ -494,6 +494,97 @@ print(f"Model accuracy: {accuracy['accuracy']:.1%}")
 
 📚 **[Database Guide](docs/database_guide.md)** - Complete tracking system
 
+### Full-Stack API - Build Web & Mobile Apps
+
+Complete REST API and WebSocket support for building full-stack applications:
+
+```python
+# Start the API server
+pip install -r requirements-api.txt
+uvicorn api:app --reload
+
+# API runs at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+```
+
+**Use from any language or platform:**
+
+```javascript
+// JavaScript/React/Node.js
+const response = await fetch('http://localhost:8000/analyze/bet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        amount: 100,
+        odds: 2.1,
+        win_probability: 0.58,
+        bankroll: 1000
+    })
+});
+
+const data = await response.json();
+console.log(data.recommendation);  // "STRONG BET - Positive EV"
+console.log(data.expected_value);   // 21.8
+```
+
+```python
+# Python
+import requests
+
+response = requests.post('http://localhost:8000/calculate/kelly', json={
+    'win_probability': 0.55,
+    'odds': 2.0
+})
+
+print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
+```
+
+**Available Endpoints:**
+- `/calculate/kelly` - Kelly Criterion calculation
+- `/calculate/ev` - Expected Value
+- `/analyze/bet` - Complete bet analysis with recommendations
+- `/predict/nba/quick` - Fast NBA predictions
+- `/predict/nfl/quick` - Fast NFL predictions
+- `/predict/soccer/btts` - Soccer BTTS predictions
+- `/bets/save` - Save bet to database
+- `/performance` - Get performance statistics
+- `/ws` - WebSocket for real-time updates
+
+**Real-time WebSocket Updates:**
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws');
+
+ws.onmessage = (event) => {
+    const update = JSON.parse(event.data);
+    console.log('New bet placed:', update);
+};
+```
+
+**Docker Deployment:**
+
+```bash
+# Build and run
+docker build -t sportsbetlang-api .
+docker run -p 8000:8000 sportsbetlang-api
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+**Features:**
+- REST API with all betting calculations
+- WebSocket support for real-time updates
+- Database operations (save bets, track performance)
+- Sport-specific predictions (NBA, NFL, Soccer)
+- Production-ready with Docker
+- Auto-generated API documentation (Swagger/OpenAPI)
+- CORS enabled for frontend integration
+- Frontend examples (Vanilla JS, React)
+
+📚 **[Full-Stack Guide](docs/FULLSTACK_GUIDE.md)** - Complete API reference, frontend examples, deployment
+🎨 **[Frontend Examples](frontend/)** - Vanilla JS and React components
+
 ### ML Model Builder
 
 Build custom machine learning models for sports betting:
