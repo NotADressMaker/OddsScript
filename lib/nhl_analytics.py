@@ -20,6 +20,27 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
+# Updated league averages (use current season values; update seasonally)
+# Source: MoneyPuck / Natural Stat Trick / NHL EDGE (2025-26 mid-season approx)
+class NHLConstants:
+    AVG_GOALS_PER_GAME = 3.15          # per team → total ~6.3
+    AVG_HOME_ADVANTAGE = 0.28          # goals
+    AVG_TOTAL_GOALS = 6.3
+    AVG_SAVE_PERCENTAGE = 0.905
+    AVG_SHOOTING_PERCENTAGE = 0.102
+    AVG_PDO = 100.7                    # slight upward trend
+    HIGH_DANGER_CONVERSION = 0.26      # ~26% in slot
+    MEDIUM_DANGER_CONVERSION = 0.115
+    LOW_DANGER_CONVERSION = 0.048
+
+# Replace all hard-coded numbers with NHLConstants.XXX
+# Example in calculate_expected_goals:
+quality_multiplier = {
+    ShotQuality.HIGH_DANGER: NHLConstants.HIGH_DANGER_CONVERSION / 0.095 * 3.5,
+    ShotQuality.MEDIUM_DANGER: NHLConstants.MEDIUM_DANGER_CONVERSION / 0.095 * 1.5,
+    ShotQuality.LOW_DANGER: NHLConstants.LOW_DANGER_CONVERSION / 0.095 * 0.6
+}[shot_quality]
+
 try:
     from lib.poisson_calculator import PoissonCalculator
     from lib.advanced_stats import AdvancedStats
