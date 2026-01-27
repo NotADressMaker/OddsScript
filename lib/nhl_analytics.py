@@ -855,7 +855,97 @@ class NHLAnalytics:
             game_result['overtime'] = False
 
         return game_result
+    @staticmethod
+    
+    def adjust_for_goalies(
+        home_xg: float,
+        away_xg: float,
+        home_gsax: float = 0.0,   # starting goalie GSAx last 5 starts
+        away_gsax: float = 0.0,
+        league_gsax_avg: float = 0.0
+    ) -> Tuple[float, float]:
+        """
+        Adjust expected goals based on starting goalie quality.
+        GSAx > 0 = saves more than expected → lowers opponent's xG
+        GSAx < 0 = allows more than expected → increases opponent's xG
+        Impact tuned to ~12% per GSAx unit (empirical mid-season NHL avg)
+        """
+        # Defensive adjustment: better goalie lowers opponent's expected goals
+        home_adj = 1 - (home_gsax - league_gsax_avg) * 0.12
+        away_adj = 1 - (away_gsax - league_gsax_avg) * 0.12
 
+        # Apply adjustments
+        adjusted_home_xg = home_xg * away_adj     # home xG lowered by away goalie quality
+        adjusted_away_xg = away_xg * home_adj     # away xG lowered by home goalie quality
+
+        # Prevent negative or extreme values
+        adjusted_home_xg = max(0.5, min(adjusted_home_xg, 5.5))
+        adjusted_away_xg = max(0.5, min(adjusted_away_xg, 5.5))
+
+        return adjusted_home_xg, adjusted_away_xg
+
+    @staticmethod
+    def predict_game_ml(
+        home_team_metrics: TeamMetrics,
+        away_team_metrics: TeamMetrics,
+        home_goalie_stats: GoaltenderStats,
+        away_goalie_stats: GoaltenderStats,
+        use_ml: bool = False
+    ) -> Dict[str, float]:
+        """
+        Predict game outcome using advanced metrics
+        Now includes robust goalie adjustment using GSAx
+        """
+        # Calculate base expected goals
+        home_xg = home_team_metrics.goals_for * (
+            1 + (home_team_metrics.corsi_for / 100 - 0.5) * 0.2
+        )
+        away_xg = away_team_metrics.goals_for * (
+            1 + (away_team_metrics.corsi_for / 100 - 0.5) * 0.2
+        )
+
+        # Get per-game GSAx (handle division by zero)
+        home_gsax_per_game = (
+            home_goalie_stats.games_saved_above_expected / home_goalie_stats.games_started
+            if home_goalie_stats.games_started > 0 else 0.0
+        )
+        away_gsax_per_game = (
+            away_goalie_stats.games_saved_above_expected / away_goalie_stats.games_started
+            if away_goalie_stats.games_started > 0 else 0.0
+        )
+
+        # Apply goalie adjustment
+        home_expected, away_expected = NHLAdvancedAnalytics.adjust_for_goalies(
+            home_xg=home_xg,
+            away_xg=away_xg,
+            home_gsax=home_gsax_per_game,
+            away_gsax=away_gsax_per_game,
+            league_gsax_avg=0.0  # Update this seasonally from MoneyPuck league avg (~0.0 by definition)
+        )
+
+        # Add small home-ice boost after goalie adjustment
+        home_expected += NHLAdvancedAnalytics.AVG_HOME_ADVANTAGE
+
+        # Use Poisson for probabilities
+        results = PoissonCalculator.calculate_match_probabilities(
+            home_expected,
+            away_expected,
+            max_goals=10
+        )
+
+        # Adjust for overtime (50/50 split of draws)
+        ot_split = results['draw'] * 0.5
+
+        return {
+            'home_win_probability': results['home_win'] + ot_split,
+            'away_win_probability': results['away_win'] + ot_split,
+            'regulation_home_win': results['home_win'],
+            'regulation_away_win': results['away_win'],
+            'overtime_probability': results['draw'],
+            'expected_home_goals': home_expected,
+            'expected_away_goals': away_expected,
+            'expected_total': home_expected + away_expected
+        }
 
 if __name__ == '__main__':
     print("Enhanced NHL Analytics Library")
