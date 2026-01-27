@@ -494,6 +494,126 @@ print(f"Model accuracy: {accuracy['accuracy']:.1%}")
 
 📚 **[Database Guide](docs/database_guide.md)** - Complete tracking system
 
+### Full-Stack API - Build Web & Mobile Apps
+
+Complete REST API and WebSocket support for building full-stack applications:
+
+```python
+# Start the API server
+pip install -r requirements-api.txt
+uvicorn api:app --reload
+
+# API runs at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+```
+
+**Use from any language or platform:**
+
+```javascript
+// JavaScript/React/Node.js
+const response = await fetch('http://localhost:8000/analyze/bet', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        amount: 100,
+        odds: 2.1,
+        win_probability: 0.58,
+        bankroll: 1000
+    })
+});
+
+const data = await response.json();
+console.log(data.recommendation);  // "STRONG BET - Positive EV"
+console.log(data.expected_value);   // 21.8
+```
+
+```python
+# Python
+import requests
+
+response = requests.post('http://localhost:8000/calculate/kelly', json={
+    'win_probability': 0.55,
+    'odds': 2.0
+})
+
+print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
+```
+
+**Available Endpoints:**
+
+*Core Calculations:*
+- `/calculate/kelly` - Kelly Criterion calculation
+- `/calculate/ev` - Expected Value
+- `/calculate/edge` - Betting edge calculation
+- `/analyze/bet` - Complete bet analysis with recommendations
+
+*Quick Predictions (9 Sports):*
+- `/predict/nba/quick` - Fast NBA predictions
+- `/predict/nfl/quick` - Fast NFL predictions (with weather)
+- `/predict/nhl/quick` - Fast NHL predictions (Expected Goals)
+- `/predict/mlb/quick` - Fast MLB predictions (park factors)
+- `/predict/cbb/quick` - College Basketball (KenPom ratings, March Madness)
+- `/predict/cfb/quick` - College Football (SP+ ratings, rivalry games)
+- `/predict/wnba/quick` - WNBA predictions (with rest advantage)
+- `/predict/soccer/btts` - Soccer BTTS predictions
+- `/predict/horse-racing/quick` - Horse racing win probability
+
+*Advanced Features:*
+- `/recommendations` - Get personalized bet recommendations based on bankroll & risk
+- `/arbitrage/detect` - Find guaranteed profit opportunities across bookmakers
+- `/compare` - Compare multiple bets side-by-side
+- `/export/bets` - Export betting data (JSON/CSV)
+- `/statistics/summary` - Comprehensive performance statistics
+- `/statistics/trends` - Betting trends over time
+
+*Database Operations:*
+- `/bets` - Save, retrieve, and manage bets
+- `/predictions` - Track ML predictions and accuracy
+- `/performance` - Get performance statistics (by sport, timeframe)
+- `/bankroll` - Track bankroll over time
+
+*Real-time:*
+- `/ws` - WebSocket for real-time updates
+
+**Real-time WebSocket Updates:**
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws');
+
+ws.onmessage = (event) => {
+    const update = JSON.parse(event.data);
+    console.log('New bet placed:', update);
+};
+```
+
+**Docker Deployment:**
+
+```bash
+# Build and run
+docker build -t sportsbetlang-api .
+docker run -p 8000:8000 sportsbetlang-api
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+**Features:**
+- REST API with all betting calculations
+- WebSocket support for real-time updates
+- Database operations (save bets, track performance)
+- Sport-specific predictions (9 sports: NBA, NFL, NHL, MLB, CBB, CFB, WNBA, Soccer, Horse Racing)
+- Advanced features (recommendations, arbitrage detection, bet comparison)
+- Production-ready with Docker
+- Auto-generated API documentation (Swagger/OpenAPI)
+- CORS enabled for frontend integration
+- Frontend examples (Vanilla JS, React, Advanced Dashboard)
+
+📚 **[Full-Stack Guide](docs/FULLSTACK_GUIDE.md)** - Complete API reference, frontend examples, deployment
+📚 **[API Reference](docs/API_REFERENCE.md)** - Quick endpoint reference
+📚 **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Deploy to Railway, Heroku, AWS, DigitalOcean, and more
+🎨 **[Frontend Examples](frontend/)** - Vanilla JS, React components, and advanced dashboard
+🚀 **[Enhanced Dashboard](frontend/dashboard.html)** - Professional multi-tab interface with 6 tools
+
 ### ML Model Builder
 
 Build custom machine learning models for sports betting:
@@ -644,30 +764,101 @@ predictions = model.predict(X_test)
 
 ### Sport-Specific Analytics
 
-Dedicated packages for each sport:
+Comprehensive analytics packages for all 9 sports:
 
 ```python
-from lib.nhl_analytics import NHLAdvancedAnalytics
-from lib.cfb_analytics import CFBAnalytics
-from lib.soccer_analytics import SoccerAnalytics
-from lib.horse_racing_analytics import HorseRacingAnalytics
+# Professional Sports
+from lib import NBAAnalytics, NFLAnalytics, NHLAnalytics, MLBAnalytics
 
-# NHL Expected Goals
+# College Sports
+from lib import CBBAnalytics, CFBAnalytics
+
+# Women's Professional
+from lib import WNBAAnalytics
+
+# Other Sports
+from lib import SoccerAnalytics, HorseRacingAnalytics
+
+# Example: NHL Expected Goals
+from lib.nhl_analytics import NHLAdvancedAnalytics
 xg = NHLAdvancedAnalytics.calculate_expected_goals(
     shot_distance=15, shot_angle=20, shot_type='wrist'
 )
 
-# College Football with conference adjustments
-prediction = CFBAnalytics.predict_game_ml(home_team, away_team)
+# Example: NHL Advanced Prediction Models
+from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
 
-# Soccer 3-way moneyline
-odds = SoccerAnalytics.calculate_3way_moneyline(
-    home_goals_avg=1.8, away_goals_avg=1.2
+# Decision Tree for O/U and ATS
+tree = NHLDecisionTree()
+ou_pred = tree.predict_over_under(
+    team1_xgf=3.2, team1_xga=2.8,
+    team2_xgf=2.9, team2_xga=3.0,
+    line=6.5,
+    team1_goalie_sv_pct=0.920,
+    team2_goalie_sv_pct=0.905
+)
+# Returns: {'prediction': 'OVER', 'confidence': 0.70, 'expected_total': 6.2, ...}
+
+ats_pred = tree.predict_ats(
+    team_xgf=3.2, team_xga=2.8,
+    opp_xgf=2.9, opp_xga=3.0,
+    spread=-1.5, is_home=True
+)
+# Returns: {'prediction': 'COVER', 'confidence': 0.65, 'cover_margin': 0.5, ...}
+
+# Power Rankings (Elo-style)
+rankings = NHLPowerRankings()
+rankings.set_rating("Tampa Bay", 1650)
+rankings.set_rating("Arizona", 1380)
+pred = rankings.predict_game("Tampa Bay", "Arizona", team1_home=True)
+# Returns: {'team1_win_probability': 0.892, 'expected_goal_differential': 2.7, ...}
+
+# Similar Game Model (Historical Pattern Matching)
+sim_model = NHLSimilarGameModel()
+# Add historical games...
+sim_pred = sim_model.predict_from_similar(
+    team1_xgf=3.1, team1_xga=2.9,
+    team2_xgf=2.8, team2_xga=3.1,
+    line_total=6.5, line_spread=-1.5
+)
+# Returns O/U and ATS predictions based on similar historical games
+
+# Example: College Basketball March Madness
+from lib.cbb_analytics import CBBAnalytics
+upset_prob = CBBAnalytics.calculate_march_madness_upset(
+    favorite_seed=1, underdog_seed=16
+)
+
+# Example: WNBA rest advantage
+from lib.wnba_analytics import WNBAAnalytics
+rest_impact = WNBAAnalytics.calculate_rest_advantage(
+    team_rest_days=3, opponent_rest_days=1
+)
+
+# Example: College Football rivalry games
+from lib.cfb_analytics import CFBAnalytics
+rivalry_adjustment = CFBAnalytics.calculate_rivalry_factor(
+    is_rivalry=True, spread=14.0
 )
 ```
 
-📚 **[NHL Analytics Guide](docs/nhl_analytics_guide.md)** - Hockey analytics
-📚 See `lib/` directory for all sport-specific packages
+**Available Analytics Packages:**
+- **NBA** - Advanced stats, pace adjustments, playoff modeling
+- **NFL** - DVOA, weather factors, key numbers
+- **NHL** - Expected goals (xG), Corsi, Fenwick, **Advanced Models** (Decision Tree, Power Rankings, Similar Game)
+- **MLB** - Park factors, pitcher adjustments, run expectancy
+- **College Basketball** - KenPom ratings, March Madness, conference strength
+- **College Football** - SP+ ratings, recruiting rankings, rivalry games
+- **WNBA** - Rest advantage, compressed schedule analysis
+- **Soccer** - Poisson modeling, BTTS, 3-way moneylines
+- **Horse Racing** - Speed ratings, post position, track conditions
+
+**NHL Advanced Models:**
+- **Decision Tree Model** - Multi-factor O/U and ATS predictions with confidence scoring
+- **Power Rankings** - Elo-style dynamic ratings system with game predictions
+- **Similar Game Model** - Historical pattern matching for O/U and ATS predictions
+
+📚 See `lib/` directory for all sport-specific packages and detailed documentation
 
 ### Installation
 
