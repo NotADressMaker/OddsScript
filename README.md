@@ -764,30 +764,58 @@ predictions = model.predict(X_test)
 
 ### Sport-Specific Analytics
 
-Dedicated packages for each sport:
+Comprehensive analytics packages for all 9 sports:
 
 ```python
-from lib.nhl_analytics import NHLAdvancedAnalytics
-from lib.cfb_analytics import CFBAnalytics
-from lib.soccer_analytics import SoccerAnalytics
-from lib.horse_racing_analytics import HorseRacingAnalytics
+# Professional Sports
+from lib import NBAAnalytics, NFLAnalytics, NHLAnalytics, MLBAnalytics
 
-# NHL Expected Goals
+# College Sports
+from lib import CBBAnalytics, CFBAnalytics
+
+# Women's Professional
+from lib import WNBAAnalytics
+
+# Other Sports
+from lib import SoccerAnalytics, HorseRacingAnalytics
+
+# Example: NHL Expected Goals
+from lib.nhl_analytics import NHLAdvancedAnalytics
 xg = NHLAdvancedAnalytics.calculate_expected_goals(
     shot_distance=15, shot_angle=20, shot_type='wrist'
 )
 
-# College Football with conference adjustments
-prediction = CFBAnalytics.predict_game_ml(home_team, away_team)
+# Example: College Basketball March Madness
+from lib.cbb_analytics import CBBAnalytics
+upset_prob = CBBAnalytics.calculate_march_madness_upset(
+    favorite_seed=1, underdog_seed=16
+)
 
-# Soccer 3-way moneyline
-odds = SoccerAnalytics.calculate_3way_moneyline(
-    home_goals_avg=1.8, away_goals_avg=1.2
+# Example: WNBA rest advantage
+from lib.wnba_analytics import WNBAAnalytics
+rest_impact = WNBAAnalytics.calculate_rest_advantage(
+    team_rest_days=3, opponent_rest_days=1
+)
+
+# Example: College Football rivalry games
+from lib.cfb_analytics import CFBAnalytics
+rivalry_adjustment = CFBAnalytics.calculate_rivalry_factor(
+    is_rivalry=True, spread=14.0
 )
 ```
 
-📚 **[NHL Analytics Guide](docs/nhl_analytics_guide.md)** - Hockey analytics
-📚 See `lib/` directory for all sport-specific packages
+**Available Analytics Packages:**
+- **NBA** - Advanced stats, pace adjustments, playoff modeling
+- **NFL** - DVOA, weather factors, key numbers
+- **NHL** - Expected goals (xG), Corsi, Fenwick
+- **MLB** - Park factors, pitcher adjustments, run expectancy
+- **College Basketball** - KenPom ratings, March Madness, conference strength
+- **College Football** - SP+ ratings, recruiting rankings, rivalry games
+- **WNBA** - Rest advantage, compressed schedule analysis
+- **Soccer** - Poisson modeling, BTTS, 3-way moneylines
+- **Horse Racing** - Speed ratings, post position, track conditions
+
+📚 See `lib/` directory for all sport-specific packages and detailed documentation
 
 ### Installation
 
