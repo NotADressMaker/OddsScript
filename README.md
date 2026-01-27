@@ -785,6 +785,44 @@ xg = NHLAdvancedAnalytics.calculate_expected_goals(
     shot_distance=15, shot_angle=20, shot_type='wrist'
 )
 
+# Example: NHL Advanced Prediction Models
+from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
+
+# Decision Tree for O/U and ATS
+tree = NHLDecisionTree()
+ou_pred = tree.predict_over_under(
+    team1_xgf=3.2, team1_xga=2.8,
+    team2_xgf=2.9, team2_xga=3.0,
+    line=6.5,
+    team1_goalie_sv_pct=0.920,
+    team2_goalie_sv_pct=0.905
+)
+# Returns: {'prediction': 'OVER', 'confidence': 0.70, 'expected_total': 6.2, ...}
+
+ats_pred = tree.predict_ats(
+    team_xgf=3.2, team_xga=2.8,
+    opp_xgf=2.9, opp_xga=3.0,
+    spread=-1.5, is_home=True
+)
+# Returns: {'prediction': 'COVER', 'confidence': 0.65, 'cover_margin': 0.5, ...}
+
+# Power Rankings (Elo-style)
+rankings = NHLPowerRankings()
+rankings.set_rating("Tampa Bay", 1650)
+rankings.set_rating("Arizona", 1380)
+pred = rankings.predict_game("Tampa Bay", "Arizona", team1_home=True)
+# Returns: {'team1_win_probability': 0.892, 'expected_goal_differential': 2.7, ...}
+
+# Similar Game Model (Historical Pattern Matching)
+sim_model = NHLSimilarGameModel()
+# Add historical games...
+sim_pred = sim_model.predict_from_similar(
+    team1_xgf=3.1, team1_xga=2.9,
+    team2_xgf=2.8, team2_xga=3.1,
+    line_total=6.5, line_spread=-1.5
+)
+# Returns O/U and ATS predictions based on similar historical games
+
 # Example: College Basketball March Madness
 from lib.cbb_analytics import CBBAnalytics
 upset_prob = CBBAnalytics.calculate_march_madness_upset(
@@ -807,13 +845,18 @@ rivalry_adjustment = CFBAnalytics.calculate_rivalry_factor(
 **Available Analytics Packages:**
 - **NBA** - Advanced stats, pace adjustments, playoff modeling
 - **NFL** - DVOA, weather factors, key numbers
-- **NHL** - Expected goals (xG), Corsi, Fenwick
+- **NHL** - Expected goals (xG), Corsi, Fenwick, **Advanced Models** (Decision Tree, Power Rankings, Similar Game)
 - **MLB** - Park factors, pitcher adjustments, run expectancy
 - **College Basketball** - KenPom ratings, March Madness, conference strength
 - **College Football** - SP+ ratings, recruiting rankings, rivalry games
 - **WNBA** - Rest advantage, compressed schedule analysis
 - **Soccer** - Poisson modeling, BTTS, 3-way moneylines
 - **Horse Racing** - Speed ratings, post position, track conditions
+
+**NHL Advanced Models:**
+- **Decision Tree Model** - Multi-factor O/U and ATS predictions with confidence scoring
+- **Power Rankings** - Elo-style dynamic ratings system with game predictions
+- **Similar Game Model** - Historical pattern matching for O/U and ATS predictions
 
 📚 See `lib/` directory for all sport-specific packages and detailed documentation
 
