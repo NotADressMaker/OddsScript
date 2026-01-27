@@ -540,14 +540,36 @@ print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
 ```
 
 **Available Endpoints:**
+
+*Core Calculations:*
 - `/calculate/kelly` - Kelly Criterion calculation
 - `/calculate/ev` - Expected Value
+- `/calculate/edge` - Betting edge calculation
 - `/analyze/bet` - Complete bet analysis with recommendations
+
+*Quick Predictions (5 Sports):*
 - `/predict/nba/quick` - Fast NBA predictions
-- `/predict/nfl/quick` - Fast NFL predictions
+- `/predict/nfl/quick` - Fast NFL predictions (with weather)
+- `/predict/nhl/quick` - Fast NHL predictions (Expected Goals)
+- `/predict/mlb/quick` - Fast MLB predictions (park factors)
 - `/predict/soccer/btts` - Soccer BTTS predictions
-- `/bets/save` - Save bet to database
-- `/performance` - Get performance statistics
+- `/predict/horse-racing/quick` - Horse racing win probability
+
+*Advanced Features:*
+- `/recommendations` - Get personalized bet recommendations based on bankroll & risk
+- `/arbitrage/detect` - Find guaranteed profit opportunities across bookmakers
+- `/compare` - Compare multiple bets side-by-side
+- `/export/bets` - Export betting data (JSON/CSV)
+- `/statistics/summary` - Comprehensive performance statistics
+- `/statistics/trends` - Betting trends over time
+
+*Database Operations:*
+- `/bets` - Save, retrieve, and manage bets
+- `/predictions` - Track ML predictions and accuracy
+- `/performance` - Get performance statistics (by sport, timeframe)
+- `/bankroll` - Track bankroll over time
+
+*Real-time:*
 - `/ws` - WebSocket for real-time updates
 
 **Real-time WebSocket Updates:**
@@ -583,7 +605,10 @@ docker-compose up -d
 - Frontend examples (Vanilla JS, React)
 
 📚 **[Full-Stack Guide](docs/FULLSTACK_GUIDE.md)** - Complete API reference, frontend examples, deployment
-🎨 **[Frontend Examples](frontend/)** - Vanilla JS and React components
+📚 **[API Reference](docs/API_REFERENCE.md)** - Quick endpoint reference
+📚 **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Deploy to Railway, Heroku, AWS, DigitalOcean, and more
+🎨 **[Frontend Examples](frontend/)** - Vanilla JS, React components, and advanced dashboard
+🚀 **[Enhanced Dashboard](frontend/dashboard.html)** - Professional multi-tab interface with 6 tools
 
 ### ML Model Builder
 

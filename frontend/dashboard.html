@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportsBetLang - Advanced Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-button {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-button:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: bold;
+        }
+
+        .result-value.positive {
+            color: #10b981;
+        }
+
+        .result-value.negative {
+            color: #ef4444;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .recommendation.pass {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        }
+
+        .recommendation.strong {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-style: italic;
+        }
+
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .bet-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .bet-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .bet-item.won {
+            border-left-color: #10b981;
+        }
+
+        .bet-item.lost {
+            border-left-color: #ef4444;
+        }
+
+        .bet-matchup {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .bet-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .comparison-table th {
+            background: #f8f9fa;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .comparison-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .best-bet {
+            background: #d1fae5 !important;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .tabs {
+                overflow-x: auto;
+            }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 SportsBetLang Dashboard</h1>
+            <p>Professional Sports Betting Analytics & ML Predictions</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="calculator">Kelly Calculator</button>
+            <button class="tab-button" data-tab="predictions">Quick Predictions</button>
+            <button class="tab-button" data-tab="recommendations">Bet Recommendations</button>
+            <button class="tab-button" data-tab="arbitrage">Arbitrage Finder</button>
+            <button class="tab-button" data-tab="performance">Performance</button>
+            <button class="tab-button" data-tab="compare">Compare Bets</button>
+        </div>
+
+        <!-- Kelly Calculator Tab -->
+        <div class="tab-content active" id="calculator">
+            <div class="grid">
+                <div class="card">
+                    <h2>Kelly Criterion Calculator</h2>
+                    <div class="form-group">
+                        <label>Win Probability (%)</label>
+                        <input type="number" id="kelly-prob" value="55" min="0" max="100" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Decimal Odds</label>
+                        <input type="number" id="kelly-odds" value="2.0" step="0.01" min="1.01">
+                    </div>
+                    <button onclick="calculateKelly()">Calculate Kelly</button>
+                    <div id="kelly-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>Complete Bet Analysis</h2>
+                    <div class="form-group">
+                        <label>Bet Amount ($)</label>
+                        <input type="number" id="analysis-amount" value="100" step="10" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Decimal Odds</label>
+                        <input type="number" id="analysis-odds" value="2.1" step="0.01" min="1.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Win Probability (%)</label>
+                        <input type="number" id="analysis-prob" value="58" min="0" max="100" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Bankroll ($)</label>
+                        <input type="number" id="analysis-bankroll" value="1000" step="100" min="0">
+                    </div>
+                    <button onclick="analyzeBet()">Analyze Bet</button>
+                    <div id="analysis-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Predictions Tab -->
+        <div class="tab-content" id="predictions">
+            <div class="grid">
+                <div class="card">
+                    <h2>🏀 NBA Prediction</h2>
+                    <div class="form-group">
+                        <label>Team Offensive Rating</label>
+                        <input type="number" id="nba-team-off" value="115" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Defensive Rating</label>
+                        <input type="number" id="nba-team-def" value="108" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Offensive Rating</label>
+                        <input type="number" id="nba-opp-off" value="110" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Defensive Rating</label>
+                        <input type="number" id="nba-opp-def" value="109" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="nba-home" checked> Home Court Advantage
+                        </label>
+                    </div>
+                    <button onclick="predictNBA()">Predict Game</button>
+                    <div id="nba-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🏈 NFL Prediction</h2>
+                    <div class="form-group">
+                        <label>Team DVOA</label>
+                        <input type="number" id="nfl-team-dvoa" value="0.15" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent DVOA</label>
+                        <input type="number" id="nfl-opp-dvoa" value="0.08" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature (°F)</label>
+                        <input type="number" id="nfl-temp" value="70">
+                    </div>
+                    <div class="form-group">
+                        <label>Wind Speed (mph)</label>
+                        <input type="number" id="nfl-wind" value="5">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="nfl-home" checked> Home Field Advantage
+                        </label>
+                    </div>
+                    <button onclick="predictNFL()">Predict Game</button>
+                    <div id="nfl-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>⚽ Soccer BTTS Prediction</h2>
+                    <div class="form-group">
+                        <label>Team Goals Per Game</label>
+                        <input type="number" id="soccer-team-goals" value="1.8" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team Conceded Per Game</label>
+                        <input type="number" id="soccer-team-conceded" value="1.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Goals Per Game</label>
+                        <input type="number" id="soccer-opp-goals" value="1.5" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent Conceded Per Game</label>
+                        <input type="number" id="soccer-opp-conceded" value="1.1" step="0.1">
+                    </div>
+                    <button onclick="predictSoccer()">Predict BTTS</button>
+                    <div id="soccer-results"></div>
+                </div>
+
+                <div class="card">
+                    <h2>🏒 NHL Prediction</h2>
+                    <div class="form-group">
+                        <label>Team xG For</label>
+                        <input type="number" id="nhl-team-xgf" value="3.2" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Team xG Against</label>
+                        <input type="number" id="nhl-team-xga" value="2.8" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent xG For</label>
+                        <input type="number" id="nhl-opp-xgf" value="2.9" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Opponent xG Against</label>
+                        <input type="number" id="nhl-opp-xga" value="3.0" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="nhl-home" checked> Home Ice Advantage
+                        </label>
+                    </div>
+                    <button onclick="predictNHL()">Predict Game</button>
+                    <div id="nhl-results"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bet Recommendations Tab -->
+        <div class="tab-content" id="recommendations">
+            <div class="card">
+                <h2>📋 Bet Recommendations</h2>
+                <p class="alert alert-info">
+                    Add your games below and get personalized bet recommendations based on your bankroll and risk tolerance.
+                </p>
+                <div class="form-group">
+                    <label>Bankroll ($)</label>
+                    <input type="number" id="rec-bankroll" value="1000" step="100">
+                </div>
+                <div class="form-group">
+                    <label>Risk Tolerance</label>
+                    <select id="rec-risk">
+                        <option value="low">Conservative (1/4 Kelly)</option>
+                        <option value="medium" selected>Balanced (1/2 Kelly)</option>
+                        <option value="high">Aggressive (3/4 Kelly)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Minimum Edge (%)</label>
+                    <input type="number" id="rec-min-edge" value="2" step="0.5" min="0" max="50">
+                </div>
+                <button onclick="showAddGameModal()">+ Add Games</button>
+                <div id="games-list"></div>
+                <button onclick="getRecommendations()" style="margin-top: 15px; background: #10b981;">Get Recommendations</button>
+                <div id="recommendations-results"></div>
+            </div>
+        </div>
+
+        <!-- Arbitrage Finder Tab -->
+        <div class="tab-content" id="arbitrage">
+            <div class="card">
+                <h2>🎲 Arbitrage Finder</h2>
+                <p class="alert alert-info">
+                    Find guaranteed profit opportunities by comparing odds across multiple bookmakers.
+                </p>
+                <div class="form-group">
+                    <label>Total Stake ($)</label>
+                    <input type="number" id="arb-stake" value="100" step="10">
+                </div>
+                <div id="arb-books">
+                    <div class="form-group">
+                        <label>Book 1 - Team A Odds | Team B Odds</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="arb-book1-name" placeholder="BookA" style="flex: 1;">
+                            <input type="number" id="arb-book1-a" value="2.1" step="0.01" style="flex: 1;">
+                            <input type="number" id="arb-book1-b" value="1.95" step="0.01" style="flex: 1;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Book 2 - Team A Odds | Team B Odds</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="arb-book2-name" placeholder="BookB" style="flex: 1;">
+                            <input type="number" id="arb-book2-a" value="1.98" step="0.01" style="flex: 1;">
+                            <input type="number" id="arb-book2-b" value="2.05" step="0.01" style="flex: 1;">
+                        </div>
+                    </div>
+                </div>
+                <button onclick="detectArbitrage()">Find Arbitrage</button>
+                <div id="arb-results"></div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div class="tab-content" id="performance">
+            <div class="card">
+                <h2>📊 Performance Statistics</h2>
+                <button onclick="loadPerformance()">Load Performance Data</button>
+                <div id="performance-results"></div>
+            </div>
+        </div>
+
+        <!-- Compare Bets Tab -->
+        <div class="tab-content" id="compare">
+            <div class="card">
+                <h2>⚖️ Compare Multiple Bets</h2>
+                <p class="alert alert-info">
+                    Compare up to 5 betting opportunities side-by-side to find the best value.
+                </p>
+                <div class="form-group">
+                    <label>Bankroll ($)</label>
+                    <input type="number" id="compare-bankroll" value="1000" step="100">
+                </div>
+                <div id="compare-bets">
+                    <!-- Bet comparison inputs will be added here -->
+                </div>
+                <button onclick="addCompareBet()">+ Add Bet</button>
+                <button onclick="compareBets()" style="margin-top: 15px; background: #10b981;">Compare Bets</button>
+                <div id="compare-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let gamesForRecommendation = [];
+        let compareBetsData = [];
+
+        // Tab switching
+        document.querySelectorAll('.tab-button').forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+                // Add active class to clicked tab
+                button.classList.add('active');
+                const tabId = button.getAttribute('data-tab');
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+
+        // Kelly Calculator
+        async function calculateKelly() {
+            const prob = parseFloat(document.getElementById('kelly-prob').value) / 100;
+            const odds = parseFloat(document.getElementById('kelly-odds').value);
+
+            const resultsDiv = document.getElementById('kelly-results');
+            resultsDiv.innerHTML = '<p class="loading">Calculating...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/calculate/kelly`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ win_probability: prob, odds: odds })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Kelly Size:</span>
+                            <span class="result-value">${data.recommended_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Decimal:</span>
+                            <span class="result-value">${data.kelly_size.toFixed(4)}</span>
+                        </div>
+                    </div>
+                    <div class="alert alert-success">
+                        Bet ${data.recommended_percentage} of your bankroll on this opportunity.
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Complete Bet Analysis
+        async function analyzeBet() {
+            const amount = parseFloat(document.getElementById('analysis-amount').value);
+            const odds = parseFloat(document.getElementById('analysis-odds').value);
+            const prob = parseFloat(document.getElementById('analysis-prob').value) / 100;
+            const bankroll = parseFloat(document.getElementById('analysis-bankroll').value);
+
+            const resultsDiv = document.getElementById('analysis-results');
+            resultsDiv.innerHTML = '<p class="loading">Analyzing...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/analyze/bet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount: amount,
+                        odds: odds,
+                        win_probability: prob,
+                        bankroll: bankroll
+                    })
+                });
+
+                const data = await response.json();
+
+                const recClass = data.recommendation.includes('STRONG') ? 'strong' :
+                                 data.recommendation.includes('PASS') ? 'pass' : 'strong';
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Kelly:</span>
+                            <span class="result-value">${data.metrics.kelly_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Expected Value:</span>
+                            <span class="result-value ${data.expected_value > 0 ? 'positive' : 'negative'}">${data.metrics.ev_formatted}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Edge:</span>
+                            <span class="result-value ${data.edge > 0 ? 'positive' : 'negative'}">${data.metrics.edge_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">ROI:</span>
+                            <span class="result-value ${data.roi > 0 ? 'positive' : 'negative'}">${data.metrics.roi_percentage}</span>
+                        </div>
+                        ${data.recommended_bet ? `
+                        <div class="result-item">
+                            <span class="result-label">Recommended Bet:</span>
+                            <span class="result-value">$${data.recommended_bet.toFixed(2)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    <div class="recommendation ${recClass}">
+                        ${data.recommendation}
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // NBA Prediction
+        async function predictNBA() {
+            const resultsDiv = document.getElementById('nba-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/nba/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_off_rtg: parseFloat(document.getElementById('nba-team-off').value),
+                        team_def_rtg: parseFloat(document.getElementById('nba-team-def').value),
+                        opp_off_rtg: parseFloat(document.getElementById('nba-opp-off').value),
+                        opp_def_rtg: parseFloat(document.getElementById('nba-opp-def').value),
+                        home: document.getElementById('nba-home').checked
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Confidence:</span>
+                            <span class="result-value">${data.confidence}</span>
+                        </div>
+                    </div>
+                    <div class="alert alert-success">
+                        Team has a ${data.win_percentage} chance of winning this game.
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // NFL Prediction
+        async function predictNFL() {
+            const resultsDiv = document.getElementById('nfl-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/nfl/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_dvoa: parseFloat(document.getElementById('nfl-team-dvoa').value),
+                        opp_dvoa: parseFloat(document.getElementById('nfl-opp-dvoa').value),
+                        home: document.getElementById('nfl-home').checked,
+                        temperature: parseFloat(document.getElementById('nfl-temp').value),
+                        wind_speed: parseFloat(document.getElementById('nfl-wind').value)
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Weather Considered:</span>
+                            <span class="result-value">${data.weather_considered ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                    <div class="alert alert-success">
+                        Team has a ${data.win_percentage} chance of winning with current weather conditions.
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Soccer Prediction
+        async function predictSoccer() {
+            const resultsDiv = document.getElementById('soccer-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/soccer/btts?team_goals_avg=${document.getElementById('soccer-team-goals').value}&opp_goals_avg=${document.getElementById('soccer-opp-goals').value}&team_clean_sheets=0.35&opp_clean_sheets=0.35`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">BTTS Probability:</span>
+                            <span class="result-value positive">${data.btts_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Recommended:</span>
+                            <span class="result-value">${data.recommended ? 'Yes' : 'No'}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // NHL Prediction
+        async function predictNHL() {
+            const resultsDiv = document.getElementById('nhl-results');
+            resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/predict/nhl/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        team_xg_for: parseFloat(document.getElementById('nhl-team-xgf').value),
+                        team_xg_against: parseFloat(document.getElementById('nhl-team-xga').value),
+                        opp_xg_for: parseFloat(document.getElementById('nhl-opp-xgf').value),
+                        opp_xg_against: parseFloat(document.getElementById('nhl-opp-xga').value),
+                        home: document.getElementById('nhl-home').checked
+                    })
+                });
+
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Win Probability:</span>
+                            <span class="result-value positive">${data.win_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Metric:</span>
+                            <span class="result-value">${data.metric}</span>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Arbitrage Detection
+        async function detectArbitrage() {
+            const resultsDiv = document.getElementById('arb-results');
+            resultsDiv.innerHTML = '<p class="loading">Checking for arbitrage...</p>';
+
+            const odds_list = [
+                {
+                    book: document.getElementById('arb-book1-name').value || 'BookA',
+                    team1: parseFloat(document.getElementById('arb-book1-a').value),
+                    team2: parseFloat(document.getElementById('arb-book1-b').value)
+                },
+                {
+                    book: document.getElementById('arb-book2-name').value || 'BookB',
+                    team1: parseFloat(document.getElementById('arb-book2-a').value),
+                    team2: parseFloat(document.getElementById('arb-book2-b').value)
+                }
+            ];
+
+            const stake = parseFloat(document.getElementById('arb-stake').value);
+
+            try {
+                const response = await fetch(`${API_URL}/arbitrage/detect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ odds_list, stake })
+                });
+
+                const data = await response.json();
+
+                if (data.arbitrage) {
+                    let betsHtml = '';
+                    data.bets.forEach(bet => {
+                        betsHtml += `
+                            <div class="result-item">
+                                <span class="result-label">${bet.outcome} @ ${bet.book}:</span>
+                                <span class="result-value">$${bet.stake} @ ${bet.odds}</span>
+                            </div>
+                        `;
+                    });
+
+                    resultsDiv.innerHTML = `
+                        <div class="recommendation strong">
+                            🎉 ARBITRAGE OPPORTUNITY FOUND!
+                        </div>
+                        <div class="results">
+                            <div class="result-item">
+                                <span class="result-label">Profit Margin:</span>
+                                <span class="result-value positive">${data.profit_margin}</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">Guaranteed Profit:</span>
+                                <span class="result-value positive">$${data.guaranteed_profit.toFixed(2)}</span>
+                            </div>
+                            <div class="result-item">
+                                <span class="result-label">ROI:</span>
+                                <span class="result-value positive">${data.roi}</span>
+                            </div>
+                            ${betsHtml}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="recommendation pass">
+                            No Arbitrage Found
+                        </div>
+                        <div class="results">
+                            <div class="result-item">
+                                <span class="result-label">Total Implied Probability:</span>
+                                <span class="result-value">${data.total_implied_probability}</span>
+                            </div>
+                            <p style="margin-top: 15px; color: #666;">${data.message}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Load Performance
+        async function loadPerformance() {
+            const resultsDiv = document.getElementById('performance-results');
+            resultsDiv.innerHTML = '<p class="loading">Loading performance data...</p>';
+
+            try {
+                const response = await fetch(`${API_URL}/statistics/summary`);
+                const data = await response.json();
+
+                resultsDiv.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">${data.overall.total_bets}</div>
+                            <div class="stat-label">Total Bets</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.overall.win_rate_percentage}</div>
+                            <div class="stat-label">Win Rate</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${data.overall.roi_percentage}</div>
+                            <div class="stat-label">ROI</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">$${data.overall.total_profit?.toFixed(2) || '0.00'}</div>
+                            <div class="stat-label">Total Profit</div>
+                        </div>
+                    </div>
+                    <div class="results" style="margin-top: 20px;">
+                        <h3>By Sport</h3>
+                        ${Object.entries(data.by_sport).map(([sport, stats]) => `
+                            <div class="result-item">
+                                <span class="result-label">${sport.toUpperCase()}:</span>
+                                <span class="result-value">${stats.total_bets} bets | ${(stats.win_rate * 100).toFixed(1)}% win rate | ${(stats.roi * 100).toFixed(1)}% ROI</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}. Make sure you have saved some bets first.</div>`;
+            }
+        }
+
+        // Initialize compare bets section
+        function addCompareBet() {
+            const container = document.getElementById('compare-bets');
+            const index = compareBetsData.length;
+
+            const betDiv = document.createElement('div');
+            betDiv.className = 'form-group';
+            betDiv.style.background = '#f8f9fa';
+            betDiv.style.padding = '15px';
+            betDiv.style.borderRadius = '8px';
+            betDiv.style.marginBottom = '10px';
+            betDiv.innerHTML = `
+                <label>Bet ${index + 1}</label>
+                <input type="text" id="compare-name-${index}" placeholder="Bet Name" style="margin-bottom: 10px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <input type="number" id="compare-prob-${index}" placeholder="Win Prob (%)" step="0.1">
+                    <input type="number" id="compare-odds-${index}" placeholder="Odds" step="0.01">
+                </div>
+            `;
+            container.appendChild(betDiv);
+            compareBetsData.push({ index });
+        }
+
+        // Compare bets
+        async function compareBets() {
+            const resultsDiv = document.getElementById('compare-results');
+
+            if (compareBetsData.length < 2) {
+                resultsDiv.innerHTML = '<div class="error">Add at least 2 bets to compare.</div>';
+                return;
+            }
+
+            resultsDiv.innerHTML = '<p class="loading">Comparing bets...</p>';
+
+            const bankroll = parseFloat(document.getElementById('compare-bankroll').value);
+            const bets = compareBetsData.map(b => ({
+                name: document.getElementById(`compare-name-${b.index}`).value || `Bet ${b.index + 1}`,
+                prob: parseFloat(document.getElementById(`compare-prob-${b.index}`).value) / 100,
+                odds: parseFloat(document.getElementById(`compare-odds-${b.index}`).value)
+            }));
+
+            try {
+                const response = await fetch(`${API_URL}/compare`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bets, bankroll })
+                });
+
+                const data = await response.json();
+
+                let tableHtml = `
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Bet</th>
+                                <th>Probability</th>
+                                <th>Odds</th>
+                                <th>Kelly</th>
+                                <th>EV</th>
+                                <th>Edge</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                data.bets.forEach(bet => {
+                    const rowClass = bet.is_best ? 'best-bet' : '';
+                    tableHtml += `
+                        <tr class="${rowClass}">
+                            <td><strong>${bet.name}</strong> ${bet.is_best ? '⭐' : ''}</td>
+                            <td>${(bet.probability * 100).toFixed(1)}%</td>
+                            <td>${bet.odds.toFixed(2)}</td>
+                            <td>${(bet.kelly * 100).toFixed(1)}%</td>
+                            <td>$${bet.ev.toFixed(2)}</td>
+                            <td>${(bet.edge * 100).toFixed(2)}%</td>
+                        </tr>
+                    `;
+                });
+
+                tableHtml += '</tbody></table>';
+
+                resultsDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        Best Bet: <strong>${data.best_bet}</strong>
+                    </div>
+                    ${tableHtml}
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Initialize with one compare bet
+        addCompareBet();
+        addCompareBet();
+
+        // Placeholder functions for recommendations
+        function showAddGameModal() {
+            alert('Add games feature coming soon! For now, use the API directly.');
+        }
+
+        function getRecommendations() {
+            alert('Recommendations feature requires adding games. Use /recommendations endpoint directly.');
+        }
+    </script>
+</body>
+</html>
