@@ -84,6 +84,9 @@ class NHLDecisionTree:
         confidence = 0.0
         prediction = "PUSH"
 
+        # Calculate average goalie save percentage for use in factors
+        avg_sv_pct = (team1_goalie_sv_pct + team2_goalie_sv_pct) / 2
+
         # Node 1: Is predicted total significantly different from line?
         diff = abs(adjusted_total - line)
 
@@ -93,8 +96,6 @@ class NHLDecisionTree:
             confidence = 0.50
         elif adjusted_total > line:
             # Node 2: Check goalie quality
-            avg_sv_pct = (team1_goalie_sv_pct + team2_goalie_sv_pct) / 2
-
             if avg_sv_pct < 0.900:
                 # Weak goalies = more goals
                 prediction = "OVER"
@@ -117,8 +118,6 @@ class NHLDecisionTree:
                 confidence = min(0.75, confidence + 0.05)
         else:
             # Predicted under
-            avg_sv_pct = (team1_goalie_sv_pct + team2_goalie_sv_pct) / 2
-
             if avg_sv_pct > 0.920:
                 # Elite goalies = fewer goals
                 prediction = "UNDER"

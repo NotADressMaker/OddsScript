@@ -93,7 +93,7 @@ from lib.cbb_analytics import CBBAnalytics
 from lib.cfb_analytics import CFBAnalytics
 from lib.wnba_analytics import WNBAAnalytics
 from lib.soccer_analytics import SoccerAnalytics
-from lib.horse_racing_analytics import HorseRacingAnalytics
+from lib.horse_racing_analytics import HorseRacingAnalyzer as HorseRacingAnalytics
 
 # Import NHL advanced prediction models
 from lib.nhl_advanced_models import (
