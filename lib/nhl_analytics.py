@@ -1,5 +1,4 @@
-
-   #!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 Enhanced NHL Analytics Library
 Comprehensive statistical models for NHL (Hockey) betting including:
@@ -31,6 +30,21 @@ except ImportError:
     from lib.poisson_calculator import PoissonCalculator
     from lib.advanced_stats import AdvancedStats
     from lib.ml_models import RandomForest, FeatureEngineering
+
+
+# Updated league averages (2025-26 mid-season approx; update seasonally)
+# Source: MoneyPuck / Natural Stat Trick / NHL EDGE
+class NHLConstants:
+    AVG_GOALS_PER_GAME = 3.15          # per team → total ~6.3
+    AVG_HOME_ADVANTAGE = 0.28          # goals
+    AVG_TOTAL_GOALS = 6.3
+    AVG_SAVE_PERCENTAGE = 0.905
+    AVG_SHOOTING_PERCENTAGE = 0.102
+    AVG_PDO = 100.7                    # slight upward trend
+    LEAGUE_GSAX_AVG_PER_GAME = 0.0     # league average GSAx = 0 by definition
+    HIGH_DANGER_CONVERSION = 0.26      # ~26% in slot
+    MEDIUM_DANGER_CONVERSION = 0.115
+    LOW_DANGER_CONVERSION = 0.048
 
 
 class ShotQuality(Enum):
@@ -92,20 +106,7 @@ class ExpectedGoalsModel:
 class NHLAdvancedAnalytics:
     """Enhanced NHL analytics with advanced statistics"""
 
-    # Updated league averages (2025-26 mid-season approx; update seasonally)
-    AVG_GOALS_PER_GAME = 3.15          # per team → total ~6.3
-    AVG_HOME_ADVANTAGE = 0.28          # goals
-    AVG_TOTAL_GOALS = 6.3
-    AVG_SAVE_PERCENTAGE = 0.905
-    AVG_SHOOTING_PERCENTAGE = 0.102
-    AVG_PDO = 100.7                    # slight upward trend
-    LEAGUE_GSAX_AVG_PER_GAME = 0.0     # league average GSAx = 0 by definition
-
-    # Expected goals baselines
-    XG_DISTANCE_FACTOR = 0.95          # xG decreases with distance
-    XG_ANGLE_FACTOR = 0.90
-
-    # Shot type conversion rates (updated to modern NHL)
+    # Use constants from NHLConstants where possible
     SHOT_CONVERSION_RATES = {
         'wrist': 0.098,
         'slap': 0.091,
@@ -132,9 +133,9 @@ class NHLAdvancedAnalytics:
         angle_factor = math.cos(math.radians(shot_angle))
 
         quality_multiplier = {
-            ShotQuality.HIGH_DANGER: 3.6,
-            ShotQuality.MEDIUM_DANGER: 1.6,
-            ShotQuality.LOW_DANGER: 0.6
+            ShotQuality.HIGH_DANGER: NHLConstants.HIGH_DANGER_CONVERSION / 0.095 * 3.6,
+            ShotQuality.MEDIUM_DANGER: NHLConstants.MEDIUM_DANGER_CONVERSION / 0.095 * 1.6,
+            ShotQuality.LOW_DANGER: NHLConstants.LOW_DANGER_CONVERSION / 0.095 * 0.6
         }[shot_quality]
 
         rebound_multiplier = 1.8 if rebound else 1.0
@@ -143,7 +144,7 @@ class NHLAdvancedAnalytics:
         xg = (base_xg * distance_factor * angle_factor *
               quality_multiplier * rebound_multiplier * rush_multiplier)
 
-        return min(xg, 0.70)  # slightly higher cap for modern NHL
+        return min(xg, 0.70)  # modern NHL cap
 
     @staticmethod
     def adjust_for_goalies(
@@ -161,10 +162,9 @@ class NHLAdvancedAnalytics:
         home_adj = 1 - (home_gsax - league_gsax_avg) * 0.12
         away_adj = 1 - (away_gsax - league_gsax_avg) * 0.12
 
-        adjusted_home_xg = home_xg * away_adj      # home xG lowered by away goalie
-        adjusted_away_xg = away_xg * home_adj      # away xG lowered by home goalie
+        adjusted_home_xg = home_xg * away_adj
+        adjusted_away_xg = away_xg * home_adj
 
-        # Sanity clamps
         adjusted_home_xg = max(0.5, min(adjusted_home_xg, 5.8))
         adjusted_away_xg = max(0.5, min(adjusted_away_xg, 5.8))
 
@@ -182,7 +182,7 @@ class NHLAdvancedAnalytics:
         Predict game outcome using advanced metrics
         Now includes robust GSAx-based goalie adjustment
         """
-        # Base expected goals from team metrics
+        # Base expected goals
         home_xg = home_team_metrics.goals_for * (
             1 + (home_team_metrics.corsi_for / 100 - 0.5) * 0.2
         )
@@ -206,18 +206,18 @@ class NHLAdvancedAnalytics:
             away_xg=away_xg,
             home_gsax=home_gsax_per,
             away_gsax=away_gsax_per,
-            league_gsax_avg=NHLAdvancedAnalytics.LEAGUE_GSAX_AVG_PER_GAME
+            league_gsax_avg=NHLConstants.LEAGUE_GSAX_AVG_PER_GAME
         )
 
-        # Small home-ice boost after goalie adj
-        home_expected += NHLAdvancedAnalytics.AVG_HOME_ADVANTAGE
+        # Home-ice boost
+        home_expected += NHLConstants.AVG_HOME_ADVANTAGE
 
         # Poisson probabilities
         results = PoissonCalculator.calculate_match_probabilities(
             home_expected, away_expected, max_goals=10
         )
 
-        # Overtime adjustment (50/50 split of draws)
+        # Overtime adjustment
         ot_split = results['draw'] * 0.5
 
         return {
@@ -231,35 +231,27 @@ class NHLAdvancedAnalytics:
             'expected_total': home_expected + away_expected
         }
 
-    # ... (keep all your other methods unchanged: calculate_team_expected_goals,
-    # calculate_corsi_fenwick, calculate_pdo, analyze_goaltender_performance,
-    # calculate_power_play_value, calculate_team_strength, simulate_season_monte_carlo,
-    # analyze_betting_edge, calculate_live_betting_edge, etc.)
+    # ... (keep all your other methods here unchanged)
 
-# Backward compatibility class remains unchanged
+# Backward compatibility
 class NHLAnalytics:
-    # ... your existing code here ...
+    # ... your existing NHLAnalytics class here ...
     pass
 
 
 if __name__ == '__main__':
-    print("Enhanced NHL Analytics Library (with goalie adjustment)")
+    print("Enhanced NHL Analytics Library (updated)")
     print("=" * 70)
 
-    # Test the new adjustment
-    print("\nTest: Goalie Adjustment")
+    # Test goalie adjustment
     adj_home, adj_away = NHLAdvancedAnalytics.adjust_for_goalies(
         home_xg=3.2,
         away_xg=2.9,
-        home_gsax=0.45,    # strong home goalie
-        away_gsax=-0.30,   # weak away goalie
-        league_gsax_avg=0.0
+        home_gsax=0.45,     # strong home goalie
+        away_gsax=-0.30,    # weak away goalie
+        league_gsax_avg=NHLConstants.LEAGUE_GSAX_AVG_PER_GAME
     )
     print(f"Adjusted home xG: {adj_home:.2f}")
     print(f"Adjusted away xG: {adj_away:.2f}")
-
-    # Full predict_game_ml test would go here (using sample metrics/stats)
     
-    
-        
-       
+     
