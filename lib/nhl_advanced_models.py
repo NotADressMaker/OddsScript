@@ -343,26 +343,97 @@ class NHLPowerRankings:
     Used for predicting future matchups
     """
 
-    def __init__(self, k_factor: float = 20.0, home_advantage: float = 55.0):
+    def __init__(
+        self,
+        k_factor: float = 20.0,
+        home_advantage: float = 55.0,
+        home_advantages: Optional[Dict[str, float]] = None,
+        mov_scale: float = 2.0,
+        mov_cap: float = 2.5,
+        use_xg_share: bool = False,
+        use_glicko: bool = True,
+        glicko_tau: float = 0.5,
+        glicko_rd_start: float = 350.0,
+        glicko_rd_max: float = 350.0,
+        glicko_volatility: float = 0.06,
+        regression_factor: float = 0.25,
+        regression_rd_increase: float = 50.0
+    ):
         """
         Initialize power rankings
 
         Args:
             k_factor: How much ratings change per game (higher = more volatile)
-            home_advantage: Home ice advantage in rating points
+            home_advantage: Baseline home ice advantage in rating points
+            home_advantages: Optional per-team home advantage overrides
+            mov_scale: Goal margin scale for MOV adjustment
+            mov_cap: Cap on margin of victory adjustment multiplier
+            use_xg_share: Use expected goals share instead of final score for updates
+            use_glicko: Use Glicko-2 style ratings with uncertainty
+            glicko_tau: Glicko-2 volatility constraint
+            glicko_rd_start: Starting rating deviation for new teams
+            glicko_rd_max: Maximum rating deviation
+            glicko_volatility: Starting volatility for new teams
+            regression_factor: Fraction to regress ratings toward mean at season boundaries
+            regression_rd_increase: RD increase applied at season boundaries
         """
         self.ratings = {}
+        self.rating_deviations = {}
+        self.volatility = {}
         self.k_factor = k_factor
         self.home_advantage = home_advantage
+        self.home_advantages = home_advantages or {}
+        self.mov_scale = mov_scale
+        self.mov_cap = mov_cap
+        self.use_xg_share = use_xg_share
+        self.use_glicko = use_glicko
+        self.glicko_tau = glicko_tau
+        self.glicko_rd_start = glicko_rd_start
+        self.glicko_rd_max = glicko_rd_max
+        self.glicko_volatility = glicko_volatility
+        self.regression_factor = regression_factor
+        self.regression_rd_increase = regression_rd_increase
         self.default_rating = 1500.0
 
     def get_rating(self, team: str) -> float:
         """Get team's current rating"""
         return self.ratings.get(team, self.default_rating)
 
+    def get_rating_deviation(self, team: str) -> float:
+        """Get team's rating deviation (Glicko uncertainty)."""
+        return self.rating_deviations.get(team, self.glicko_rd_start)
+
+    def get_volatility(self, team: str) -> float:
+        """Get team's volatility (Glicko-2)."""
+        return self.volatility.get(team, self.glicko_volatility)
+
     def set_rating(self, team: str, rating: float):
         """Set team's rating"""
         self.ratings[team] = rating
+
+    def set_rating_deviation(self, team: str, deviation: float):
+        """Set team's rating deviation."""
+        self.rating_deviations[team] = min(self.glicko_rd_max, deviation)
+
+    def set_volatility(self, team: str, volatility: float):
+        """Set team's volatility."""
+        self.volatility[team] = volatility
+
+    def _get_home_advantage(self, team: str) -> float:
+        return self.home_advantages.get(team, self.home_advantage)
+
+    def _margin_of_victory_multiplier(self, goal_diff: int) -> float:
+        if goal_diff <= 0:
+            return 1.0
+        multiplier = 1.0 + (goal_diff / max(0.1, self.mov_scale))
+        return min(self.mov_cap, multiplier)
+
+    def regress_to_mean(self):
+        """Regress ratings toward the mean at season boundaries."""
+        for team, rating in list(self.ratings.items()):
+            adjusted = self.default_rating + (rating - self.default_rating) * (1.0 - self.regression_factor)
+            self.ratings[team] = adjusted
+            self.set_rating_deviation(team, self.get_rating_deviation(team) + self.regression_rd_increase)
 
     def expected_score(self, team_rating: float, opp_rating: float) -> float:
         """
@@ -372,6 +443,75 @@ class NHLPowerRankings:
         """
         return 1.0 / (1.0 + 10 ** ((opp_rating - team_rating) / 400.0))
 
+    def _glicko_expected_score(self, team_mu: float, opp_mu: float, opp_phi: float) -> float:
+        g_phi = 1.0 / math.sqrt(1.0 + (3.0 * opp_phi ** 2) / (math.pi ** 2))
+        return 1.0 / (1.0 + math.exp(-g_phi * (team_mu - opp_mu)))
+
+    def _glicko_update(
+        self,
+        team: str,
+        opp: str,
+        score: float,
+        mov_multiplier: float,
+        team_rating_adjust: float = 0.0,
+        opp_rating_adjust: float = 0.0
+    ):
+        team_rating = self.get_rating(team) + team_rating_adjust
+        opp_rating = self.get_rating(opp) + opp_rating_adjust
+        team_phi = self.get_rating_deviation(team) / 173.7178
+        opp_phi = self.get_rating_deviation(opp) / 173.7178
+        team_mu = (team_rating - 1500.0) / 173.7178
+        opp_mu = (opp_rating - 1500.0) / 173.7178
+
+        g_phi = 1.0 / math.sqrt(1.0 + (3.0 * opp_phi ** 2) / (math.pi ** 2))
+        expected = 1.0 / (1.0 + math.exp(-g_phi * (team_mu - opp_mu)))
+        adjusted_score = _clamp_prob(expected + (score - expected) * mov_multiplier, 0.0, 1.0)
+
+        v = 1.0 / (g_phi ** 2 * expected * (1.0 - expected))
+        delta = v * g_phi * (adjusted_score - expected)
+        sigma = self.get_volatility(team)
+        a = math.log(sigma ** 2)
+
+        def f(x):
+            exp_x = math.exp(x)
+            numerator = exp_x * (delta ** 2 - team_phi ** 2 - v - exp_x)
+            denominator = 2.0 * (team_phi ** 2 + v + exp_x) ** 2
+            return (numerator / denominator) - ((x - a) / (self.glicko_tau ** 2))
+
+        a_low = a - 5.0
+        a_high = a + 5.0
+        f_low = f(a_low)
+        f_high = f(a_high)
+        for _ in range(30):
+            if f_low * f_high < 0:
+                break
+            a_low -= 1.0
+            a_high += 1.0
+            f_low = f(a_low)
+            f_high = f(a_high)
+
+        for _ in range(30):
+            a_mid = (a_low + a_high) / 2.0
+            f_mid = f(a_mid)
+            if f_mid == 0:
+                a_low = a_high = a_mid
+                break
+            if f_low * f_mid < 0:
+                a_high = a_mid
+                f_high = f_mid
+            else:
+                a_low = a_mid
+                f_low = f_mid
+
+        new_sigma = math.exp(a_high / 2.0)
+        phi_star = math.sqrt(team_phi ** 2 + new_sigma ** 2)
+        phi_new = 1.0 / math.sqrt((1.0 / phi_star ** 2) + (1.0 / v))
+        mu_new = team_mu + (phi_new ** 2) * g_phi * (adjusted_score - expected)
+
+        self.set_volatility(team, new_sigma)
+        self.set_rating_deviation(team, phi_new * 173.7178)
+        self.set_rating(team, (mu_new * 173.7178) + 1500.0)
+
     def update_ratings(
         self,
         team1: str,
@@ -379,7 +519,9 @@ class NHLPowerRankings:
         team1_score: int,
         team2_score: int,
         team1_home: bool = True,
-        overtime: bool = False
+        overtime: bool = False,
+        team1_xg_share: Optional[float] = None,
+        use_xg_share: Optional[bool] = None
     ):
         """
         Update ratings based on game result
@@ -398,9 +540,9 @@ class NHLPowerRankings:
 
         # Apply home advantage
         if team1_home:
-            team1_rating += self.home_advantage
+            team1_rating += self._get_home_advantage(team1)
         else:
-            team2_rating += self.home_advantage
+            team2_rating += self._get_home_advantage(team2)
 
         # Calculate expected scores
         team1_expected = self.expected_score(team1_rating, team2_rating)
@@ -414,12 +556,40 @@ class NHLPowerRankings:
             team1_actual = 0.0 if not overtime else 0.5
             team2_actual = 1.0
 
-        # Update ratings
-        team1_new = self.get_rating(team1) + self.k_factor * (team1_actual - team1_expected)
-        team2_new = self.get_rating(team2) + self.k_factor * (team2_actual - team2_expected)
+        if use_xg_share is None:
+            use_xg_share = self.use_xg_share
 
-        self.set_rating(team1, team1_new)
-        self.set_rating(team2, team2_new)
+        if use_xg_share and team1_xg_share is not None:
+            team1_actual = _clamp_prob(team1_xg_share, 0.0, 1.0)
+            team2_actual = 1.0 - team1_actual
+
+        mov_multiplier = self._margin_of_victory_multiplier(abs(team1_score - team2_score))
+
+        if self.use_glicko:
+            team1_adv = self._get_home_advantage(team1) if team1_home else 0.0
+            team2_adv = self._get_home_advantage(team2) if not team1_home else 0.0
+            self._glicko_update(
+                team1,
+                team2,
+                team1_actual,
+                mov_multiplier,
+                team_rating_adjust=team1_adv,
+                opp_rating_adjust=team2_adv
+            )
+            self._glicko_update(
+                team2,
+                team1,
+                team2_actual,
+                mov_multiplier,
+                team_rating_adjust=team2_adv,
+                opp_rating_adjust=team1_adv
+            )
+        else:
+            team1_new = self.get_rating(team1) + (self.k_factor * mov_multiplier) * (team1_actual - team1_expected)
+            team2_new = self.get_rating(team2) + (self.k_factor * mov_multiplier) * (team2_actual - team2_expected)
+
+            self.set_rating(team1, team1_new)
+            self.set_rating(team2, team2_new)
 
     def predict_game(
         self,
@@ -440,11 +610,11 @@ class NHLPowerRankings:
 
         # Apply home advantage
         if team1_home:
-            team1_adj = team1_rating + self.home_advantage
+            team1_adj = team1_rating + self._get_home_advantage(team1)
             team2_adj = team2_rating
         else:
             team1_adj = team1_rating
-            team2_adj = team2_rating + self.home_advantage
+            team2_adj = team2_rating + self._get_home_advantage(team2)
 
         # Win probability
         team1_win_prob = self.expected_score(team1_adj, team2_adj)
