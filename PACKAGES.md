@@ -813,7 +813,8 @@ result = simulate_fibonacci(
 **RECOMMENDED**: Safest strategy for long-term success.
 
 ```python
-from strategies.flat_betting import FlatBetting, PercentageBetting, compare_strategies
+from strategies.flat_betting import FlatBetting, compare_strategies
+from strategies.percentage_betting import PercentageBetting
 
 # Fixed amount betting
 flat = FlatBetting(bet_size=20, bankroll=1000)
@@ -2105,4 +2106,3 @@ python3 tools/odds_calc.py parlay -110 -110 -s 100
 
 # 4. Decision based on EV
 ```
-
