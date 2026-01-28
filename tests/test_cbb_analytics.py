@@ -75,6 +75,28 @@ class TestCBBSpreadProbability(unittest.TestCase):
 
         self.assertEqual(result['conference_adjustment'], 0.0)
 
+    def test_neutral_site_removes_home_advantage(self):
+        result = CBBAnalytics.calculate_spread_probability(
+            team_rating=78.0,
+            opponent_rating=72.0,
+            spread=-6.0,
+            is_home=True,
+            neutral_site=True
+        )
+
+        self.assertEqual(result['home_advantage_used'], 0.0)
+
+    def test_home_advantage_is_capped(self):
+        result = CBBAnalytics.calculate_spread_probability(
+            team_rating=78.0,
+            opponent_rating=72.0,
+            spread=-6.0,
+            is_home=True,
+            home_advantage=20.0
+        )
+
+        self.assertEqual(result['home_advantage_used'], CBBAnalytics.MAX_HOME_ADVANTAGE)
+
 
 class TestCBBTotalProbability(unittest.TestCase):
     """Test CBB total probability calculations"""
