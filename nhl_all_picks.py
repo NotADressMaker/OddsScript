@@ -4,10 +4,8 @@ NHL Comprehensive Picks - All 3 Models, All Bet Types
 Money Line, ATS (Spread), and Totals (O/U)
 """
 
-import random
-
 from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
-from sportsbetlang.common.odds import implied_probability, remove_vig
+import random
 
 # Today's NHL Games with FanDuel odds
 GAMES = [
@@ -114,30 +112,19 @@ POWER_RATINGS = {
     'San Jose Sharks': 1350, 'Vancouver Canucks': 1560, 'Washington Capitals': 1550, 'Seattle Kraken': 1520
 }
 
-def fair_market_probs(odds_a, odds_b):
-    """Convert American odds to fair (no-vig) probabilities."""
-    implied_a = implied_probability(odds_a)
-    implied_b = implied_probability(odds_b)
-    return remove_vig(implied_a, implied_b)
-
-
-def average(values):
-    return sum(values) / len(values) if values else None
-
-
-def expected_value_per_1(prob, odds):
-    if odds > 0:
-        win_amount = odds / 100
+def american_to_prob(odds):
+    """Convert American odds to implied probability"""
+    if odds < 0:
+        return abs(odds) / (abs(odds) + 100)
     else:
-        win_amount = 100 / abs(odds)
-    return (prob * win_amount) - (1 - prob)
+        return 100 / (odds + 100)
 
 def main():
     print("=" * 90)
     print("🏒 NHL COMPREHENSIVE PICKS - ALL 3 MODELS")
     print("=" * 90)
     print("Analyzing Money Line, ATS (Spread), and Totals (O/U)")
-    print("Ranking picks by model EV vs no-vig market probabilities\n")
+    print("Showing only picks where 2+ models agree with 60%+ confidence\n")
 
     # Initialize models
     tree = NHLDecisionTree()
@@ -186,13 +173,7 @@ def main():
         # === POWER RANKINGS ===
         rankings.set_rating(home_team, POWER_RATINGS[home_team])
         rankings.set_rating(away_team, POWER_RATINGS[away_team])
-        pr = rankings.predict_game(
-            home_team,
-            away_team,
-            team1_home=True,
-            line_total=game['ou_line'],
-            line_spread=game['home_spread']
-        )
+        pr = rankings.predict_game(home_team, away_team, team1_home=True)
 
         # === SIMILAR GAME ===
         sim_pred = sim_model.predict_from_similar(
@@ -202,128 +183,179 @@ def main():
         )
 
         # === ANALYZE O/U ===
-        ou_over_probs = [
-            dt_ou.get('over_probability'),
-            pr.get('over_probability'),
-            sim_pred.get('over_under', {}).get('over_probability')
-        ]
-        ou_under_probs = [
-            dt_ou.get('under_probability'),
-            pr.get('under_probability'),
-            sim_pred.get('over_under', {}).get('under_probability')
-        ]
-        p_over = average([p for p in ou_over_probs if p is not None])
-        p_under = average([p for p in ou_under_probs if p is not None])
-        if p_over is None and p_under is not None:
-            p_over = 1 - p_under
-        if p_under is None and p_over is not None:
-            p_under = 1 - p_over
+        ou_votes = []
+        if dt_ou['confidence'] >= 0.60 and dt_ou['prediction'] != 'PUSH':
+            ou_votes.append(('DT', dt_ou['prediction'], dt_ou['confidence'], dt_ou['expected_total']))
 
-        if p_over is not None and p_under is not None:
-            market_over_prob, market_under_prob = fair_market_probs(game['over_odds'], game['under_odds'])
-            edge_over = p_over - market_over_prob
-            edge_under = p_under - market_under_prob
-            if edge_over > 0 or edge_under > 0:
-                if edge_over >= edge_under:
-                    odds = game['over_odds']
-                    all_picks['ou'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"OVER {game['ou_line']}",
-                        'odds': odds,
-                        'probability': p_over,
-                        'market_prob': market_over_prob,
-                        'edge': edge_over,
-                        'ev': expected_value_per_1(p_over, odds),
-                        'expected': dt_ou['expected_total'],
-                        'line': game['ou_line']
-                    })
-                else:
-                    odds = game['under_odds']
-                    all_picks['ou'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"UNDER {game['ou_line']}",
-                        'odds': odds,
-                        'probability': p_under,
-                        'market_prob': market_under_prob,
-                        'edge': edge_under,
-                        'ev': expected_value_per_1(p_under, odds),
-                        'expected': dt_ou['expected_total'],
-                        'line': game['ou_line']
-                    })
+        if abs(pr['expected_total'] - game['ou_line']) > 0.3:
+            pr_pred = 'OVER' if pr['expected_total'] > game['ou_line'] else 'UNDER'
+            pr_conf = min(0.72, 0.50 + abs(pr['expected_total'] - game['ou_line']) * 0.12)
+            if pr_conf >= 0.60:
+                ou_votes.append(('PR', pr_pred, pr_conf, pr['expected_total']))
+
+        if 'over_under' in sim_pred and sim_pred['over_under']['confidence'] >= 0.60:
+            if sim_pred['over_under']['prediction'] != 'PUSH':
+                ou_votes.append(('SG', sim_pred['over_under']['prediction'],
+                               sim_pred['over_under']['confidence'],
+                               sim_pred['over_under']['average_total']))
+
+        # Check for 2+ agreement on O/U
+        if len(ou_votes) >= 2:
+            over_count = sum(1 for v in ou_votes if v[1] == 'OVER')
+            under_count = sum(1 for v in ou_votes if v[1] == 'UNDER')
+
+            if over_count >= 2:
+                agreeing = [v for v in ou_votes if v[1] == 'OVER']
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                avg_total = sum(v[3] for v in agreeing) / len(agreeing)
+                market_prob = american_to_prob(game['over_odds'])
+                edge = avg_conf - market_prob
+
+                all_picks['ou'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"OVER {game['ou_line']}",
+                    'odds': game['over_odds'],
+                    'confidence': avg_conf,
+                    'expected': avg_total,
+                    'edge': edge,
+                    'models': len(agreeing),
+                    'line': game['ou_line']
+                })
+
+            elif under_count >= 2:
+                agreeing = [v for v in ou_votes if v[1] == 'UNDER']
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                avg_total = sum(v[3] for v in agreeing) / len(agreeing)
+                market_prob = american_to_prob(game['under_odds'])
+                edge = avg_conf - market_prob
+
+                all_picks['ou'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"UNDER {game['ou_line']}",
+                    'odds': game['under_odds'],
+                    'confidence': avg_conf,
+                    'expected': avg_total,
+                    'edge': edge,
+                    'models': len(agreeing),
+                    'line': game['ou_line']
+                })
 
         # === ANALYZE ATS ===
-        spread_probs = [
-            dt_ats.get('cover_probability'),
-            pr.get('team1_cover_probability'),
-            sim_pred.get('against_spread', {}).get('cover_probability')
-        ]
-        p_home_cover = average([p for p in spread_probs if p is not None])
-        if p_home_cover is not None:
-            p_away_cover = 1 - p_home_cover
-            market_home_prob, market_away_prob = fair_market_probs(
-                game['home_spread_odds'], game['away_spread_odds']
-            )
-            edge_home = p_home_cover - market_home_prob
-            edge_away = p_away_cover - market_away_prob
-            if edge_home > 0 or edge_away > 0:
-                if edge_home >= edge_away:
-                    odds = game['home_spread_odds']
-                    all_picks['ats'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"{home_team} {game['home_spread']:+.1f}",
-                        'odds': odds,
-                        'probability': p_home_cover,
-                        'market_prob': market_home_prob,
-                        'edge': edge_home,
-                        'ev': expected_value_per_1(p_home_cover, odds)
-                    })
-                else:
-                    odds = game['away_spread_odds']
-                    all_picks['ats'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"{away_team} {game['away_spread']:+.1f}",
-                        'odds': odds,
-                        'probability': p_away_cover,
-                        'market_prob': market_away_prob,
-                        'edge': edge_away,
-                        'ev': expected_value_per_1(p_away_cover, odds)
-                    })
+        ats_votes = []
+        if dt_ats['confidence'] >= 0.60 and dt_ats['prediction'] != 'PUSH':
+            ats_votes.append(('DT', dt_ats['prediction'], dt_ats['confidence'], dt_ats['cover_margin']))
+
+        if abs(pr['expected_goal_differential'] + game['home_spread']) > 0.4:
+            pr_pred = 'COVER' if (pr['expected_goal_differential'] + game['home_spread']) > 0 else 'NO COVER'
+            pr_conf = min(0.72, 0.50 + abs(pr['expected_goal_differential'] + game['home_spread']) * 0.15)
+            if pr_conf >= 0.60:
+                ats_votes.append(('PR', pr_pred, pr_conf, pr['expected_goal_differential'] + game['home_spread']))
+
+        if 'against_spread' in sim_pred and sim_pred['against_spread']['confidence'] >= 0.60:
+            if sim_pred['against_spread']['prediction'] != 'PUSH':
+                ats_votes.append(('SG', sim_pred['against_spread']['prediction'],
+                                sim_pred['against_spread']['confidence'], 0))
+
+        # Check for 2+ agreement on ATS
+        if len(ats_votes) >= 2:
+            cover_count = sum(1 for v in ats_votes if v[1] == 'COVER')
+            no_cover_count = sum(1 for v in ats_votes if v[1] == 'NO COVER')
+
+            if cover_count >= 2:
+                agreeing = [v for v in ats_votes if v[1] == 'COVER']
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                team = home_team
+                spread = game['home_spread']
+                odds = game['home_spread_odds']
+                market_prob = american_to_prob(odds)
+                edge = avg_conf - market_prob
+
+                all_picks['ats'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"{team} {spread:+.1f}",
+                    'odds': odds,
+                    'confidence': avg_conf,
+                    'edge': edge,
+                    'models': len(agreeing)
+                })
+
+            elif no_cover_count >= 2:
+                agreeing = [v for v in ats_votes if v[1] == 'NO COVER']
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                team = away_team
+                spread = game['away_spread']
+                odds = game['away_spread_odds']
+                market_prob = american_to_prob(odds)
+                edge = avg_conf - market_prob
+
+                all_picks['ats'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"{team} {spread:+.1f}",
+                    'odds': odds,
+                    'confidence': avg_conf,
+                    'edge': edge,
+                    'models': len(agreeing)
+                })
 
         # === ANALYZE MONEY LINE ===
-        ml_probs = [
-            dt_ats.get('team_win_probability'),
-            pr.get('team1_win_probability'),
-            sim_pred.get('moneyline', {}).get('team1_win_probability')
-        ]
-        p_home = average([p for p in ml_probs if p is not None])
-        if p_home is not None:
-            p_away = 1 - p_home
-            market_home_prob, market_away_prob = fair_market_probs(game['home_ml'], game['away_ml'])
-            edge_home = p_home - market_home_prob
-            edge_away = p_away - market_away_prob
-            if edge_home > 0 or edge_away > 0:
-                if edge_home >= edge_away:
-                    odds = game['home_ml']
-                    all_picks['ml'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"{home_team} ML",
-                        'odds': odds,
-                        'probability': p_home,
-                        'market_prob': market_home_prob,
-                        'edge': edge_home,
-                        'ev': expected_value_per_1(p_home, odds)
-                    })
-                else:
-                    odds = game['away_ml']
-                    all_picks['ml'].append({
-                        'game': f"{away_team} @ {home_team}",
-                        'pick': f"{away_team} ML",
-                        'odds': odds,
-                        'probability': p_away,
-                        'market_prob': market_away_prob,
-                        'edge': edge_away,
-                        'ev': expected_value_per_1(p_away, odds)
-                    })
+        ml_votes = []
+
+        # DT vote based on expected differential
+        dt_winner = home_team if dt_ats['expected_differential'] > 0 else away_team
+        dt_ml_conf = min(0.70, 0.50 + abs(dt_ats['expected_differential']) * 0.15)
+        if dt_ml_conf >= 0.55:
+            ml_votes.append(('DT', dt_winner, dt_ml_conf))
+
+        # PR vote
+        pr_winner = home_team if pr['team1_win_probability'] > 0.50 else away_team
+        pr_ml_conf = max(pr['team1_win_probability'], pr['team2_win_probability'])
+        if pr_ml_conf >= 0.55:
+            ml_votes.append(('PR', pr_winner, pr_ml_conf))
+
+        # SG vote
+        if 'against_spread' in sim_pred:
+            avg_diff = sim_pred['against_spread']['average_goal_diff']
+            sg_winner = home_team if avg_diff > 0 else away_team
+            sg_ml_conf = min(0.70, 0.50 + abs(avg_diff) * 0.12)
+            if sg_ml_conf >= 0.55:
+                ml_votes.append(('SG', sg_winner, sg_ml_conf))
+
+        # Check for 2+ agreement on ML
+        if len(ml_votes) >= 2:
+            home_votes = sum(1 for v in ml_votes if v[1] == home_team)
+            away_votes = sum(1 for v in ml_votes if v[1] == away_team)
+
+            if home_votes >= 2:
+                agreeing = [v for v in ml_votes if v[1] == home_team]
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                odds = game['home_ml']
+                market_prob = american_to_prob(odds)
+                edge = avg_conf - market_prob
+
+                all_picks['ml'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"{home_team} ML",
+                    'odds': odds,
+                    'confidence': avg_conf,
+                    'edge': edge,
+                    'models': len(agreeing)
+                })
+
+            elif away_votes >= 2:
+                agreeing = [v for v in ml_votes if v[1] == away_team]
+                avg_conf = sum(v[2] for v in agreeing) / len(agreeing)
+                odds = game['away_ml']
+                market_prob = american_to_prob(odds)
+                edge = avg_conf - market_prob
+
+                all_picks['ml'].append({
+                    'game': f"{away_team} @ {home_team}",
+                    'pick': f"{away_team} ML",
+                    'odds': odds,
+                    'confidence': avg_conf,
+                    'edge': edge,
+                    'models': len(agreeing)
+                })
 
     # === DISPLAY RESULTS ===
     print("=" * 90)
@@ -332,14 +364,11 @@ def main():
     if all_picks['ml']:
         ml_sorted = sorted(all_picks['ml'], key=lambda x: x['edge'], reverse=True)
         for i, pick in enumerate(ml_sorted, 1):
+            models_str = "3/3" if pick['models'] == 3 else "2/3"
             odds_str = f"{pick['odds']:+d}"
-            print(
-                f"{i}. {pick['pick']:35s} {odds_str:>5s} | "
-                f"P(win) {pick['probability']:.1%} | Market {pick['market_prob']:.1%} | "
-                f"Edge {pick['edge']:+.1%} | EV {pick['ev']:+.3f} | {pick['game']}"
-            )
+            print(f"{i}. {pick['pick']:35s} {odds_str:>5s} | {pick['confidence']:.0%} | {pick['edge']:+.1%} edge | {models_str} | {pick['game']}")
     else:
-        print("No ML picks with positive edge found\n")
+        print("No ML picks found where 2+ models agree\n")
 
     print("\n" + "=" * 90)
     print("🎯 AGAINST THE SPREAD (ATS) PICKS")
@@ -347,14 +376,11 @@ def main():
     if all_picks['ats']:
         ats_sorted = sorted(all_picks['ats'], key=lambda x: x['edge'], reverse=True)
         for i, pick in enumerate(ats_sorted, 1):
+            models_str = "3/3" if pick['models'] == 3 else "2/3"
             odds_str = f"{pick['odds']:+d}"
-            print(
-                f"{i}. {pick['pick']:35s} {odds_str:>5s} | "
-                f"P(cover) {pick['probability']:.1%} | Market {pick['market_prob']:.1%} | "
-                f"Edge {pick['edge']:+.1%} | EV {pick['ev']:+.3f} | {pick['game']}"
-            )
+            print(f"{i}. {pick['pick']:35s} {odds_str:>5s} | {pick['confidence']:.0%} | {pick['edge']:+.1%} edge | {models_str} | {pick['game']}")
     else:
-        print("No ATS picks with positive edge found\n")
+        print("No ATS picks found where 2+ models agree\n")
 
     print("\n" + "=" * 90)
     print("📊 OVER/UNDER (TOTALS) PICKS")
@@ -362,15 +388,12 @@ def main():
     if all_picks['ou']:
         ou_sorted = sorted(all_picks['ou'], key=lambda x: x['edge'], reverse=True)
         for i, pick in enumerate(ou_sorted, 1):
+            models_str = "3/3" if pick['models'] == 3 else "2/3"
             odds_str = f"{pick['odds']:+d}"
             exp_str = f"Exp: {pick['expected']:.1f}"
-            print(
-                f"{i}. {pick['pick']:20s} {odds_str:>5s} | "
-                f"P(side) {pick['probability']:.1%} | Market {pick['market_prob']:.1%} | "
-                f"Edge {pick['edge']:+.1%} | EV {pick['ev']:+.3f} | {exp_str} | {pick['game']}"
-            )
+            print(f"{i}. {pick['pick']:20s} {odds_str:>5s} | {pick['confidence']:.0%} | {pick['edge']:+.1%} edge | {models_str} | {exp_str} | {pick['game']}")
     else:
-        print("No O/U picks with positive edge found\n")
+        print("No O/U picks found where 2+ models agree\n")
 
     # === BEST BETS ===
     print("\n" + "=" * 90)
@@ -387,11 +410,9 @@ def main():
 
     if best_bets:
         for i, bet in enumerate(best_bets, 1):
+            models_str = "3/3" if bet['models'] == 3 else "2/3"
             odds_str = f"{bet['odds']:+d}"
-            print(
-                f"{i}. [{bet['type']}] {bet['pick']:35s} {odds_str:>5s} | "
-                f"Edge {bet['edge']:+.1%} | EV {bet['ev']:+.3f}"
-            )
+            print(f"{i}. [{bet['type']}] {bet['pick']:35s} {odds_str:>5s} | {bet['edge']:+.1%} edge | {bet['confidence']:.0%} conf | {models_str}")
     else:
         print("No bets with positive edge found")
 
