@@ -15,11 +15,12 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
+            padding: 24px;
+            color: #101828;
         }
 
         .container {
-            max-width: 800px;
+            max-width: 960px;
             margin: 0 auto;
         }
 
@@ -34,12 +35,44 @@
             margin-bottom: 10px;
         }
 
+        .header p {
+            opacity: 0.85;
+            font-size: 1.1em;
+        }
+
+        .header .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.2);
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            margin-bottom: 12px;
+        }
+
         .card {
             background: white;
             border-radius: 15px;
             padding: 30px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
             margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #101828;
+        }
+
+        .card-description {
+            color: #475467;
+            margin-bottom: 20px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
         }
 
         .form-group {
@@ -51,6 +84,12 @@
             margin-bottom: 5px;
             font-weight: 600;
             color: #333;
+        }
+
+        .help-text {
+            font-size: 0.85rem;
+            color: #667085;
+            margin-top: 6px;
         }
 
         input, select {
@@ -65,6 +104,7 @@
         input:focus, select:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
         }
 
         button {
@@ -94,6 +134,7 @@
             padding: 20px;
             background: #f8f9fa;
             border-radius: 8px;
+            border: 1px solid #eaecf0;
         }
 
         .results.show {
@@ -184,6 +225,7 @@
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
         }
 
         .tab.active {
@@ -198,13 +240,38 @@
         .tab-content.active {
             display: block;
         }
+
+        .actions {
+            display: grid;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 16px;
+            }
+
+            .header h1 {
+                font-size: 2.1em;
+            }
+
+            .tabs {
+                flex-direction: column;
+            }
+
+            .card {
+                padding: 22px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
+            <div class="badge">Live Insights • Smart Betting</div>
             <h1>🎯 SportsBetLang</h1>
-            <p>Professional Betting Calculator</p>
+            <p>Professional betting intelligence with quick calculators and performance snapshots.</p>
         </div>
 
         <div class="tabs">
@@ -216,30 +283,39 @@
         <!-- Kelly Calculator Tab -->
         <div id="kelly-tab" class="tab-content active">
             <div class="card">
-                <h2 style="margin-bottom: 20px;">Bet Analysis</h2>
+                <h2>Bet Analysis</h2>
+                <p class="card-description">Evaluate the true value of a bet, calculate expected value, and set an ideal stake size.</p>
 
                 <form id="kelly-form">
-                    <div class="form-group">
-                        <label>Win Probability (%)</label>
-                        <input type="number" id="win-prob" min="0" max="100" step="0.1" value="55" required>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Win Probability (%)</label>
+                            <input type="number" id="win-prob" min="0" max="100" step="0.1" value="55" required>
+                            <div class="help-text">Use your model or market estimate.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Decimal Odds</label>
+                            <input type="number" id="odds" min="1" step="0.01" value="2.0" required>
+                            <div class="help-text">Example: 1.95 equals -105.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bet Amount ($)</label>
+                            <input type="number" id="amount" min="0" step="0.01" value="100" required>
+                            <div class="help-text">Total stake you intend to place.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Bankroll ($) (optional)</label>
+                            <input type="number" id="bankroll" min="0" step="0.01" value="1000">
+                            <div class="help-text">Add to get a Kelly stake size.</div>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Decimal Odds</label>
-                        <input type="number" id="odds" min="1" step="0.01" value="2.0" required>
+                    <div class="actions">
+                        <button type="submit">Calculate</button>
                     </div>
-
-                    <div class="form-group">
-                        <label>Bet Amount ($)</label>
-                        <input type="number" id="amount" min="0" step="0.01" value="100" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Bankroll ($) (optional)</label>
-                        <input type="number" id="bankroll" min="0" step="0.01" value="1000">
-                    </div>
-
-                    <button type="submit">Calculate</button>
                 </form>
 
                 <div class="loading" id="kelly-loading">
@@ -254,38 +330,48 @@
         <!-- NBA Prediction Tab -->
         <div id="prediction-tab" class="tab-content">
             <div class="card">
-                <h2 style="margin-bottom: 20px;">Quick NBA Prediction</h2>
+                <h2>Quick NBA Prediction</h2>
+                <p class="card-description">Compare team efficiency metrics to estimate a win probability.</p>
 
                 <form id="nba-form">
-                    <div class="form-group">
-                        <label>Team Offensive Rating</label>
-                        <input type="number" id="team-off" step="0.1" value="115" required>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Team Offensive Rating</label>
+                            <input type="number" id="team-off" step="0.1" value="115" required>
+                            <div class="help-text">Higher is better.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Team Defensive Rating</label>
+                            <input type="number" id="team-def" step="0.1" value="108" required>
+                            <div class="help-text">Lower is better.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Opponent Offensive Rating</label>
+                            <input type="number" id="opp-off" step="0.1" value="110" required>
+                            <div class="help-text">Benchmark opponent offense.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Opponent Defensive Rating</label>
+                            <input type="number" id="opp-def" step="0.1" value="109" required>
+                            <div class="help-text">Benchmark opponent defense.</div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Home Team?</label>
+                            <select id="home">
+                                <option value="true">Yes</option>
+                                <option value="false">No</option>
+                            </select>
+                            <div class="help-text">Home court advantage applies.</div>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Team Defensive Rating</label>
-                        <input type="number" id="team-def" step="0.1" value="108" required>
+                    <div class="actions">
+                        <button type="submit">Predict Winner</button>
                     </div>
-
-                    <div class="form-group">
-                        <label>Opponent Offensive Rating</label>
-                        <input type="number" id="opp-off" step="0.1" value="110" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Opponent Defensive Rating</label>
-                        <input type="number" id="opp-def" step="0.1" value="109" required>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Home Team?</label>
-                        <select id="home">
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                        </select>
-                    </div>
-
-                    <button type="submit">Predict Winner</button>
                 </form>
 
                 <div class="loading" id="nba-loading">
@@ -300,8 +386,11 @@
         <!-- Performance Tab -->
         <div id="performance-tab" class="tab-content">
             <div class="card">
-                <h2 style="margin-bottom: 20px;">Betting Performance</h2>
-                <button onclick="loadPerformance()">Load Performance</button>
+                <h2>Betting Performance</h2>
+                <p class="card-description">Track recent wins, losses, and ROI across your stored bets.</p>
+                <div class="actions">
+                    <button onclick="loadPerformance()">Load Performance</button>
+                </div>
 
                 <div class="loading" id="perf-loading">
                     <div class="spinner"></div>
