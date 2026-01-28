@@ -6,8 +6,9 @@ Contains refactored libraries using oddsscript.common utilities:
 - Backtesting (pending)
 - CLV tracking (pending)
 - Variance calculations (pending)
-- Poisson models (pending)
-- Elo ratings (pending)
+- Poisson models (✓ migrated)
+- Elo ratings (✓ migrated)
+- State space models (✓ migrated)
 - Expected goals (pending)
 - Correlation analysis (pending)
 - Regression analysis (pending)
@@ -24,6 +25,25 @@ from sportsbetlang.analytics.statistics import (
     profit_factor, expectancy, confidence_interval,
     calculate_breakeven_rate, kelly_growth_rate
 )
+from sportsbetlang.analytics.poisson import (
+    poisson_probability,
+    poisson_cumulative,
+    calculate_match_probabilities,
+    calculate_total_probabilities,
+    calculate_correct_score_probabilities,
+    calculate_btts_probability,
+    simulate_poisson_event,
+    simulate_match,
+    PoissonModel,
+)
+from sportsbetlang.analytics.elo import (
+    TeamRating,
+    EloRatingSystem,
+)
+from sportsbetlang.analytics.state_space import (
+    KalmanState,
+    LocalLevelModel,
+)
 
 __all__ = [
     # Basic stats
@@ -33,5 +53,17 @@ __all__ = [
     # Betting stats
     'win_rate', 'units_won', 'roi', 'sharpe_ratio', 'max_drawdown',
     'profit_factor', 'expectancy', 'confidence_interval',
-    'calculate_breakeven_rate', 'kelly_growth_rate'
+    'calculate_breakeven_rate', 'kelly_growth_rate',
+
+    # Poisson models
+    'poisson_probability', 'poisson_cumulative',
+    'calculate_match_probabilities', 'calculate_total_probabilities',
+    'calculate_correct_score_probabilities', 'calculate_btts_probability',
+    'simulate_poisson_event', 'simulate_match', 'PoissonModel',
+
+    # Elo ratings
+    'TeamRating', 'EloRatingSystem',
+
+    # State space models
+    'KalmanState', 'LocalLevelModel',
 ]
