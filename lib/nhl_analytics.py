@@ -298,7 +298,7 @@ class NHLAdvancedAnalytics:
         """
         # Basic stats
         save_pct = saves / shots_against if shots_against > 0 else 0
-        gaa = (goals_against / games_played) * 60 if games_played > 0 else 0  # Per 60 min
+        gaa = goals_against / games_played if games_played > 0 else 0
 
         # Quality start percentage (SV% > .913)
         # Approximate based on save percentage
@@ -590,6 +590,7 @@ class NHLAdvancedAnalytics:
         ev_pct = ev * 100
 
         # Kelly Criterion sizing
+        kelly_fraction = 0.0
         if use_kelly:
             kelly_fraction = AdvancedStats.kelly_optimal_size(
                 predicted_probability,
@@ -609,7 +610,7 @@ class NHLAdvancedAnalytics:
             'implied_probability': implied_prob,
             'edge_percentage': edge_pct,
             'expected_value_pct': ev_pct,
-            'kelly_fraction': kelly_fraction if use_kelly else 0,
+            'kelly_fraction': kelly_fraction,
             'recommended_bet': max(0, recommended_bet),
             'conservative_edge': conservative_edge * 100,
             'bet_recommendation': 'strong_bet' if edge_pct > 10
@@ -699,6 +700,225 @@ class NHLAdvancedAnalytics:
             'best_bet': 'home' if home_edge > 0.05
                        else 'away' if away_edge > 0.05
                        else 'none'
+        }
+
+
+    @staticmethod
+    def calculate_first_period_probability(
+        home_goals_avg: float,
+        away_goals_avg: float,
+        total_line: float = 1.5
+    ) -> Dict[str, float]:
+        """
+        Calculate first period betting probabilities
+
+        First period is a popular NHL betting market. Scoring rates
+        differ from overall game rates - typically ~30% of goals
+        are scored in the first period.
+
+        Args:
+            home_goals_avg: Home team goals per game average
+            away_goals_avg: Away team goals per game average
+            total_line: First period total line (default 1.5)
+
+        Returns:
+            First period probabilities
+        """
+        first_period_fraction = 0.30
+
+        home_1p_lambda = (home_goals_avg + NHLAdvancedAnalytics.AVG_HOME_ADVANTAGE) * first_period_fraction
+        away_1p_lambda = away_goals_avg * first_period_fraction
+
+        # Match probabilities for first period
+        results = PoissonCalculator.calculate_match_probabilities(
+            home_1p_lambda, away_1p_lambda, max_goals=6
+        )
+
+        # Total probabilities
+        total_results = PoissonCalculator.calculate_total_probabilities(
+            home_1p_lambda, away_1p_lambda, total_line, max_goals=6
+        )
+
+        # Scoreless first period probability
+        scoreless = PoissonCalculator.poisson_probability(0, home_1p_lambda) * \
+                    PoissonCalculator.poisson_probability(0, away_1p_lambda)
+
+        return {
+            'home_win_1p': results['home_win'],
+            'away_win_1p': results['away_win'],
+            'draw_1p': results['draw'],
+            'over_total': total_results['over_probability'],
+            'under_total': total_results['under_probability'],
+            'scoreless_probability': scoreless,
+            'expected_goals_1p': home_1p_lambda + away_1p_lambda,
+            'total_line': total_line
+        }
+
+    @staticmethod
+    def calculate_score_adjusted_corsi(
+        shots_for: int,
+        shots_against: int,
+        blocked_for: int,
+        blocked_against: int,
+        missed_for: int,
+        missed_against: int,
+        goal_differential: int,
+        time_trailing: float = 0.0,
+        time_leading: float = 0.0,
+        time_tied: float = 0.0
+    ) -> Dict[str, float]:
+        """
+        Calculate score-adjusted Corsi (accounts for game state)
+
+        Teams trailing tend to generate more shot attempts (score effects).
+        Score-adjusted metrics normalize for this, giving a truer measure
+        of possession and territorial dominance.
+
+        Args:
+            shots_for: Shots on goal for
+            shots_against: Shots on goal against
+            blocked_for: Blocked shots for
+            blocked_against: Blocked shots against
+            missed_for: Missed shots for
+            missed_against: Missed shots against
+            goal_differential: Current goal differential
+            time_trailing: Minutes spent trailing
+            time_leading: Minutes spent leading
+            time_tied: Minutes spent tied
+
+        Returns:
+            Score-adjusted Corsi metrics
+        """
+        total_time = time_trailing + time_leading + time_tied
+        if total_time == 0:
+            total_time = 60.0
+            time_tied = 60.0
+
+        # Raw Corsi
+        corsi_for = shots_for + blocked_for + missed_for
+        corsi_against = shots_against + blocked_against + missed_against
+
+        # Score adjustment factors (based on NHL research)
+        # Teams trailing generate ~8% more shot attempts per goal down
+        # Teams leading generate ~5% fewer shot attempts per goal up
+        trailing_boost = 0.08
+        leading_reduction = 0.05
+
+        trailing_fraction = time_trailing / total_time
+        leading_fraction = time_leading / total_time
+
+        # Adjustment: remove score effects
+        if goal_differential > 0:
+            # Team was leading - they likely reduced attempts
+            adjustment = 1 + (leading_reduction * abs(goal_differential) * leading_fraction)
+            adj_corsi_for = corsi_for * adjustment
+            adj_corsi_against = corsi_against / (1 + trailing_boost * abs(goal_differential) * trailing_fraction) if trailing_fraction > 0 else corsi_against
+        elif goal_differential < 0:
+            # Team was trailing - they likely increased attempts
+            adjustment = 1 - (trailing_boost * abs(goal_differential) * trailing_fraction)
+            adj_corsi_for = corsi_for * max(0.5, adjustment)
+            adj_corsi_against = corsi_against * (1 + leading_reduction * abs(goal_differential) * leading_fraction) if leading_fraction > 0 else corsi_against
+        else:
+            adj_corsi_for = float(corsi_for)
+            adj_corsi_against = float(corsi_against)
+
+        adj_total = adj_corsi_for + adj_corsi_against
+        raw_total = corsi_for + corsi_against
+
+        raw_corsi_pct = (corsi_for / raw_total * 100) if raw_total > 0 else 50.0
+        adj_corsi_pct = (adj_corsi_for / adj_total * 100) if adj_total > 0 else 50.0
+
+        return {
+            'raw_corsi_for': corsi_for,
+            'raw_corsi_against': corsi_against,
+            'raw_corsi_pct': raw_corsi_pct,
+            'adjusted_corsi_for': adj_corsi_for,
+            'adjusted_corsi_against': adj_corsi_against,
+            'adjusted_corsi_pct': adj_corsi_pct,
+            'score_effect': adj_corsi_pct - raw_corsi_pct,
+            'goal_differential': goal_differential
+        }
+
+    @staticmethod
+    def calculate_player_prop_probability(
+        player_avg: float,
+        prop_line: float,
+        stat_type: str = 'points',
+        player_std_dev: float = None,
+        opponent_adjustment: float = 1.0,
+        home_ice: bool = True
+    ) -> Dict[str, float]:
+        """
+        Calculate probability for NHL player prop bets
+
+        Supports points, goals, assists, shots on goal, saves, etc.
+
+        Args:
+            player_avg: Player's per-game average for the stat
+            prop_line: The prop betting line
+            stat_type: Type of stat (points, goals, assists, shots, saves, blocks)
+            player_std_dev: Player's standard deviation (estimated if None)
+            opponent_adjustment: Multiplier for opponent strength (>1 = weaker opponent)
+            home_ice: Whether player is on home ice
+
+        Returns:
+            Prop bet probabilities and analysis
+        """
+        # Default std dev estimates by stat type (based on NHL distributions)
+        default_std_devs = {
+            'points': 0.90,
+            'goals': 0.55,
+            'assists': 0.70,
+            'shots': 1.50,
+            'saves': 8.0,
+            'blocks': 1.0,
+            'hits': 1.2,
+            'faceoffs_won': 4.0
+        }
+
+        if player_std_dev is None:
+            player_std_dev = default_std_devs.get(stat_type, player_avg * 0.40)
+
+        # Adjust for opponent and home ice
+        home_bonus = 1.03 if home_ice else 0.97
+        adjusted_avg = player_avg * opponent_adjustment * home_bonus
+
+        # Use Poisson for count stats (goals, assists, points, shots)
+        # Use normal for continuous/high-count stats (saves)
+        use_poisson = stat_type in ('goals', 'assists', 'points', 'shots', 'blocks', 'hits')
+
+        if use_poisson and adjusted_avg > 0:
+            over_prob = 1 - PoissonCalculator.poisson_cumulative(
+                int(prop_line), adjusted_avg
+            )
+            under_prob = PoissonCalculator.poisson_cumulative(
+                int(prop_line) - 1, adjusted_avg
+            ) if prop_line == int(prop_line) else PoissonCalculator.poisson_cumulative(
+                int(prop_line), adjusted_avg
+            )
+            push_prob = 1 - over_prob - under_prob
+        else:
+            # Normal distribution for saves and other high-count stats
+            z_score = (prop_line - adjusted_avg) / player_std_dev if player_std_dev > 0 else 0
+            under_prob = 0.5 * (1 + math.erf(z_score / math.sqrt(2)))
+            over_prob = 1 - under_prob
+            push_prob = 0.0
+
+        edge = (adjusted_avg - prop_line) / player_std_dev if player_std_dev > 0 else 0
+
+        return {
+            'over_probability': over_prob,
+            'under_probability': under_prob,
+            'push_probability': push_prob,
+            'player_average': player_avg,
+            'adjusted_average': adjusted_avg,
+            'prop_line': prop_line,
+            'stat_type': stat_type,
+            'std_dev': player_std_dev,
+            'edge': edge,
+            'recommendation': 'over' if edge > 0.3
+                             else 'under' if edge < -0.3
+                             else 'no_edge'
         }
 
 
@@ -863,6 +1083,7 @@ if __name__ == '__main__':
         expected_goals_against=65
     )
     print(f"   Save%: {goalie_analysis['save_percentage']:.3f}")
+    print(f"   GAA: {goalie_analysis['goals_against_average']:.2f}")
     print(f"   GSAx: {goalie_analysis['goals_saved_above_expected']:.2f}")
     print(f"   Performance: {goalie_analysis['performance_vs_expected']}")
 
@@ -896,14 +1117,37 @@ if __name__ == '__main__':
     print(f"   Recommended Bet: ${edge_analysis['recommended_bet']:.2f}")
     print(f"   Recommendation: {edge_analysis['bet_recommendation']}")
 
-    # Example 5: Monte Carlo Season Simulation
-    print("\n5. Monte Carlo Season Simulation:")
-    season_sim = NHLAdvancedAnalytics.simulate_season_monte_carlo(
-        team_strength=0.58,
-        games_remaining=25,
-        current_points=75,
-        n_simulations=10000
+    # Example 5: First Period Analysis
+    print("\n5. First Period Betting:")
+    fp = NHLAdvancedAnalytics.calculate_first_period_probability(
+        home_goals_avg=3.2,
+        away_goals_avg=2.8,
+        total_line=1.5
     )
-    print(f"   Expected Points: {season_sim['expected_points']:.1f}")
-    print(f"   90% CI: {season_sim['points_90pct_confidence']}")
-    print(f"   Playoff Probability: {season_sim['playoff_probability']*100:.1f}%")
+    print(f"   Scoreless 1P Probability: {fp['scoreless_probability']*100:.1f}%")
+    print(f"   Over 1.5 Goals: {fp['over_total']*100:.1f}%")
+    print(f"   Expected 1P Goals: {fp['expected_goals_1p']:.2f}")
+
+    # Example 6: Player Prop
+    print("\n6. Player Prop Analysis:")
+    prop = NHLAdvancedAnalytics.calculate_player_prop_probability(
+        player_avg=0.95,
+        prop_line=0.5,
+        stat_type='points',
+        opponent_adjustment=1.1
+    )
+    print(f"   Over 0.5 Points: {prop['over_probability']*100:.1f}%")
+    print(f"   Recommendation: {prop['recommendation']}")
+
+    # Example 7: Score-Adjusted Corsi
+    print("\n7. Score-Adjusted Corsi:")
+    adj_corsi = NHLAdvancedAnalytics.calculate_score_adjusted_corsi(
+        shots_for=30, shots_against=28,
+        blocked_for=8, blocked_against=10,
+        missed_for=6, missed_against=5,
+        goal_differential=2,
+        time_trailing=5.0, time_leading=35.0, time_tied=20.0
+    )
+    print(f"   Raw Corsi%: {adj_corsi['raw_corsi_pct']:.1f}%")
+    print(f"   Adjusted Corsi%: {adj_corsi['adjusted_corsi_pct']:.1f}%")
+    print(f"   Score Effect: {adj_corsi['score_effect']:+.1f}%")
