@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportsBetLang - Betting Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #666;
+        }
+
+        .result-value {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .recommendation {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .recommendation.strong {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .recommendation.value {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .recommendation.pass {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 SportsBetLang</h1>
+            <p>Professional Betting Calculator</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('kelly')">Kelly Calculator</button>
+            <button class="tab" onclick="switchTab('prediction')">NBA Prediction</button>
+            <button class="tab" onclick="switchTab('performance')">Performance</button>
+        </div>
+
+        <!-- Kelly Calculator Tab -->
+        <div id="kelly-tab" class="tab-content active">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Bet Analysis</h2>
+
+                <form id="kelly-form">
+                    <div class="form-group">
+                        <label>Win Probability (%)</label>
+                        <input type="number" id="win-prob" min="0" max="100" step="0.1" value="55" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Decimal Odds</label>
+                        <input type="number" id="odds" min="1" step="0.01" value="2.0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bet Amount ($)</label>
+                        <input type="number" id="amount" min="0" step="0.01" value="100" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bankroll ($) (optional)</label>
+                        <input type="number" id="bankroll" min="0" step="0.01" value="1000">
+                    </div>
+
+                    <button type="submit">Calculate</button>
+                </form>
+
+                <div class="loading" id="kelly-loading">
+                    <div class="spinner"></div>
+                    <p>Calculating...</p>
+                </div>
+
+                <div class="results" id="kelly-results"></div>
+            </div>
+        </div>
+
+        <!-- NBA Prediction Tab -->
+        <div id="prediction-tab" class="tab-content">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Quick NBA Prediction</h2>
+
+                <form id="nba-form">
+                    <div class="form-group">
+                        <label>Team Offensive Rating</label>
+                        <input type="number" id="team-off" step="0.1" value="115" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Team Defensive Rating</label>
+                        <input type="number" id="team-def" step="0.1" value="108" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Opponent Offensive Rating</label>
+                        <input type="number" id="opp-off" step="0.1" value="110" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Opponent Defensive Rating</label>
+                        <input type="number" id="opp-def" step="0.1" value="109" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Home Team?</label>
+                        <select id="home">
+                            <option value="true">Yes</option>
+                            <option value="false">No</option>
+                        </select>
+                    </div>
+
+                    <button type="submit">Predict Winner</button>
+                </form>
+
+                <div class="loading" id="nba-loading">
+                    <div class="spinner"></div>
+                    <p>Predicting...</p>
+                </div>
+
+                <div class="results" id="nba-results"></div>
+            </div>
+        </div>
+
+        <!-- Performance Tab -->
+        <div id="performance-tab" class="tab-content">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Betting Performance</h2>
+                <button onclick="loadPerformance()">Load Performance</button>
+
+                <div class="loading" id="perf-loading">
+                    <div class="spinner"></div>
+                    <p>Loading...</p>
+                </div>
+
+                <div class="results" id="perf-results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API base URL - change this for production
+        const API_URL = 'http://localhost:8000';
+
+        // Switch tabs
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        // Kelly Calculator
+        document.getElementById('kelly-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('kelly-loading');
+            const results = document.getElementById('kelly-results');
+
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            const winProb = parseFloat(document.getElementById('win-prob').value) / 100;
+            const odds = parseFloat(document.getElementById('odds').value);
+            const amount = parseFloat(document.getElementById('amount').value);
+            const bankroll = parseFloat(document.getElementById('bankroll').value) || null;
+
+            try {
+                const response = await fetch(`${API_URL}/analyze/bet`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        amount,
+                        odds,
+                        win_probability: winProb,
+                        bankroll
+                    })
+                });
+
+                const data = await response.json();
+
+                let recommendClass = 'pass';
+                if (data.recommendation === 'STRONG BET') recommendClass = 'strong';
+                else if (data.recommendation.includes('VALUE')) recommendClass = 'value';
+
+                results.innerHTML = `
+                    <div class="result-item">
+                        <span class="result-label">Kelly Criterion:</span>
+                        <span class="result-value">${data.metrics.kelly_percentage}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Expected Value:</span>
+                        <span class="result-value">${data.metrics.ev_formatted}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Edge:</span>
+                        <span class="result-value">${data.metrics.edge_percentage}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">ROI:</span>
+                        <span class="result-value">${data.metrics.roi_percentage}</span>
+                    </div>
+                    ${bankroll ? `
+                        <div class="result-item">
+                            <span class="result-label">Recommended Bet:</span>
+                            <span class="result-value">$${data.recommended_bet.toFixed(2)}</span>
+                        </div>
+                    ` : ''}
+                    <div class="recommendation ${recommendClass}">
+                        ${data.recommendation}
+                    </div>
+                `;
+
+                results.classList.add('show');
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                results.classList.add('show');
+            } finally {
+                loading.classList.remove('show');
+            }
+        });
+
+        // NBA Prediction
+        document.getElementById('nba-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('nba-loading');
+            const results = document.getElementById('nba-results');
+
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            const data = {
+                team_off_rtg: parseFloat(document.getElementById('team-off').value),
+                team_def_rtg: parseFloat(document.getElementById('team-def').value),
+                opp_off_rtg: parseFloat(document.getElementById('opp-off').value),
+                opp_def_rtg: parseFloat(document.getElementById('opp-def').value),
+                home: document.getElementById('home').value === 'true'
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/predict/nba/quick`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+                const prob = result.win_probability;
+
+                results.innerHTML = `
+                    <div class="result-item">
+                        <span class="result-label">Win Probability:</span>
+                        <span class="result-value">${result.win_percentage}</span>
+                    </div>
+                    <div class="recommendation ${prob > 0.55 ? 'strong' : prob > 0.52 ? 'value' : 'pass'}">
+                        ${prob > 0.60 ? 'Strong Favorite' :
+                          prob > 0.55 ? 'Favorite' :
+                          prob > 0.50 ? 'Slight Favorite' :
+                          prob > 0.45 ? 'Slight Underdog' : 'Underdog'}
+                    </div>
+                `;
+
+                results.classList.add('show');
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                results.classList.add('show');
+            } finally {
+                loading.classList.remove('show');
+            }
+        });
+
+        // Load Performance
+        async function loadPerformance() {
+            const loading = document.getElementById('perf-loading');
+            const results = document.getElementById('perf-results');
+
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_URL}/performance`);
+                const stats = await response.json();
+
+                results.innerHTML = `
+                    <div class="result-item">
+                        <span class="result-label">Total Bets:</span>
+                        <span class="result-value">${stats.total_bets}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Wins / Losses:</span>
+                        <span class="result-value">${stats.wins} / ${stats.losses}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Win Rate:</span>
+                        <span class="result-value">${(stats.win_rate * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Total Wagered:</span>
+                        <span class="result-value">$${stats.total_wagered.toFixed(2)}</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Total Profit:</span>
+                        <span class="result-value" style="color: ${stats.total_profit >= 0 ? 'green' : 'red'}">
+                            $${stats.total_profit.toFixed(2)}
+                        </span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">ROI:</span>
+                        <span class="result-value" style="color: ${stats.roi >= 0 ? 'green' : 'red'}">
+                            ${(stats.roi * 100).toFixed(2)}%
+                        </span>
+                    </div>
+                `;
+
+                results.classList.add('show');
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                results.classList.add('show');
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+    </script>
+</body>
+</html>

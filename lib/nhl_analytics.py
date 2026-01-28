@@ -1,1000 +1,418 @@
 #!/usr/bin/env python3
 """
-Enhanced NHL Analytics Library
+lib/nhl_analytics.py
 
-Comprehensive statistical models for NHL (Hockey) betting including:
-- Expected Goals (xG) models
-- Advanced metrics (Corsi, Fenwick, PDO)
-- Power Play/Penalty Kill analysis
-- Goaltender performance analysis
-- Team strength calculations
-- Machine learning predictions
-- Bayesian inference
-- Monte Carlo simulations
+NHL Analytics Library (SportsBetLang-friendly, NO NHLEnsemble)
+
+This file intentionally contains THREE layers:
+
+1) NHLAdvancedAnalytics
+   - the "engine room": xG / goalie adjustments / strength signals
+   - can be used standalone for analysis
+
+2) NHLAnalytics (LEGACY, backward compatible)
+   - keeps older method names/signatures working:
+       - calculate_moneyline_probability(...)
+       - calculate_puckline_probability(...)
+       - calculate_total_probability(...)
+       - simulate_game(...)
+   - uses PoissonCalculator where available
+
+3) NHLBettingInterface (SportsBetLang-facing)
+   - standardized outputs for:
+       - MONEY (moneyline)
+       - SPREAD (puckline)
+       - TOTAL (over/under)
+   - optional 3-model convergence using:
+       - power_model
+       - similar_model
+       - tree_model
+   - NO NHLEnsemble required
 """
+
+from __future__ import annotations
 
 import math
 import random
-import statistics
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
+
+# ----------------------------
+# Optional repo imports
+# ----------------------------
 try:
     from lib.poisson_calculator import PoissonCalculator
-    from lib.advanced_stats import AdvancedStats
-    from lib.ml_models import RandomForest, FeatureEngineering
-except ImportError:
-    # Handle imports for testing
-    import sys
-    import os
-    sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-    from lib.poisson_calculator import PoissonCalculator
-    from lib.advanced_stats import AdvancedStats
-    from lib.ml_models import RandomForest, FeatureEngineering
+except Exception:
+    PoissonCalculator = None  # type: ignore
+
+
+# ----------------------------
+# Constants / enums / data containers
+# ----------------------------
+
+class NHLConstants:
+    """
+    Update seasonally. Keep these in ONE place.
+    Values here are conservative defaults (not promises of accuracy).
+    """
+    AVG_GOALS_PER_GAME = 3.10        # per team
+    AVG_TOTAL_GOALS = 6.20           # per game total
+    AVG_HOME_ADVANTAGE = 0.25        # goals
+    AVG_PDO = 100.0                  # luck metric center
+    LEAGUE_GSAX_AVG = 0.0            # GSAx average is ~0 by definition
 
 
 class ShotQuality(Enum):
-    """Shot quality categories"""
-    HIGH_DANGER = "high_danger"  # Slot, close range
-    MEDIUM_DANGER = "medium_danger"  # Mid-range
-    LOW_DANGER = "low_danger"  # Perimeter, long range
-
-
-class Situation(Enum):
-    """Game situations"""
-    EVEN_STRENGTH = "even_strength"
-    POWER_PLAY = "power_play"
-    PENALTY_KILL = "penalty_kill"
-    EMPTY_NET = "empty_net"
+    HIGH_DANGER = "high_danger"
+    MEDIUM_DANGER = "medium_danger"
+    LOW_DANGER = "low_danger"
 
 
 @dataclass
 class TeamMetrics:
-    """Advanced team metrics"""
     goals_for: float
     goals_against: float
-    shots_for: float
-    shots_against: float
-    corsi_for: float  # All shot attempts
-    corsi_against: float
-    fenwick_for: float  # Unblocked shot attempts
-    fenwick_against: float
-    save_percentage: float
-    shooting_percentage: float
-    pdo: float  # Save% + Shooting% (luck metric)
-    power_play_pct: float
-    penalty_kill_pct: float
-    faceoff_win_pct: float
+    corsi_pct: float = 50.0
+    xg_for: float = 0.0
+    xg_against: float = 0.0
+    pdo: float = NHLConstants.AVG_PDO
+    pp_pct: float = 20.0
+    pk_pct: float = 80.0
+    recent_form: Optional[List[int]] = None  # 1=win,0=loss
 
 
 @dataclass
 class GoaltenderStats:
-    """Goaltender statistics"""
-    save_percentage: float
-    goals_against_average: float
-    high_danger_save_pct: float
-    games_started: int
-    quality_starts: int  # Games with SV% > .913
-    games_saved_above_expected: float  # GSAx
+    save_percentage: float = 0.905
+    games_started: int = 0
+    games_saved_above_expected: float = 0.0  # total GSAx
 
 
-@dataclass
-class ExpectedGoalsModel:
-    """Expected goals (xG) calculation"""
-    shot_distance: float
-    shot_angle: float
-    shot_type: str  # wrist, slap, snap, backhand, tip, deflection
-    shot_quality: ShotQuality
-    rebound: bool
-    rush_shot: bool
+# ----------------------------
+# Odds + EV utilities (American odds)
+# ----------------------------
 
+def american_to_implied_prob(odds: float) -> float:
+    """Convert American odds to implied probability."""
+    if odds == 0:
+        raise ValueError("American odds cannot be 0")
+    if odds > 0:
+        return 100.0 / (odds + 100.0)
+    return (-odds) / ((-odds) + 100.0)
+
+
+def prob_to_american(prob: float) -> int:
+    """Convert probability to fair American odds (rounded)."""
+    prob = float(prob)
+    if prob <= 0.0 or prob >= 1.0:
+        raise ValueError("Probability must be between 0 and 1 (exclusive).")
+    if prob > 0.5:
+        return int(-round((prob / (1 - prob)) * 100))
+    return int(round(((1 - prob) / prob) * 100))
+
+
+def payout_per_1_risk(odds: float) -> float:
+    """Profit for risking $1 at given American odds."""
+    if odds > 0:
+        return odds / 100.0
+    return 100.0 / (-odds)
+
+
+def expected_value_per_1_risk(prob_win: float, odds: float) -> float:
+    """EV for risking $1: EV = p*profit - (1-p)*1"""
+    profit = payout_per_1_risk(odds)
+    return prob_win * profit - (1.0 - prob_win)
+
+
+# ----------------------------
+# Simple Poisson helpers (used if PoissonCalculator missing)
+# ----------------------------
+
+def _poisson_pmf(k: int, lam: float) -> float:
+    return math.exp(-lam) * (lam ** k) / math.factorial(k)
+
+
+def _poisson_cdf(k: int, lam: float, max_k: int = 25) -> float:
+    total = 0.0
+    for i in range(0, min(int(k), max_k) + 1):
+        total += _poisson_pmf(i, lam)
+    return total
+
+
+def _poisson_prob_over_line(total_lambda: float, line: float, max_k: int = 25) -> float:
+    # 6.5 -> over means >= 7
+    if line % 1 == 0.5:
+        threshold = int(math.floor(line) + 1)
+        p_le = _poisson_cdf(threshold - 1, total_lambda, max_k=max_k)
+        return max(0.0, 1.0 - p_le)
+    # integer: over means >= line+1
+    threshold = int(line) + 1
+    p_le = _poisson_cdf(threshold - 1, total_lambda, max_k=max_k)
+    return max(0.0, 1.0 - p_le)
+
+
+def _poisson_prob_under_line(total_lambda: float, line: float, max_k: int = 25) -> float:
+    # 6.5 -> under means <= 6
+    if line % 1 == 0.5:
+        threshold = int(math.floor(line))
+        return _poisson_cdf(threshold, total_lambda, max_k=max_k)
+    # integer: under means <= line-1 (push at line)
+    threshold = int(line) - 1
+    return _poisson_cdf(threshold, total_lambda, max_k=max_k)
+
+
+def _poisson_prob_push(total_lambda: float, line: float) -> float:
+    if line % 1 != 0:
+        return 0.0
+    return _poisson_pmf(int(line), total_lambda)
+
+
+# ============================================================
+# 1) NHLAdvancedAnalytics (engine room)
+# ============================================================
 
 class NHLAdvancedAnalytics:
-    """Enhanced NHL analytics with advanced statistics"""
-
-    # NHL constants
-    AVG_GOALS_PER_GAME = 3.0
-    AVG_HOME_ADVANTAGE = 0.25  # Goals
-    AVG_TOTAL_GOALS = 6.0
-    AVG_SAVE_PERCENTAGE = 0.910
-    AVG_SHOOTING_PERCENTAGE = 0.095
-    AVG_PDO = 100.0  # (SV% + SH%) * 100
-
-    # Expected goals baselines
-    XG_DISTANCE_FACTOR = 0.95  # xG decreases with distance
-    XG_ANGLE_FACTOR = 0.90
-
-    # Shot type conversion rates
+    # shot conversion baselines by type
     SHOT_CONVERSION_RATES = {
-        'wrist': 0.095,
-        'slap': 0.088,
-        'snap': 0.103,
-        'backhand': 0.082,
-        'tip': 0.145,
-        'deflection': 0.125
+        "wrist": 0.095,
+        "slap": 0.088,
+        "snap": 0.103,
+        "backhand": 0.082,
+        "tip": 0.145,
+        "deflection": 0.125,
     }
 
     @staticmethod
     def calculate_expected_goals(
         shot_distance: float,
         shot_angle: float,
-        shot_type: str = 'wrist',
+        shot_type: str = "wrist",
         shot_quality: ShotQuality = ShotQuality.MEDIUM_DANGER,
         rebound: bool = False,
-        rush_shot: bool = False
+        rush_shot: bool = False,
     ) -> float:
-        """
-        Calculate expected goals (xG) for a shot
-
-        Based on shot characteristics and historical data
-
-        Args:
-            shot_distance: Distance from goal in feet
-            shot_angle: Angle from center in degrees
-            shot_type: Type of shot
-            shot_quality: Shot danger level
-            rebound: Whether shot is a rebound
-            rush_shot: Whether shot is from a rush
-
-        Returns:
-            Expected goals value (0-1)
-        """
-        # Base conversion rate by shot type
         base_xg = NHLAdvancedAnalytics.SHOT_CONVERSION_RATES.get(shot_type, 0.095)
-
-        # Adjust for distance (inverse relationship)
         distance_factor = math.exp(-shot_distance / 30.0)
+        angle_factor = max(0.0, math.cos(math.radians(shot_angle)))
 
-        # Adjust for angle (perpendicular is best)
-        angle_factor = math.cos(math.radians(shot_angle))
-
-        # Adjust for shot quality zone
         if shot_quality == ShotQuality.HIGH_DANGER:
-            quality_multiplier = 3.5  # High danger = ~3.5x more likely
+            quality_multiplier = 3.5
         elif shot_quality == ShotQuality.MEDIUM_DANGER:
             quality_multiplier = 1.5
         else:
             quality_multiplier = 0.6
 
-        # Rebound bonus
         rebound_multiplier = 1.8 if rebound else 1.0
-
-        # Rush shot bonus
         rush_multiplier = 1.3 if rush_shot else 1.0
 
-        xg = (base_xg * distance_factor * angle_factor *
-              quality_multiplier * rebound_multiplier * rush_multiplier)
-
-        # Cap at reasonable maximum
-        return min(xg, 0.65)
+        xg = base_xg * distance_factor * angle_factor * quality_multiplier * rebound_multiplier * rush_multiplier
+        return float(min(xg, 0.65))
 
     @staticmethod
-    def calculate_team_expected_goals(
-        shots_for: int,
-        high_danger_shots: int,
-        medium_danger_shots: int,
-        rebounds: int,
-        rush_shots: int
-    ) -> float:
+    def adjust_for_goalies(
+        home_xg: float,
+        away_xg: float,
+        home_gsax: float = 0.0,
+        away_gsax: float = 0.0,
+        league_gsax_avg: float = NHLConstants.LEAGUE_GSAX_AVG,
+        impact_per_gsax: float = 0.12,
+    ) -> Tuple[float, float]:
         """
-        Calculate team expected goals from shot data
-
-        Args:
-            shots_for: Total shots
-            high_danger_shots: Shots from high danger areas
-            medium_danger_shots: Shots from medium danger areas
-            rebounds: Rebound shots
-            rush_shots: Rush shots
-
-        Returns:
-            Expected goals
+        Better goalie (higher GSAx) lowers opponent expected goals.
         """
-        low_danger = shots_for - high_danger_shots - medium_danger_shots
+        home_adj = 1.0 - (home_gsax - league_gsax_avg) * impact_per_gsax
+        away_adj = 1.0 - (away_gsax - league_gsax_avg) * impact_per_gsax
 
-        xg = (high_danger_shots * 0.25 +  # High danger ~25% conversion
-              medium_danger_shots * 0.12 +  # Medium ~12%
-              low_danger * 0.05 +  # Low ~5%
-              rebounds * 0.10 +  # Rebound bonus
-              rush_shots * 0.04)  # Rush bonus
+        adj_home = home_xg * away_adj
+        adj_away = away_xg * home_adj
 
-        return xg
+        adj_home = max(0.5, min(adj_home, 5.5))
+        adj_away = max(0.5, min(adj_away, 5.5))
+        return float(adj_home), float(adj_away)
 
     @staticmethod
-    def calculate_corsi_fenwick(
-        shots_for: int,
-        shots_against: int,
-        blocked_shots_for: int,
-        blocked_shots_against: int,
-        missed_shots_for: int,
-        missed_shots_against: int
+    def predict_game_from_xg(
+        home_xg: float,
+        away_xg: float,
+        include_overtime: bool = True,
+        max_goals: int = 10,
     ) -> Dict[str, float]:
         """
-        Calculate Corsi and Fenwick metrics
+        Uses PoissonCalculator if present; otherwise uses a small internal approximation.
+        Returns home/away win probabilities + expected totals.
 
-        Corsi = All shot attempts (shots + blocks + misses)
-        Fenwick = Unblocked shot attempts (shots + misses)
-
-        Args:
-            shots_for: Shots on goal for
-            shots_against: Shots on goal against
-            blocked_shots_for: Blocked shots for
-            blocked_shots_against: Blocked shots against
-            missed_shots_for: Missed shots for
-            missed_shots_against: Missed shots against
-
-        Returns:
-            Dictionary with Corsi and Fenwick metrics
+        Note: This method is "engine room" and does not attempt to expose
+        full regulation vs OT breakdown unless PoissonCalculator provides it.
         """
-        # Corsi (all shot attempts)
-        corsi_for = shots_for + blocked_shots_for + missed_shots_for
-        corsi_against = shots_against + blocked_shots_against + missed_shots_against
-        corsi_total = corsi_for + corsi_against
+        if PoissonCalculator is not None:
+            res = PoissonCalculator.calculate_match_probabilities(home_xg, away_xg, max_goals=max_goals)
+            ot_split = res["draw"] * 0.5 if include_overtime else 0.0
+            return {
+                "home_win_probability": float(res["home_win"] + ot_split),
+                "away_win_probability": float(res["away_win"] + ot_split),
+                "overtime_probability": float(res["draw"]),
+                "expected_home_goals": float(home_xg),
+                "expected_away_goals": float(away_xg),
+                "expected_total": float(home_xg + away_xg),
+                # optional regulation breakdown when available
+                "regulation_home_win": float(res["home_win"]),
+                "regulation_away_win": float(res["away_win"]),
+            }
 
-        corsi_pct = (corsi_for / corsi_total * 100) if corsi_total > 0 else 50.0
-
-        # Fenwick (unblocked shot attempts)
-        fenwick_for = shots_for + missed_shots_for
-        fenwick_against = shots_against + missed_shots_against
-        fenwick_total = fenwick_for + fenwick_against
-
-        fenwick_pct = (fenwick_for / fenwick_total * 100) if fenwick_total > 0 else 50.0
-
+        # fallback: crude normal approximation (kept simple)
+        mu = home_xg - away_xg
+        sigma = math.sqrt(max(0.25, home_xg + away_xg))
+        z = mu / sigma
+        p_home_reg = 0.5 * (1.0 + math.erf(z / math.sqrt(2)))
+        p_home = p_home_reg + (1.0 - p_home_reg) * 0.5 if include_overtime else p_home_reg
+        p_home = max(0.01, min(0.99, p_home))
         return {
-            'corsi_for': corsi_for,
-            'corsi_against': corsi_against,
-            'corsi_percentage': corsi_pct,
-            'corsi_differential': corsi_for - corsi_against,
-            'fenwick_for': fenwick_for,
-            'fenwick_against': fenwick_against,
-            'fenwick_percentage': fenwick_pct,
-            'fenwick_differential': fenwick_for - fenwick_against
-        }
-
-    @staticmethod
-    def calculate_pdo(save_percentage: float, shooting_percentage: float) -> float:
-        """
-        Calculate PDO (luck metric)
-
-        PDO = (Save% + Shooting%) * 100
-        League average = 100.0
-
-        Teams with high PDO (> 102) likely to regress
-        Teams with low PDO (< 98) likely to improve
-
-        Args:
-            save_percentage: Team save percentage
-            shooting_percentage: Team shooting percentage
-
-        Returns:
-            PDO value
-        """
-        return (save_percentage + shooting_percentage) * 100
-
-    @staticmethod
-    def analyze_goaltender_performance(
-        saves: int,
-        shots_against: int,
-        goals_against: int,
-        games_played: int,
-        high_danger_saves: int,
-        high_danger_shots: int,
-        expected_goals_against: float
-    ) -> Dict[str, float]:
-        """
-        Comprehensive goaltender analysis
-
-        Args:
-            saves: Total saves
-            shots_against: Total shots faced
-            goals_against: Total goals allowed
-            games_played: Games played
-            high_danger_saves: Saves on high danger shots
-            high_danger_shots: High danger shots faced
-            expected_goals_against: Expected goals based on shot quality
-
-        Returns:
-            Goaltender metrics
-        """
-        # Basic stats
-        save_pct = saves / shots_against if shots_against > 0 else 0
-        gaa = goals_against / games_played if games_played > 0 else 0
-
-        # Quality start percentage (SV% > .913)
-        # Approximate based on save percentage
-        quality_start_likelihood = 1 / (1 + math.exp(-(save_pct - 0.913) * 100))
-
-        # High danger save percentage
-        hd_save_pct = (high_danger_saves / high_danger_shots
-                      if high_danger_shots > 0 else 0)
-
-        # Goals saved above expected (GSAx)
-        gsax = expected_goals_against - goals_against
-        gsax_per_game = gsax / games_played if games_played > 0 else 0
-
-        return {
-            'save_percentage': save_pct,
-            'goals_against_average': gaa,
-            'high_danger_save_pct': hd_save_pct,
-            'quality_start_likelihood': quality_start_likelihood,
-            'goals_saved_above_expected': gsax,
-            'gsax_per_game': gsax_per_game,
-            'performance_vs_expected': 'elite' if gsax_per_game > 0.3
-                                      else 'above_average' if gsax_per_game > 0
-                                      else 'below_average'
-        }
-
-    @staticmethod
-    def calculate_power_play_value(
-        pp_opportunities: int,
-        pp_goals: int,
-        league_avg_pp_pct: float = 0.20
-    ) -> Dict[str, float]:
-        """
-        Analyze power play effectiveness
-
-        Args:
-            pp_opportunities: Power play opportunities
-            pp_goals: Power play goals scored
-            league_avg_pp_pct: League average PP%
-
-        Returns:
-            Power play metrics
-        """
-        pp_pct = (pp_goals / pp_opportunities * 100) if pp_opportunities > 0 else 0
-
-        # Expected goals based on league average
-        expected_pp_goals = pp_opportunities * league_avg_pp_pct
-
-        # Goals above/below expected
-        pp_differential = pp_goals - expected_pp_goals
-
-        # Bayesian adjusted PP% (with league prior)
-        bayesian_result = AdvancedStats.bayesian_win_probability(
-            wins=pp_goals,
-            losses=pp_opportunities - pp_goals,
-            prior_alpha=league_avg_pp_pct * 100,
-            prior_beta=(1 - league_avg_pp_pct) * 100
-        )
-
-        return {
-            'pp_percentage': pp_pct,
-            'pp_goals': pp_goals,
-            'pp_opportunities': pp_opportunities,
-            'expected_pp_goals': expected_pp_goals,
-            'pp_differential': pp_differential,
-            'bayesian_pp_pct': bayesian_result['mean_probability'] * 100,
-            'pp_confidence_interval': (
-                bayesian_result['ci_lower'] * 100,
-                bayesian_result['ci_upper'] * 100
-            )
-        }
-
-    @staticmethod
-    def calculate_team_strength(
-        goals_for: float,
-        goals_against: float,
-        xg_for: float,
-        xg_against: float,
-        corsi_pct: float,
-        pdo: float,
-        recent_form: List[int]
-    ) -> Dict[str, float]:
-        """
-        Calculate comprehensive team strength rating
-
-        Combines multiple metrics with Bayesian inference
-
-        Args:
-            goals_for: Goals scored per game
-            goals_against: Goals allowed per game
-            xg_for: Expected goals for per game
-            xg_against: Expected goals against per game
-            corsi_pct: Corsi percentage
-            pdo: PDO value
-            recent_form: Recent results (1=win, 0=loss) - last 10 games
-
-        Returns:
-            Team strength metrics
-        """
-        # Goal differential (actual)
-        goal_diff = goals_for - goals_against
-
-        # Expected goal differential (more stable predictor)
-        xg_diff = xg_for - xg_against
-
-        # Possession metric (Corsi as proxy)
-        possession_strength = (corsi_pct - 50) / 10  # Normalized
-
-        # PDO regression (teams regress to 100)
-        pdo_adjustment = (pdo - 100) * 0.03  # Expect regression
-        luck_adjusted_diff = goal_diff - pdo_adjustment
-
-        # Recent form using EMA
-        if recent_form:
-            form_ema = AdvancedStats.exponential_moving_average(
-                [float(x) for x in recent_form],
-                alpha=0.3
-            )
-            current_form = form_ema[-1] if form_ema else 0.5
-        else:
-            current_form = 0.5
-
-        # Combined strength rating (0-100 scale)
-        base_strength = 50 + (xg_diff * 8)  # xG diff is most predictive
-        base_strength += possession_strength * 2
-        base_strength += current_form * 5
-
-        # Clip to reasonable bounds
-        strength_rating = max(20, min(80, base_strength))
-
-        return {
-            'strength_rating': strength_rating,
-            'goal_differential': goal_diff,
-            'expected_goal_differential': xg_diff,
-            'luck_adjusted_differential': luck_adjusted_diff,
-            'possession_rating': possession_strength,
-            'current_form': current_form,
-            'pdo_regression_expected': pdo_adjustment,
-            'tier': 'elite' if strength_rating > 65
-                   else 'above_average' if strength_rating > 55
-                   else 'average' if strength_rating > 45
-                   else 'below_average'
-        }
-
-    @staticmethod
-    def predict_game_ml(
-        home_team_metrics: TeamMetrics,
-        away_team_metrics: TeamMetrics,
-        home_goalie_stats: GoaltenderStats,
-        away_goalie_stats: GoaltenderStats,
-        use_ml: bool = False
-    ) -> Dict[str, float]:
-        """
-        Predict game outcome using advanced metrics
-
-        Can use either statistical model or machine learning
-
-        Args:
-            home_team_metrics: Home team advanced metrics
-            away_team_metrics: Away team advanced metrics
-            home_goalie_stats: Home goaltender stats
-            away_goalie_stats: Away goaltender stats
-            use_ml: Whether to use machine learning model
-
-        Returns:
-            Game predictions
-        """
-        # Calculate expected goals based on metrics
-        home_xg = home_team_metrics.goals_for * (
-            1 + (home_team_metrics.corsi_for / 100 - 0.5) * 0.2
-        )
-        away_xg = away_team_metrics.goals_for * (
-            1 + (away_team_metrics.corsi_for / 100 - 0.5) * 0.2
-        )
-
-        # Adjust for goaltender quality
-        home_goalie_adj = 1 - (home_goalie_stats.save_percentage - 0.910) * 0.5
-        away_goalie_adj = 1 - (away_goalie_stats.save_percentage - 0.910) * 0.5
-
-        home_xg_adjusted = home_xg + 0.25  # Home ice
-        away_xg_adjusted = away_xg
-
-        # Adjust for opposing goaltender
-        home_expected = home_xg_adjusted * away_goalie_adj
-        away_expected = away_xg_adjusted * home_goalie_adj
-
-        # Use Poisson for probabilities
-        results = PoissonCalculator.calculate_match_probabilities(
-            home_expected,
-            away_expected,
-            max_goals=10
-        )
-
-        # Adjust for overtime (50/50 split of draws)
-        ot_split = results['draw'] * 0.5
-
-        return {
-            'home_win_probability': results['home_win'] + ot_split,
-            'away_win_probability': results['away_win'] + ot_split,
-            'regulation_home_win': results['home_win'],
-            'regulation_away_win': results['away_win'],
-            'overtime_probability': results['draw'],
-            'expected_home_goals': home_expected,
-            'expected_away_goals': away_expected,
-            'expected_total': home_expected + away_expected
-        }
-
-    @staticmethod
-    def simulate_season_monte_carlo(
-        team_strength: float,
-        games_remaining: int,
-        current_points: int,
-        n_simulations: int = 10000
-    ) -> Dict[str, any]:
-        """
-        Monte Carlo simulation of remaining season
-
-        Args:
-            team_strength: Team strength rating (0-1, where 0.5 is average)
-            games_remaining: Number of games left
-            current_points: Current point total
-            n_simulations: Number of simulations
-
-        Returns:
-            Season outcome probabilities
-        """
-        def simulate_remaining_games():
-            """Simulate remaining games"""
-            points = current_points
-            for _ in range(games_remaining):
-                # Win probability based on team strength
-                if random.random() < team_strength:
-                    points += 2  # Win
-                elif random.random() < 0.25:  # ~25% of losses go to OT
-                    points += 1  # OT loss
-                # else: regulation loss, 0 points
-            return points
-
-        # Run Monte Carlo simulation
-        results = AdvancedStats.monte_carlo_simulation(
-            simulate_remaining_games,
-            n_simulations=n_simulations
-        )
-
-        # Calculate playoff probability (assuming ~95 points needed)
-        playoff_threshold = 95
-        playoff_prob = sum(1 for pts in results['results']
-                          if pts >= playoff_threshold) / n_simulations
-
-        return {
-            'expected_points': results['mean'],
-            'median_points': results['median'],
-            'points_std_dev': results['std_dev'],
-            'points_range': (results['min'], results['max']),
-            'points_90pct_confidence': (results['p5'], results['p95']),
-            'playoff_probability': playoff_prob,
-            'simulations': n_simulations
-        }
-
-    @staticmethod
-    def analyze_betting_edge(
-        predicted_probability: float,
-        offered_odds: float,
-        confidence_interval: Tuple[float, float],
-        bankroll: float = 1000,
-        use_kelly: bool = True
-    ) -> Dict[str, float]:
-        """
-        Analyze betting edge and optimal bet sizing
-
-        Args:
-            predicted_probability: Model's predicted win probability
-            offered_odds: Sportsbook odds
-            confidence_interval: CI for predicted probability
-            bankroll: Current bankroll
-            use_kelly: Whether to use Kelly Criterion
-
-        Returns:
-            Betting analysis
-        """
-        # Calculate implied probability from odds
-        implied_prob = 1 / offered_odds
-
-        # Edge
-        edge = predicted_probability - implied_prob
-        edge_pct = edge * 100
-
-        # Expected value
-        ev = (predicted_probability * (offered_odds - 1)) - (1 - predicted_probability)
-        ev_pct = ev * 100
-
-        # Kelly Criterion sizing
-        kelly_fraction = 0.0
-        if use_kelly:
-            kelly_fraction = AdvancedStats.kelly_optimal_size(
-                predicted_probability,
-                offered_odds
-            )
-            # Use half-Kelly for conservatism
-            recommended_bet = bankroll * kelly_fraction * 0.5
-        else:
-            # Fixed 2% of bankroll if edge > 5%
-            recommended_bet = bankroll * 0.02 if edge_pct > 5 else 0
-
-        # Confidence-adjusted edge (use lower bound)
-        conservative_edge = confidence_interval[0] - implied_prob
-
-        return {
-            'predicted_probability': predicted_probability,
-            'implied_probability': implied_prob,
-            'edge_percentage': edge_pct,
-            'expected_value_pct': ev_pct,
-            'kelly_fraction': kelly_fraction,
-            'recommended_bet': max(0, recommended_bet),
-            'conservative_edge': conservative_edge * 100,
-            'bet_recommendation': 'strong_bet' if edge_pct > 10
-                                 else 'bet' if edge_pct > 5
-                                 else 'small_bet' if edge_pct > 2
-                                 else 'pass'
-        }
-
-    @staticmethod
-    def calculate_live_betting_edge(
-        current_score_home: int,
-        current_score_away: int,
-        time_remaining_mins: float,
-        home_team_strength: float,
-        away_team_strength: float,
-        live_odds: Dict[str, float]
-    ) -> Dict[str, float]:
-        """
-        Calculate betting edge for live/in-play betting
-
-        Args:
-            current_score_home: Current home team score
-            current_score_away: Current away team score
-            time_remaining_mins: Time remaining in game (minutes)
-            home_team_strength: Home team strength rating
-            away_team_strength: Away team strength rating
-            live_odds: Current live odds {'home': 2.1, 'away': 1.8}
-
-        Returns:
-            Live betting analysis
-        """
-        # Calculate expected goals for remaining time
-        goals_per_60 = 6.0  # League average total
-        time_fraction = time_remaining_mins / 60.0
-
-        expected_remaining_goals = goals_per_60 * time_fraction
-
-        # Distribute based on team strength
-        home_fraction = home_team_strength / (home_team_strength + away_team_strength)
-
-        home_expected_remaining = expected_remaining_goals * home_fraction
-        away_expected_remaining = expected_remaining_goals * (1 - home_fraction)
-
-        # Current score + expected remaining
-        home_projected = current_score_home + home_expected_remaining
-        away_projected = current_score_away + away_expected_remaining
-
-        # Win probabilities using Poisson for remaining goals
-        remaining_probs = PoissonCalculator.calculate_match_probabilities(
-            home_expected_remaining,
-            away_expected_remaining,
-            max_goals=8
-        )
-
-        # Adjust based on current score
-        if current_score_home > current_score_away:
-            # Home is ahead
-            goal_diff = current_score_home - current_score_away
-            home_win_prob = remaining_probs['home_win'] + remaining_probs['draw']
-            if goal_diff >= 2:
-                home_win_prob = min(0.95, home_win_prob * 1.2)
-        elif current_score_away > current_score_home:
-            # Away is ahead
-            goal_diff = current_score_away - current_score_home
-            home_win_prob = remaining_probs['home_win']
-            if goal_diff >= 2:
-                home_win_prob = max(0.05, home_win_prob * 0.8)
-        else:
-            # Tied
-            home_win_prob = (remaining_probs['home_win'] +
-                           remaining_probs['draw'] * 0.5)
-
-        away_win_prob = 1 - home_win_prob
-
-        # Calculate edges
-        home_edge = home_win_prob - (1 / live_odds['home']) if 'home' in live_odds else 0
-        away_edge = away_win_prob - (1 / live_odds['away']) if 'away' in live_odds else 0
-
-        return {
-            'home_win_probability': home_win_prob,
-            'away_win_probability': away_win_prob,
-            'home_projected_goals': home_projected,
-            'away_projected_goals': away_projected,
-            'time_remaining': time_remaining_mins,
-            'home_edge_pct': home_edge * 100,
-            'away_edge_pct': away_edge * 100,
-            'best_bet': 'home' if home_edge > 0.05
-                       else 'away' if away_edge > 0.05
-                       else 'none'
+            "home_win_probability": float(p_home),
+            "away_win_probability": float(1.0 - p_home),
+            "overtime_probability": 0.0,
+            "expected_home_goals": float(home_xg),
+            "expected_away_goals": float(away_xg),
+            "expected_total": float(home_xg + away_xg),
+            "regulation_home_win": float(p_home_reg),
+            "regulation_away_win": float(1.0 - p_home_reg),
         }
 
 
-    @staticmethod
-    def calculate_first_period_probability(
-        home_goals_avg: float,
-        away_goals_avg: float,
-        total_line: float = 1.5
-    ) -> Dict[str, float]:
-        """
-        Calculate first period betting probabilities
+# ============================================================
+# 2) NHLAnalytics (LEGACY, backward compatible)
+# ============================================================
 
-        First period is a popular NHL betting market. Scoring rates
-        differ from overall game rates - typically ~30% of goals
-        are scored in the first period.
-
-        Args:
-            home_goals_avg: Home team goals per game average
-            away_goals_avg: Away team goals per game average
-            total_line: First period total line (default 1.5)
-
-        Returns:
-            First period probabilities
-        """
-        first_period_fraction = 0.30
-
-        home_1p_lambda = (home_goals_avg + NHLAdvancedAnalytics.AVG_HOME_ADVANTAGE) * first_period_fraction
-        away_1p_lambda = away_goals_avg * first_period_fraction
-
-        # Match probabilities for first period
-        results = PoissonCalculator.calculate_match_probabilities(
-            home_1p_lambda, away_1p_lambda, max_goals=6
-        )
-
-        # Total probabilities
-        total_results = PoissonCalculator.calculate_total_probabilities(
-            home_1p_lambda, away_1p_lambda, total_line, max_goals=6
-        )
-
-        # Scoreless first period probability
-        scoreless = PoissonCalculator.poisson_probability(0, home_1p_lambda) * \
-                    PoissonCalculator.poisson_probability(0, away_1p_lambda)
-
-        return {
-            'home_win_1p': results['home_win'],
-            'away_win_1p': results['away_win'],
-            'draw_1p': results['draw'],
-            'over_total': total_results['over_probability'],
-            'under_total': total_results['under_probability'],
-            'scoreless_probability': scoreless,
-            'expected_goals_1p': home_1p_lambda + away_1p_lambda,
-            'total_line': total_line
-        }
-
-    @staticmethod
-    def calculate_score_adjusted_corsi(
-        shots_for: int,
-        shots_against: int,
-        blocked_for: int,
-        blocked_against: int,
-        missed_for: int,
-        missed_against: int,
-        goal_differential: int,
-        time_trailing: float = 0.0,
-        time_leading: float = 0.0,
-        time_tied: float = 0.0
-    ) -> Dict[str, float]:
-        """
-        Calculate score-adjusted Corsi (accounts for game state)
-
-        Teams trailing tend to generate more shot attempts (score effects).
-        Score-adjusted metrics normalize for this, giving a truer measure
-        of possession and territorial dominance.
-
-        Args:
-            shots_for: Shots on goal for
-            shots_against: Shots on goal against
-            blocked_for: Blocked shots for
-            blocked_against: Blocked shots against
-            missed_for: Missed shots for
-            missed_against: Missed shots against
-            goal_differential: Current goal differential
-            time_trailing: Minutes spent trailing
-            time_leading: Minutes spent leading
-            time_tied: Minutes spent tied
-
-        Returns:
-            Score-adjusted Corsi metrics
-        """
-        total_time = time_trailing + time_leading + time_tied
-        if total_time == 0:
-            total_time = 60.0
-            time_tied = 60.0
-
-        # Raw Corsi
-        corsi_for = shots_for + blocked_for + missed_for
-        corsi_against = shots_against + blocked_against + missed_against
-
-        # Score adjustment factors (based on NHL research)
-        # Teams trailing generate ~8% more shot attempts per goal down
-        # Teams leading generate ~5% fewer shot attempts per goal up
-        trailing_boost = 0.08
-        leading_reduction = 0.05
-
-        trailing_fraction = time_trailing / total_time
-        leading_fraction = time_leading / total_time
-
-        # Adjustment: remove score effects
-        if goal_differential > 0:
-            # Team was leading - they likely reduced attempts
-            adjustment = 1 + (leading_reduction * abs(goal_differential) * leading_fraction)
-            adj_corsi_for = corsi_for * adjustment
-            adj_corsi_against = corsi_against / (1 + trailing_boost * abs(goal_differential) * trailing_fraction) if trailing_fraction > 0 else corsi_against
-        elif goal_differential < 0:
-            # Team was trailing - they likely increased attempts
-            adjustment = 1 - (trailing_boost * abs(goal_differential) * trailing_fraction)
-            adj_corsi_for = corsi_for * max(0.5, adjustment)
-            adj_corsi_against = corsi_against * (1 + leading_reduction * abs(goal_differential) * leading_fraction) if leading_fraction > 0 else corsi_against
-        else:
-            adj_corsi_for = float(corsi_for)
-            adj_corsi_against = float(corsi_against)
-
-        adj_total = adj_corsi_for + adj_corsi_against
-        raw_total = corsi_for + corsi_against
-
-        raw_corsi_pct = (corsi_for / raw_total * 100) if raw_total > 0 else 50.0
-        adj_corsi_pct = (adj_corsi_for / adj_total * 100) if adj_total > 0 else 50.0
-
-        return {
-            'raw_corsi_for': corsi_for,
-            'raw_corsi_against': corsi_against,
-            'raw_corsi_pct': raw_corsi_pct,
-            'adjusted_corsi_for': adj_corsi_for,
-            'adjusted_corsi_against': adj_corsi_against,
-            'adjusted_corsi_pct': adj_corsi_pct,
-            'score_effect': adj_corsi_pct - raw_corsi_pct,
-            'goal_differential': goal_differential
-        }
-
-    @staticmethod
-    def calculate_player_prop_probability(
-        player_avg: float,
-        prop_line: float,
-        stat_type: str = 'points',
-        player_std_dev: float = None,
-        opponent_adjustment: float = 1.0,
-        home_ice: bool = True
-    ) -> Dict[str, float]:
-        """
-        Calculate probability for NHL player prop bets
-
-        Supports points, goals, assists, shots on goal, saves, etc.
-
-        Args:
-            player_avg: Player's per-game average for the stat
-            prop_line: The prop betting line
-            stat_type: Type of stat (points, goals, assists, shots, saves, blocks)
-            player_std_dev: Player's standard deviation (estimated if None)
-            opponent_adjustment: Multiplier for opponent strength (>1 = weaker opponent)
-            home_ice: Whether player is on home ice
-
-        Returns:
-            Prop bet probabilities and analysis
-        """
-        # Default std dev estimates by stat type (based on NHL distributions)
-        default_std_devs = {
-            'points': 0.90,
-            'goals': 0.55,
-            'assists': 0.70,
-            'shots': 1.50,
-            'saves': 8.0,
-            'blocks': 1.0,
-            'hits': 1.2,
-            'faceoffs_won': 4.0
-        }
-
-        if player_std_dev is None:
-            player_std_dev = default_std_devs.get(stat_type, player_avg * 0.40)
-
-        # Adjust for opponent and home ice
-        home_bonus = 1.03 if home_ice else 0.97
-        adjusted_avg = player_avg * opponent_adjustment * home_bonus
-
-        # Use Poisson for count stats (goals, assists, points, shots)
-        # Use normal for continuous/high-count stats (saves)
-        use_poisson = stat_type in ('goals', 'assists', 'points', 'shots', 'blocks', 'hits')
-
-        if use_poisson and adjusted_avg > 0:
-            over_prob = 1 - PoissonCalculator.poisson_cumulative(
-                int(prop_line), adjusted_avg
-            )
-            under_prob = PoissonCalculator.poisson_cumulative(
-                int(prop_line) - 1, adjusted_avg
-            ) if prop_line == int(prop_line) else PoissonCalculator.poisson_cumulative(
-                int(prop_line), adjusted_avg
-            )
-            push_prob = 1 - over_prob - under_prob
-        else:
-            # Normal distribution for saves and other high-count stats
-            z_score = (prop_line - adjusted_avg) / player_std_dev if player_std_dev > 0 else 0
-            under_prob = 0.5 * (1 + math.erf(z_score / math.sqrt(2)))
-            over_prob = 1 - under_prob
-            push_prob = 0.0
-
-        edge = (adjusted_avg - prop_line) / player_std_dev if player_std_dev > 0 else 0
-
-        return {
-            'over_probability': over_prob,
-            'under_probability': under_prob,
-            'push_probability': push_prob,
-            'player_average': player_avg,
-            'adjusted_average': adjusted_avg,
-            'prop_line': prop_line,
-            'stat_type': stat_type,
-            'std_dev': player_std_dev,
-            'edge': edge,
-            'recommendation': 'over' if edge > 0.3
-                             else 'under' if edge < -0.3
-                             else 'no_edge'
-        }
-
-
-# Maintain backward compatibility with basic class
 class NHLAnalytics:
-    """Basic NHL analytics (backward compatible)"""
+    """
+    Backward compatible helper surface.
 
-    AVG_GOALS_PER_GAME = 3.0
-    AVG_HOME_ADVANTAGE = 0.25
-    AVG_TOTAL_GOALS = 6.0
-    REGULATION_TIME_PCT = 0.75
+    IMPORTANT:
+    - Keep these signatures stable if other scripts call them.
+    - Legacy tools often expect:
+        win_probability, regulation_win_probability, overtime_probability, loss_probability
+    """
+    AVG_HOME_ADVANTAGE = NHLConstants.AVG_HOME_ADVANTAGE
 
     @staticmethod
     def calculate_moneyline_probability(
         team_goals_avg: float,
         opponent_goals_avg: float,
         is_home: bool = True,
-        include_overtime: bool = True
-    ) -> Dict:
-        """Calculate NHL moneyline probability"""
-        home_adj = NHLAnalytics.AVG_HOME_ADVANTAGE if is_home else 0
-        team_lambda = team_goals_avg + home_adj
-        opp_lambda = opponent_goals_avg
+        include_overtime: bool = True,
+        max_goals: int = 10,
+    ) -> Dict[str, float]:
+        """
+        Legacy moneyline probability.
 
-        results = PoissonCalculator.calculate_match_probabilities(
-            team_lambda, opp_lambda, max_goals=10
+        Fixes two common pitfalls:
+        - Includes 'regulation_win_probability' key expected by analyzer tooling
+        - Applies home advantage to the actual home side even when is_home=False
+        """
+        home_adv = NHLAnalytics.AVG_HOME_ADVANTAGE
+
+        # Apply home advantage to whoever is home
+        if is_home:
+            team_lambda = float(team_goals_avg) + home_adv
+            opp_lambda = float(opponent_goals_avg)
+        else:
+            team_lambda = float(team_goals_avg)
+            opp_lambda = float(opponent_goals_avg) + home_adv
+
+        # Best path: PoissonCalculator provides regulation + draw explicitly
+        if PoissonCalculator is not None:
+            res = PoissonCalculator.calculate_match_probabilities(team_lambda, opp_lambda, max_goals=max_goals)
+
+            reg_win = float(res["home_win"] if is_home else res["away_win"])
+            reg_loss = float(res["away_win"] if is_home else res["home_win"])
+            ot_prob = float(res["draw"])
+
+            if include_overtime:
+                win = reg_win + ot_prob * 0.5
+                loss = reg_loss + ot_prob * 0.5
+            else:
+                win = reg_win
+                loss = reg_loss
+
+            return {
+                "win_probability": float(win),
+                "regulation_win_probability": float(reg_win),
+                "overtime_probability": float(ot_prob),
+                "loss_probability": float(loss),
+                "expected_total": float(team_lambda + opp_lambda),
+            }
+
+        # Fallback: use engine approximation
+        out = NHLAdvancedAnalytics.predict_game_from_xg(
+            home_xg=(team_lambda if is_home else opp_lambda),
+            away_xg=(opp_lambda if is_home else team_lambda),
+            include_overtime=include_overtime,
+            max_goals=max_goals,
         )
 
-        if include_overtime:
-            overtime_win_boost = results['draw'] * 0.5
-            return {
-                'win_probability': results['home_win'] + overtime_win_boost if is_home else results['away_win'] + overtime_win_boost,
-                'regulation_win_probability': results['home_win'] if is_home else results['away_win'],
-                'overtime_probability': results['draw'],
-                'loss_probability': results['away_win'] if is_home else results['home_win']
-            }
-        else:
-            return {
-                'win_probability': results['home_win'] if is_home else results['away_win'],
-                'tie_probability': results['draw'],
-                'loss_probability': results['away_win'] if is_home else results['home_win']
-            }
+        win_prob = out["home_win_probability"] if is_home else out["away_win_probability"]
+        reg_win = out.get("regulation_home_win", win_prob) if is_home else out.get("regulation_away_win", 1.0 - win_prob)
+        loss_prob = 1.0 - win_prob
+
+        return {
+            "win_probability": float(win_prob),
+            "regulation_win_probability": float(reg_win),
+            "overtime_probability": float(out.get("overtime_probability", 0.0)),
+            "loss_probability": float(loss_prob),
+            "expected_total": float(team_lambda + opp_lambda),
+        }
 
     @staticmethod
     def calculate_puckline_probability(
         team_goals_avg: float,
         opponent_goals_avg: float,
         puckline: float = -1.5,
-        is_home: bool = True
-    ) -> Dict:
-        """Calculate puck line cover probability"""
-        home_adj = NHLAnalytics.AVG_HOME_ADVANTAGE if is_home else 0
-        team_lambda = team_goals_avg + home_adj
-        opp_lambda = opponent_goals_avg
+        is_home: bool = True,
+        max_goals: int = 10,
+    ) -> Dict[str, float]:
+        """
+        Legacy puckline cover probability.
+        """
+        home_adv = NHLAnalytics.AVG_HOME_ADVANTAGE
 
-        results = PoissonCalculator.calculate_match_probabilities(
-            team_lambda, opp_lambda, max_goals=10
-        )
+        if is_home:
+            team_lambda = float(team_goals_avg) + home_adv
+            opp_lambda = float(opponent_goals_avg)
+        else:
+            team_lambda = float(team_goals_avg)
+            opp_lambda = float(opponent_goals_avg) + home_adv
 
-        cover_prob = 0.0
-        prob_matrix = results['prob_matrix']
+        # best if PoissonCalculator exists (needs prob_matrix)
+        if PoissonCalculator is not None:
+            res = PoissonCalculator.calculate_match_probabilities(team_lambda, opp_lambda, max_goals=max_goals)
+            matrix = res.get("prob_matrix")
+            if matrix is not None:
+                cover_prob = 0.0
+                for tg in range(len(matrix)):
+                    for og in range(len(matrix[0])):
+                        margin = tg - og
+                        if puckline < 0:
+                            if margin > abs(puckline):
+                                cover_prob += matrix[tg][og]
+                        else:
+                            if margin + puckline > 0:
+                                cover_prob += matrix[tg][og]
+                return {
+                    "cover_probability": float(cover_prob),
+                    "puckline": float(puckline),
+                    "expected_margin": float(team_lambda - opp_lambda),
+                }
 
-        for team_goals in range(len(prob_matrix)):
-            for opp_goals in range(len(prob_matrix[0])):
-                margin = team_goals - opp_goals
-                if puckline < 0:
-                    if margin > abs(puckline):
-                        cover_prob += prob_matrix[team_goals][opp_goals]
-                else:
-                    if margin + puckline > 0:
-                        cover_prob += prob_matrix[team_goals][opp_goals]
-
+        # fallback: logistic on expected margin
+        margin = team_lambda - opp_lambda
+        line_adj = 0.35 if puckline < 0 else -0.20
+        p = 1.0 / (1.0 + math.exp(-0.85 * (margin + line_adj)))
+        p = max(0.01, min(0.99, p))
         return {
-            'cover_probability': cover_prob,
-            'puckline': puckline,
-            'expected_margin': team_lambda - opp_lambda
+            "cover_probability": float(p),
+            "puckline": float(puckline),
+            "expected_margin": float(margin),
         }
 
     @staticmethod
@@ -1002,152 +420,386 @@ class NHLAnalytics:
         team1_goals_avg: float,
         team2_goals_avg: float,
         total_line: float,
-        goalie_adjustment: float = 1.0
-    ) -> Dict:
-        """Calculate over/under probability"""
-        total_lambda = (team1_goals_avg + team2_goals_avg) * goalie_adjustment
+        goalie_adjustment: float = 1.0,
+        max_goals_sum: int = 25,
+    ) -> Dict[str, float]:
+        """
+        Legacy over/under probability.
+        """
+        total_lambda = (float(team1_goals_avg) + float(team2_goals_avg)) * float(goalie_adjustment)
 
-        results = PoissonCalculator.calculate_total_probabilities(
-            total_lambda / 2, total_lambda / 2, total_line, max_goals=12
-        )
+        # use calculator if present and compatible; otherwise internal Poisson sums
+        if PoissonCalculator is not None and hasattr(PoissonCalculator, "calculate_total_probabilities"):
+            try:
+                res = PoissonCalculator.calculate_total_probabilities(
+                    total_lambda / 2.0, total_lambda / 2.0, total_line, max_goals=12
+                )
+                return {
+                    "over_probability": float(res["over_probability"]),
+                    "under_probability": float(res["under_probability"]),
+                    "expected_total": float(total_lambda),
+                    "line": float(total_line),
+                    "goalie_adjustment": float(goalie_adjustment),
+                }
+            except Exception:
+                pass
 
+        p_over = _poisson_prob_over_line(total_lambda, total_line, max_k=max_goals_sum)
+        p_under = _poisson_prob_under_line(total_lambda, total_line, max_k=max_goals_sum)
         return {
-            'over_probability': results['over_probability'],
-            'under_probability': results['under_probability'],
-            'expected_total': total_lambda,
-            'line': total_line,
-            'goalie_adjustment': goalie_adjustment
+            "over_probability": float(p_over),
+            "under_probability": float(p_under),
+            "expected_total": float(total_lambda),
+            "line": float(total_line),
+            "goalie_adjustment": float(goalie_adjustment),
         }
 
     @staticmethod
-    def simulate_game(
-        home_goals_avg: float,
-        away_goals_avg: float,
-        seed: Optional[int] = None
-    ) -> Dict:
-        """Simulate NHL game"""
-        home_lambda = home_goals_avg + NHLAnalytics.AVG_HOME_ADVANTAGE
-        away_lambda = away_goals_avg
+    def simulate_game(home_goals_avg: float, away_goals_avg: float, seed: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Legacy simulation.
+        """
+        if seed is not None:
+            random.seed(seed)
 
-        result = PoissonCalculator.simulate_match(home_lambda, away_lambda, seed)
+        home_lambda = float(home_goals_avg) + NHLAnalytics.AVG_HOME_ADVANTAGE
+        away_lambda = float(away_goals_avg)
 
-        game_result = {
-            'home_score': result['home_score'],
-            'away_score': result['away_score'],
-            'total_goals': result['total_score'],
-            'regulation_result': result['result'],
-            'margin': result['home_score'] - result['away_score']
+        # If PoissonCalculator exists, use it
+        if PoissonCalculator is not None and hasattr(PoissonCalculator, "simulate_match"):
+            sim = PoissonCalculator.simulate_match(home_lambda, away_lambda, seed)
+            home_score = int(sim.get("home_score", 0))
+            away_score = int(sim.get("away_score", 0))
+            return {
+                "home_score": home_score,
+                "away_score": away_score,
+                "total_goals": home_score + away_score,
+                "margin": home_score - away_score,
+                "regulation_result": sim.get("result"),
+            }
+
+        # fallback sampling
+        def sample_poisson(lam: float) -> int:
+            # Knuth algorithm
+            L = math.exp(-lam)
+            k = 0
+            p = 1.0
+            while p > L:
+                k += 1
+                p *= random.random()
+            return k - 1
+
+        home_score = sample_poisson(home_lambda)
+        away_score = sample_poisson(away_lambda)
+        return {
+            "home_score": int(home_score),
+            "away_score": int(away_score),
+            "total_goals": int(home_score + away_score),
+            "margin": int(home_score - away_score),
+            "regulation_result": "home_win" if home_score > away_score else "away_win" if away_score > home_score else "draw",
         }
 
-        if result['result'] == 'draw':
-            if seed is not None:
-                random.seed(seed + 1)
-            ot_winner = random.choice(['home_win', 'away_win'])
-            game_result['final_result'] = ot_winner
-            game_result['overtime'] = True
-            if ot_winner == 'home_win':
-                game_result['home_score'] += 1
-            else:
-                game_result['away_score'] += 1
-        else:
-            game_result['final_result'] = result['result']
-            game_result['overtime'] = False
 
-        return game_result
+# ============================================================
+# 3) NHLBettingInterface (SportsBetLang-facing surface)
+# ============================================================
+
+@dataclass
+class BetResult:
+    bet_type: str                 # "MONEY" | "SPREAD" | "TOTAL"
+    pick: str                     # "HOME", "AWAY", "HOME -1.5", "UNDER 6.5"
+    prob: float                   # win probability for THIS pick
+    fair_odds: int                # fair American odds
+    market_odds: Optional[float]  # market American odds if supplied
+    implied_prob: Optional[float]
+    edge: Optional[float]
+    ev_per_1: Optional[float]     # EV per $1 risked
+    details: Dict[str, Any]
 
 
-if __name__ == '__main__':
-    print("Enhanced NHL Analytics Library")
-    print("=" * 70)
+class NHLBettingInterface:
+    """
+    SportsBetLang-friendly wrapper.
+    NO ensemble object required: pass your 3 models directly (optional).
 
-    # Example 1: Expected Goals
-    print("\n1. Expected Goals (xG) Calculation:")
-    xg = NHLAdvancedAnalytics.calculate_expected_goals(
-        shot_distance=15,
-        shot_angle=20,
-        shot_type='wrist',
-        shot_quality=ShotQuality.HIGH_DANGER,
-        rebound=True
-    )
-    print(f"   xG for high-danger rebound: {xg:.3f}")
+    Expected (flexible) model method names:
+      - moneyline: predict_moneyline / predict_game / predict
+        returning dict with home prob key:
+          'home_win_prob' OR 'home_win_probability' OR 'p_home' OR 'home_prob'
+      - spread: predict_spread / predict_puckline
+        returning dict with:
+          'home_cover_prob' OR 'cover_probability' (for home side)
+      - expected goals (optional): predict_expected_goals / predict_xg / expected_goals
+        returning dict with: home_xg, away_xg
+    """
 
-    # Example 2: Goaltender Analysis
-    print("\n2. Goaltender Performance Analysis:")
-    goalie_analysis = NHLAdvancedAnalytics.analyze_goaltender_performance(
-        saves=580,
-        shots_against=640,
-        goals_against=60,
-        games_played=20,
-        high_danger_saves=180,
-        high_danger_shots=210,
-        expected_goals_against=65
-    )
-    print(f"   Save%: {goalie_analysis['save_percentage']:.3f}")
-    print(f"   GAA: {goalie_analysis['goals_against_average']:.2f}")
-    print(f"   GSAx: {goalie_analysis['goals_saved_above_expected']:.2f}")
-    print(f"   Performance: {goalie_analysis['performance_vs_expected']}")
+    def __init__(
+        self,
+        power_model: Optional[Any] = None,
+        similar_model: Optional[Any] = None,
+        tree_model: Optional[Any] = None,
+    ):
+        self.power = power_model
+        self.similar = similar_model
+        self.tree = tree_model
 
-    # Example 3: Team Strength Rating
-    print("\n3. Team Strength Analysis:")
-    recent_games = [1, 1, 0, 1, 1, 1, 0, 1, 1, 1]  # 8-2 in last 10
-    strength = NHLAdvancedAnalytics.calculate_team_strength(
-        goals_for=3.5,
-        goals_against=2.3,
-        xg_for=3.2,
-        xg_against=2.5,
-        corsi_pct=54.5,
-        pdo=101.2,
-        recent_form=recent_games
-    )
-    print(f"   Strength Rating: {strength['strength_rating']:.1f}/100")
-    print(f"   Tier: {strength['tier']}")
-    print(f"   xG Differential: {strength['expected_goal_differential']:.2f}")
+    # ---------- MONEY ----------
+    def predict_moneyline(
+        self,
+        home_team: str,
+        away_team: str,
+        features: Dict[str, float],
+        market_home_odds: Optional[float] = None,
+        market_away_odds: Optional[float] = None,
+    ) -> Dict[str, BetResult]:
+        votes, probs, raw = self._collect_moneyline(home_team, away_team, features)
+        p_home = self._avg_or_default(probs, 0.5)
+        p_home = self._clamp(p_home, 0.01, 0.99)
+        p_away = 1.0 - p_home
 
-    # Example 4: Betting Edge Analysis
-    print("\n4. Betting Edge Analysis:")
-    edge_analysis = NHLAdvancedAnalytics.analyze_betting_edge(
-        predicted_probability=0.58,
-        offered_odds=2.1,
-        confidence_interval=(0.53, 0.63),
-        bankroll=1000,
-        use_kelly=True
-    )
-    print(f"   Edge: {edge_analysis['edge_percentage']:.2f}%")
-    print(f"   EV: {edge_analysis['expected_value_pct']:.2f}%")
-    print(f"   Recommended Bet: ${edge_analysis['recommended_bet']:.2f}")
-    print(f"   Recommendation: {edge_analysis['bet_recommendation']}")
+        details = {
+            "home_team": home_team,
+            "away_team": away_team,
+            "model_probs_home": probs,
+            "model_votes": votes,
+            "convergence": self._convergence(votes),
+            "raw": raw,
+        }
 
-    # Example 5: First Period Analysis
-    print("\n5. First Period Betting:")
-    fp = NHLAdvancedAnalytics.calculate_first_period_probability(
-        home_goals_avg=3.2,
-        away_goals_avg=2.8,
-        total_line=1.5
-    )
-    print(f"   Scoreless 1P Probability: {fp['scoreless_probability']*100:.1f}%")
-    print(f"   Over 1.5 Goals: {fp['over_total']*100:.1f}%")
-    print(f"   Expected 1P Goals: {fp['expected_goals_1p']:.2f}")
+        return {
+            "HOME": self._make("MONEY", "HOME", p_home, market_home_odds, details),
+            "AWAY": self._make("MONEY", "AWAY", p_away, market_away_odds, details),
+        }
 
-    # Example 6: Player Prop
-    print("\n6. Player Prop Analysis:")
-    prop = NHLAdvancedAnalytics.calculate_player_prop_probability(
-        player_avg=0.95,
-        prop_line=0.5,
-        stat_type='points',
-        opponent_adjustment=1.1
-    )
-    print(f"   Over 0.5 Points: {prop['over_probability']*100:.1f}%")
-    print(f"   Recommendation: {prop['recommendation']}")
+    # ---------- SPREAD ----------
+    def predict_spread(
+        self,
+        home_team: str,
+        away_team: str,
+        features: Dict[str, float],
+        line_home: float,
+        line_away: float,
+        market_home_odds: Optional[float] = None,
+        market_away_odds: Optional[float] = None,
+    ) -> Dict[str, BetResult]:
+        votes, probs, raw = self._collect_spread(home_team, away_team, features, line_home, line_away)
+        p_home_cover = self._avg_or_default(probs, 0.5)
+        p_home_cover = self._clamp(p_home_cover, 0.01, 0.99)
+        p_away_cover = 1.0 - p_home_cover
 
-    # Example 7: Score-Adjusted Corsi
-    print("\n7. Score-Adjusted Corsi:")
-    adj_corsi = NHLAdvancedAnalytics.calculate_score_adjusted_corsi(
-        shots_for=30, shots_against=28,
-        blocked_for=8, blocked_against=10,
-        missed_for=6, missed_against=5,
-        goal_differential=2,
-        time_trailing=5.0, time_leading=35.0, time_tied=20.0
-    )
-    print(f"   Raw Corsi%: {adj_corsi['raw_corsi_pct']:.1f}%")
-    print(f"   Adjusted Corsi%: {adj_corsi['adjusted_corsi_pct']:.1f}%")
-    print(f"   Score Effect: {adj_corsi['score_effect']:+.1f}%")
+        details = {
+            "home_team": home_team,
+            "away_team": away_team,
+            "line_home": line_home,
+            "line_away": line_away,
+            "model_probs_home_cover": probs,
+            "model_votes": votes,
+            "convergence": self._convergence(votes),
+            "raw": raw,
+        }
+
+        return {
+            "HOME": self._make("SPREAD", f"HOME {line_home:+.1f}", p_home_cover, market_home_odds, details),
+            "AWAY": self._make("SPREAD", f"AWAY {line_away:+.1f}", p_away_cover, market_away_odds, details),
+        }
+
+    # ---------- TOTAL ----------
+    def predict_total(
+        self,
+        home_team: str,
+        away_team: str,
+        features: Dict[str, float],
+        total_line: float,
+        market_over_odds: Optional[float] = None,
+        market_under_odds: Optional[float] = None,
+        max_goals_sum: int = 25,
+    ) -> Dict[str, BetResult]:
+        home_xg, away_xg, src = self._expected_goals(home_team, away_team, features)
+        lam_total = home_xg + away_xg
+
+        p_over = _poisson_prob_over_line(lam_total, total_line, max_k=max_goals_sum)
+        p_under = _poisson_prob_under_line(lam_total, total_line, max_k=max_goals_sum)
+        p_push = _poisson_prob_push(lam_total, total_line)
+
+        details = {
+            "home_team": home_team,
+            "away_team": away_team,
+            "home_xg": home_xg,
+            "away_xg": away_xg,
+            "expected_total": lam_total,
+            "total_line": total_line,
+            "p_push": p_push,
+            "xg_source": src,
+        }
+
+        return {
+            "OVER": self._make("TOTAL", f"OVER {total_line:.1f}", float(p_over), market_over_odds, details),
+            "UNDER": self._make("TOTAL", f"UNDER {total_line:.1f}", float(p_under), market_under_odds, details),
+        }
+
+    # ----------------------------
+    # Internal: model calls + extraction
+    # ----------------------------
+
+    def _collect_moneyline(
+        self, home: str, away: str, features: Dict[str, float]
+    ) -> Tuple[Dict[str, str], Dict[str, float], Dict[str, Any]]:
+        votes: Dict[str, str] = {}
+        probs: Dict[str, float] = {}
+        raw: Dict[str, Any] = {}
+
+        for name, model in (("power", self.power), ("similar", self.similar), ("tree", self.tree)):
+            if model is None:
+                continue
+            out = self._safe_call(model, ["predict_moneyline", "predict_game", "predict"], home, away, features)
+            raw[name] = out
+            p = self._extract_home_prob(out)
+            if p is not None:
+                probs[name] = p
+                votes[name] = "HOME" if p >= 0.5 else "AWAY"
+
+        return votes, probs, raw
+
+    def _collect_spread(
+        self, home: str, away: str, features: Dict[str, float], line_home: float, line_away: float
+    ) -> Tuple[Dict[str, str], Dict[str, float], Dict[str, Any]]:
+        votes: Dict[str, str] = {}
+        probs: Dict[str, float] = {}
+        raw: Dict[str, Any] = {}
+
+        for name, model in (("power", self.power), ("similar", self.similar), ("tree", self.tree)):
+            if model is None:
+                continue
+            out = self._safe_call(
+                model,
+                ["predict_spread", "predict_puckline", "predict_game", "predict"],
+                home, away, features, line_home, line_away
+            )
+            raw[name] = out
+            p = self._extract_home_cover_prob(out)
+            if p is not None:
+                probs[name] = p
+                votes[name] = f"HOME {line_home:+.1f}" if p >= 0.5 else f"AWAY {line_away:+.1f}"
+
+        return votes, probs, raw
+
+    def _expected_goals(self, home: str, away: str, features: Dict[str, float]) -> Tuple[float, float, str]:
+        # ask models first
+        for name, model in (("power", self.power), ("similar", self.similar), ("tree", self.tree)):
+            if model is None:
+                continue
+            out = self._safe_call(model, ["predict_expected_goals", "predict_xg", "expected_goals"], home, away, features)
+            if isinstance(out, dict) and out.get("home_xg") is not None and out.get("away_xg") is not None:
+                return float(out["home_xg"]), float(out["away_xg"]), f"{name}.model"
+
+        # feature proxy fallback:
+        base_total = float(features.get("xgf_total_proxy", NHLConstants.AVG_TOTAL_GOALS))
+        total = 0.65 * NHLConstants.AVG_TOTAL_GOALS + 0.35 * base_total
+
+        home_adv = float(features.get("home_advantage", NHLConstants.AVG_HOME_ADVANTAGE))
+        gsax_diff = float(features.get("gsax_diff", 0.0))
+
+        strength = float(features.get("xgf_diff", features.get("xg_diff", 0.0)))
+
+        share = 0.5 + 0.06 * strength + 0.05 * home_adv + 0.02 * gsax_diff
+        share = self._clamp(share, 0.35, 0.65)
+
+        home_xg = total * share
+        away_xg = total - home_xg
+        home_xg = self._clamp(home_xg, 1.2, 5.5)
+        away_xg = self._clamp(away_xg, 1.2, 5.5)
+        return float(home_xg), float(away_xg), "feature_proxy"
+
+    @staticmethod
+    def _safe_call(model: Any, method_names: List[str], *args) -> Any:
+        for m in method_names:
+            if hasattr(model, m):
+                fn = getattr(model, m)
+                try:
+                    return fn(*args)
+                except TypeError:
+                    # some models accept fewer args
+                    try:
+                        return fn(*args[:2])
+                    except Exception:
+                        continue
+                except Exception:
+                    continue
+        return None
+
+    @staticmethod
+    def _extract_home_prob(out: Any) -> Optional[float]:
+        if not isinstance(out, dict):
+            return None
+        for k in ("home_win_prob", "home_win_probability", "p_home", "home_prob", "prob_home"):
+            if k in out and out[k] is not None:
+                try:
+                    return float(out[k])
+                except Exception:
+                    return None
+        return None
+
+    @staticmethod
+    def _extract_home_cover_prob(out: Any) -> Optional[float]:
+        if not isinstance(out, dict):
+            return None
+        for k in ("home_cover_prob", "cover_probability", "p_home_cover"):
+            if k in out and out[k] is not None:
+                try:
+                    return float(out[k])
+                except Exception:
+                    return None
+        return None
+
+    # ----------------------------
+    # Output builder
+    # ----------------------------
+
+    def _make(self, bet_type: str, pick: str, prob: float, market_odds: Optional[float], details: Dict[str, Any]) -> BetResult:
+        prob = self._clamp(float(prob), 0.001, 0.999)
+        fair = prob_to_american(prob)
+
+        implied = edge = ev = None
+        if market_odds is not None:
+            implied = american_to_implied_prob(float(market_odds))
+            edge = prob - implied
+            ev = expected_value_per_1_risk(prob, float(market_odds))
+
+        return BetResult(
+            bet_type=bet_type,
+            pick=pick,
+            prob=prob,
+            fair_odds=fair,
+            market_odds=market_odds,
+            implied_prob=implied,
+            edge=edge,
+            ev_per_1=ev,
+            details=details,
+        )
+
+    @staticmethod
+    def _avg_or_default(d: Dict[str, float], default: float) -> float:
+        if not d:
+            return default
+        return sum(d.values()) / float(len(d))
+
+    @staticmethod
+    def _convergence(votes: Dict[str, str]) -> Dict[str, Any]:
+        counts: Dict[str, int] = {}
+        for v in votes.values():
+            counts[v] = counts.get(v, 0) + 1
+        best = max(counts.items(), key=lambda kv: kv[1])[0] if counts else None
+        return {"counts": counts, "best_pick": best, "max_count": counts.get(best, 0) if best else 0}
+
+    @staticmethod
+    def _clamp(x: float, lo: float, hi: float) -> float:
+        return float(max(lo, min(hi, x)))
+
+
+# ----------------------------
+# Tiny smoke test (optional)
+# ----------------------------
+if __name__ == "__main__":
+    print("Loaded nhl_analytics.py (legacy + SportsBetLang interface)")
+    print("Legacy NHLAnalytics exists:", hasattr(NHLAnalytics, "calculate_moneyline_probability"))
+    print("SportsBetLang wrapper exists:", NHLBettingInterface)

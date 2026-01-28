@@ -301,6 +301,225 @@ def quick_soccer_btts(team_goals_avg: float, opp_goals_avg: float,
     )
 
 
+def quick_cbb_prediction(team_kenpom: float, opp_kenpom: float,
+                        team_adj_em: float, opp_adj_em: float,
+                        home: bool = True, conference: bool = False,
+                        tournament: bool = False) -> float:
+    """
+    Quick College Basketball prediction using KenPom ratings
+
+    Args:
+        team_kenpom: Team KenPom rating
+        opp_kenpom: Opponent KenPom rating
+        team_adj_em: Team adjusted efficiency margin
+        opp_adj_em: Opponent adjusted efficiency margin
+        home: Home court advantage
+        conference: Conference game
+        tournament: Tournament game (March Madness)
+
+    Returns:
+        Win probability
+
+    Example:
+        >>> prob = quick_cbb_prediction(25.5, 18.2, 20.5, 15.2, home=True, tournament=True)
+        >>> print(f"Win probability: {prob:.1%}")
+    """
+    # Calculate efficiency margin difference
+    em_diff = team_adj_em - opp_adj_em
+
+    # Home court advantage (stronger in college)
+    if home:
+        em_diff += 3.25  # 6.5% advantage = 3.25 point spread
+
+    # Conference game adjustment
+    if conference and abs(em_diff) > 10:
+        em_diff *= 0.95  # Reduce favorite's edge
+
+    # Tournament adjustment (upsets more common)
+    if tournament and em_diff > 15:
+        em_diff *= 0.90  # Big favorites perform worse
+
+    # Convert to probability using logistic function
+    import math
+    prob = 1 / (1 + math.exp(-em_diff / 11))
+
+    return max(0.05, min(0.95, prob))
+
+
+def quick_cfb_prediction(team_sp: float, opp_sp: float,
+                        home: bool = True, rivalry: bool = False,
+                        conference: bool = False,
+                        team_recruiting_rank: float = 50,
+                        opp_recruiting_rank: float = 50) -> float:
+    """
+    Quick College Football prediction using SP+ ratings
+
+    Args:
+        team_sp: Team SP+ rating
+        opp_sp: Opponent SP+ rating
+        home: Home field advantage
+        rivalry: Rivalry game
+        conference: Conference game
+        team_recruiting_rank: Team recruiting rank (1-130)
+        opp_recruiting_rank: Opponent recruiting rank (1-130)
+
+    Returns:
+        Win probability
+
+    Example:
+        >>> prob = quick_cfb_prediction(18.5, 12.3, home=True, rivalry=True)
+        >>> print(f"Win probability: {prob:.1%}")
+    """
+    # Calculate SP+ difference
+    sp_diff = team_sp - opp_sp
+
+    # Home field advantage (stronger in college)
+    if home:
+        sp_diff += 4.0  # 8% advantage = 4 point spread
+
+    # Rivalry game adjustment
+    if rivalry and sp_diff > 15:
+        sp_diff *= 0.85  # Favorites perform worse
+
+    # Conference game adjustment
+    if conference and abs(sp_diff) > 20:
+        sp_diff *= 0.93
+
+    # Talent/recruiting adjustment
+    recruiting_diff = opp_recruiting_rank - team_recruiting_rank
+    sp_diff += recruiting_diff / 50  # Subtle effect
+
+    # Convert to probability
+    import math
+    prob = 1 / (1 + math.exp(-sp_diff / 13))
+
+    return max(0.05, min(0.95, prob))
+
+
+def quick_wnba_prediction(team_off_rtg: float, team_def_rtg: float,
+                         opp_off_rtg: float, opp_def_rtg: float,
+                         home: bool = True,
+                         rest_days_team: int = 2,
+                         rest_days_opp: int = 2) -> float:
+    """
+    Quick WNBA prediction
+
+    Args:
+        team_off_rtg: Team offensive rating
+        team_def_rtg: Team defensive rating
+        opp_off_rtg: Opponent offensive rating
+        opp_def_rtg: Opponent defensive rating
+        home: Home court advantage
+        rest_days_team: Team rest days
+        rest_days_opp: Opponent rest days
+
+    Returns:
+        Win probability
+
+    Example:
+        >>> prob = quick_wnba_prediction(105, 100, 102, 101, home=True, rest_days_team=3, rest_days_opp=1)
+        >>> print(f"Win probability: {prob:.1%}")
+    """
+    # Calculate net ratings
+    team_net = team_off_rtg - team_def_rtg
+    opp_net = opp_off_rtg - opp_def_rtg
+
+    net_diff = team_net - opp_net
+
+    # Home court advantage
+    if home:
+        net_diff += 3.0  # 6% advantage = 3 points
+
+    # Rest advantage (important in WNBA!)
+    rest_diff = rest_days_team - rest_days_opp
+    if abs(rest_diff) >= 3:
+        net_diff += rest_diff * 1.5
+    elif abs(rest_diff) == 2:
+        net_diff += rest_diff * 1.0
+    elif abs(rest_diff) == 1:
+        net_diff += rest_diff * 0.5
+
+    # Convert to probability
+    import math
+    prob = 1 / (1 + math.exp(-net_diff / 11))
+
+    return max(0.1, min(0.9, prob))
+
+
+def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
+                        opp_xg_for: float, opp_xg_against: float,
+                        home: bool = True) -> float:
+    """
+    Quick NHL prediction using Expected Goals (xG)
+
+    Args:
+        team_xg_for: Team expected goals for per game
+        team_xg_against: Team expected goals against per game
+        opp_xg_for: Opponent expected goals for per game
+        opp_xg_against: Opponent expected goals against per game
+        home: Home ice advantage
+
+    Returns:
+        Win probability
+
+    Example:
+        >>> prob = quick_nhl_prediction(3.2, 2.8, 2.9, 3.0, home=True)
+        >>> print(f"Win probability: {prob:.1%}")
+    """
+    # Calculate goal differentials
+    team_goal_diff = team_xg_for - team_xg_against
+    opp_goal_diff = opp_xg_for - opp_xg_against
+
+    diff = team_goal_diff - opp_goal_diff
+
+    # Home ice advantage
+    if home:
+        diff += 0.1  # Smaller in NHL
+
+    # Convert to probability
+    import math
+    prob = 0.5 + (diff / 10)
+    prob = max(0.1, min(0.9, prob))
+
+    return prob
+
+
+def quick_mlb_prediction(team_rating: float, opp_rating: float,
+                        home: bool = True,
+                        park_factor: float = 1.0) -> float:
+    """
+    Quick MLB prediction with park factors
+
+    Args:
+        team_rating: Team rating (Elo, power rating, etc.)
+        opp_rating: Opponent rating
+        home: Home field advantage
+        park_factor: Park factor (1.0 = neutral, >1.0 = hitter-friendly)
+
+    Returns:
+        Win probability
+
+    Example:
+        >>> prob = quick_mlb_prediction(1550, 1500, home=True, park_factor=1.05)
+        >>> print(f"Win probability: {prob:.1%}")
+    """
+    rating_diff = team_rating - opp_rating
+
+    # Home advantage
+    if home:
+        rating_diff += 25  # 5% advantage
+
+    # Park effect (subtle)
+    park_effect = (park_factor - 1.0) * 15
+    rating_diff += park_effect
+
+    # Convert to probability
+    import math
+    prob = 1 / (1 + 10 ** (-rating_diff / 400))  # Elo-style
+
+    return max(0.1, min(0.9, prob))
+
+
 # Data validation helpers
 
 def validate_nba_data(games: List[Dict]) -> Tuple[bool, List[str]]:
