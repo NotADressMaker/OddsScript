@@ -3,90 +3,142 @@
 Show only NHL picks where ALL 3 models agree
 """
 
-from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
 import random
+
+from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
+from sportsbetlang.common.odds import implied_probability, remove_vig
 
 # Tomorrow's NHL Games (Tuesday)
 GAMES = [
     {
         'away': 'Nashville Predators',
         'home': 'Boston Bruins',
-        'spread': -1.5,
-        'ou_line': 6.5,
+        'away_ml': +205,
         'home_ml': -265,
-        'away_ml': +210
+        'away_spread': +1.5,
+        'away_spread_odds': -106,
+        'home_spread': -1.5,
+        'home_spread_odds': -113,
+        'ou_line': 6.5,
+        'over_odds': +100,
+        'under_odds': -122
     },
     {
         'away': 'Winnipeg Jets',
         'home': 'New Jersey Devils',
-        'spread': -1.5,
+        'away_ml': +194,
+        'home_ml': -245,
+        'away_spread': +1.5,
+        'away_spread_odds': +106,
+        'home_spread': -1.5,
+        'home_spread_odds': -128,
         'ou_line': 5.5,
-        'home_ml': -230,
-        'away_ml': +184
+        'over_odds': -118,
+        'under_odds': -104
     },
     {
         'away': 'Los Angeles Kings',
         'home': 'Detroit Red Wings',
-        'spread': -1.5,
-        'ou_line': 5.5,
+        'away_ml': +186,
         'home_ml': -235,
-        'away_ml': +186
+        'away_spread': +1.5,
+        'away_spread_odds': +108,
+        'home_spread': -1.5,
+        'home_spread_odds': -130,
+        'ou_line': 5.5,
+        'over_odds': -118,
+        'under_odds': -104
     },
     {
         'away': 'Utah Mammoth',
         'home': 'Florida Panthers',
-        'spread': -1.5,
+        'away_ml': +148,
+        'home_ml': -184,
+        'away_spread': +1.5,
+        'away_spread_odds': +132,
+        'home_spread': -1.5,
+        'home_spread_odds': -160,
         'ou_line': 6.5,
-        'home_ml': -172,
-        'away_ml': +140
+        'over_odds': +100,
+        'under_odds': -122
     },
     {
         'away': 'Buffalo Sabres',
         'home': 'Toronto Maple Leafs',
-        'spread': -1.5,
-        'ou_line': 6.5,
+        'away_ml': +205,
         'home_ml': -265,
-        'away_ml': +210
+        'away_spread': +1.5,
+        'away_spread_odds': -110,
+        'home_spread': -1.5,
+        'home_spread_odds': -110,
+        'ou_line': 6.5,
+        'over_odds': -110,
+        'under_odds': -110
     },
     {
         'away': 'Vegas Golden Knights',
         'home': 'Montreal Canadiens',
-        'spread': +1.5,
-        'ou_line': 6.5,
+        'away_ml': -114,
         'home_ml': -260,
-        'away_ml': +205
+        'away_spread': -1.5,
+        'away_spread_odds': +205,
+        'home_spread': +1.5,
+        'home_spread_odds': -105,
+        'ou_line': 6.5,
+        'over_odds': -112,
+        'under_odds': -108
     },
     {
         'away': 'Dallas Stars',
         'home': 'St. Louis Blues',
-        'spread': -1.5,
+        'away_ml': -162,
+        'home_ml': -194,
+        'away_spread': -1.5,
+        'away_spread_odds': +154,
+        'home_spread': +1.5,
+        'home_spread_odds': +134,
         'ou_line': 5.5,
-        'home_ml': -184,
-        'away_ml': +148
+        'over_odds': -120,
+        'under_odds': -102
     },
     {
         'away': 'Chicago Blackhawks',
         'home': 'Minnesota Wild',
-        'spread': -1.5,
+        'away_ml': +198,
+        'home_ml': -245,
+        'away_spread': +1.5,
+        'away_spread_odds': -122,
+        'home_spread': -1.5,
+        'home_spread_odds': +100,
         'ou_line': 6.5,
-        'home_ml': -120,
-        'away_ml': +202
+        'over_odds': +110,
+        'under_odds': -134
     },
     {
         'away': 'San Jose Sharks',
         'home': 'Vancouver Canucks',
-        'spread': -1.5,
+        'away_ml': -128,
+        'home_ml': -225,
+        'away_spread': -1.5,
+        'away_spread_odds': +180,
+        'home_spread': +1.5,
+        'home_spread_odds': +106,
         'ou_line': 6.5,
-        'home_ml': -245,
-        'away_ml': +190
+        'over_odds': -104,
+        'under_odds': -118
     },
     {
         'away': 'Washington Capitals',
         'home': 'Seattle Kraken',
-        'spread': -1.5,
-        'ou_line': 5.5,
+        'away_ml': -140,
         'home_ml': -215,
-        'away_ml': +172
+        'away_spread': -1.5,
+        'away_spread_odds': +168,
+        'home_spread': +1.5,
+        'home_spread_odds': +116,
+        'ou_line': 5.5,
+        'over_odds': -138,
+        'under_odds': +112
     }
 ]
 
@@ -137,12 +189,29 @@ POWER_RATINGS = {
 }
 
 
+def fair_market_probs(odds_a, odds_b):
+    implied_a = implied_probability(odds_a)
+    implied_b = implied_probability(odds_b)
+    return remove_vig(implied_a, implied_b)
+
+
+def average(values):
+    return sum(values) / len(values) if values else None
+
+
+def expected_value_per_1(prob, odds):
+    if odds > 0:
+        win_amount = odds / 100
+    else:
+        win_amount = 100 / abs(odds)
+    return (prob * win_amount) - (1 - prob)
+
+
 def main():
     print("=" * 80)
     print("🏒 NHL UNANIMOUS PICKS - ALL 3 MODELS AGREE")
     print("=" * 80)
-    print("Showing only picks where Decision Tree, Power Rankings, AND Similar Game")
-    print("models all agree on the same prediction\n")
+    print("Showing picks where model probabilities beat no-vig market\n")
 
     # Initialize models
     tree = NHLDecisionTree()
@@ -171,7 +240,7 @@ def main():
     for game in GAMES:
         away_team = game['away']
         home_team = game['home']
-        spread = game['spread']
+        spread = game['home_spread']
         ou_line = game['ou_line']
 
         away_stats = TEAM_STATS[away_team]
@@ -199,7 +268,13 @@ def main():
         # Power Rankings predictions
         rankings.set_rating(home_team, POWER_RATINGS[home_team])
         rankings.set_rating(away_team, POWER_RATINGS[away_team])
-        pr = rankings.predict_game(home_team, away_team, team1_home=True)
+        pr = rankings.predict_game(
+            home_team,
+            away_team,
+            team1_home=True,
+            line_total=ou_line,
+            line_spread=spread
+        )
 
         # Similar Game predictions
         sim_pred = sim_model.predict_from_similar(
@@ -208,85 +283,118 @@ def main():
             line_total=ou_line, line_spread=spread, team1_home=True
         )
 
-        # Determine Power Rankings votes
-        pr_ou_vote = None
-        if abs(pr['expected_total'] - ou_line) > 0.3:
-            pr_ou_vote = 'OVER' if pr['expected_total'] > ou_line else 'UNDER'
+        # Totals probability edge
+        over_probs = [
+            dt_ou.get('over_probability'),
+            pr.get('over_probability'),
+            sim_pred.get('over_under', {}).get('over_probability')
+        ]
+        under_probs = [
+            dt_ou.get('under_probability'),
+            pr.get('under_probability'),
+            sim_pred.get('over_under', {}).get('under_probability')
+        ]
+        p_over = average([p for p in over_probs if p is not None])
+        p_under = average([p for p in under_probs if p is not None])
+        if p_over is None and p_under is not None:
+            p_over = 1 - p_under
+        if p_under is None and p_over is not None:
+            p_under = 1 - p_over
 
-        pr_ats_vote = None
-        if abs(pr['expected_goal_differential'] - spread) > 0.5:
-            pr_ats_vote = 'COVER' if pr['expected_goal_differential'] > abs(spread) else 'NO COVER'
+        if p_over is not None and p_under is not None:
+            market_over_prob, market_under_prob = fair_market_probs(game['over_odds'], game['under_odds'])
+            edge_over = p_over - market_over_prob
+            edge_under = p_under - market_under_prob
+            if edge_over > 0 or edge_under > 0:
+                if edge_over >= edge_under:
+                    odds = game['over_odds']
+                    pick = f"OVER {ou_line}"
+                    probability = p_over
+                    market_prob = market_over_prob
+                    edge = edge_over
+                else:
+                    odds = game['under_odds']
+                    pick = f"UNDER {ou_line}"
+                    probability = p_under
+                    market_prob = market_under_prob
+                    edge = edge_under
 
-        # Check for unanimous O/U
-        ou_votes = []
-        if dt_ou['confidence'] >= 0.60 and dt_ou['prediction'] != 'PUSH':
-            ou_votes.append(('DT', dt_ou['prediction'], dt_ou['confidence']))
-        if pr_ou_vote:
-            conf = min(0.70, 0.50 + abs(pr['expected_total'] - ou_line) * 0.1)
-            ou_votes.append(('PR', pr_ou_vote, conf))
-        if 'over_under' in sim_pred and sim_pred['over_under']['confidence'] >= 0.60 and sim_pred['over_under']['prediction'] != 'PUSH':
-            ou_votes.append(('SG', sim_pred['over_under']['prediction'], sim_pred['over_under']['confidence']))
-
-        # Check if all 3 agree on O/U
-        if len(ou_votes) == 3:
-            predictions = [v[1] for v in ou_votes]
-            if len(set(predictions)) == 1:  # All same prediction
-                avg_conf = sum(v[2] for v in ou_votes) / 3
                 unanimous_picks.append({
                     'type': 'O/U',
                     'game': f"{away_team} @ {home_team}",
-                    'pick': f"{predictions[0]} {ou_line}",
-                    'confidence': avg_conf,
-                    'details': f"Expected: {dt_ou['expected_total']:.1f}, Line: {ou_line}"
+                    'pick': pick,
+                    'probability': probability,
+                    'market_prob': market_prob,
+                    'edge': edge,
+                    'ev': expected_value_per_1(probability, odds),
+                    'details': f"Expected: {dt_ou['expected_total']:.1f}, Line: {ou_line}",
+                    'odds': odds
                 })
 
-        # Check for unanimous ATS
-        ats_votes = []
-        if dt_ats['confidence'] >= 0.60 and dt_ats['prediction'] != 'PUSH':
-            ats_votes.append(('DT', dt_ats['prediction'], dt_ats['confidence']))
-        if pr_ats_vote:
-            conf = min(0.70, 0.50 + abs(pr['expected_goal_differential'] - abs(spread)) * 0.1)
-            ats_votes.append(('PR', pr_ats_vote, conf))
-        if 'against_spread' in sim_pred and sim_pred['against_spread']['confidence'] >= 0.60 and sim_pred['against_spread']['prediction'] != 'PUSH':
-            ats_votes.append(('SG', sim_pred['against_spread']['prediction'], sim_pred['against_spread']['confidence']))
+        # ATS probability edge
+        cover_probs = [
+            dt_ats.get('cover_probability'),
+            pr.get('team1_cover_probability'),
+            sim_pred.get('against_spread', {}).get('cover_probability')
+        ]
+        p_home_cover = average([p for p in cover_probs if p is not None])
+        if p_home_cover is not None:
+            p_away_cover = 1 - p_home_cover
+            market_home_prob, market_away_prob = fair_market_probs(
+                game['home_spread_odds'], game['away_spread_odds']
+            )
+            edge_home = p_home_cover - market_home_prob
+            edge_away = p_away_cover - market_away_prob
+            if edge_home > 0 or edge_away > 0:
+                if edge_home >= edge_away:
+                    odds = game['home_spread_odds']
+                    pick = f"{home_team} {game['home_spread']:+.1f}"
+                    probability = p_home_cover
+                    market_prob = market_home_prob
+                    edge = edge_home
+                else:
+                    odds = game['away_spread_odds']
+                    pick = f"{away_team} {game['away_spread']:+.1f}"
+                    probability = p_away_cover
+                    market_prob = market_away_prob
+                    edge = edge_away
 
-        # Check if all 3 agree on ATS
-        if len(ats_votes) == 3:
-            predictions = [v[1] for v in ats_votes]
-            if len(set(predictions)) == 1:  # All same prediction
-                avg_conf = sum(v[2] for v in ats_votes) / 3
-                team_to_bet = home_team if predictions[0] == 'COVER' else away_team
-                spread_to_bet = spread if predictions[0] == 'COVER' else -spread
                 unanimous_picks.append({
                     'type': 'ATS',
                     'game': f"{away_team} @ {home_team}",
-                    'pick': f"{team_to_bet} {spread_to_bet:+.1f}",
-                    'confidence': avg_conf,
-                    'details': f"Expected diff: {dt_ats['expected_differential']:+.1f}"
+                    'pick': pick,
+                    'probability': probability,
+                    'market_prob': market_prob,
+                    'edge': edge,
+                    'ev': expected_value_per_1(probability, odds),
+                    'details': f"Expected diff: {dt_ats['expected_differential']:+.1f}",
+                    'odds': odds
                 })
 
-    # Display unanimous picks
+    # Display picks
     if unanimous_picks:
-        print(f"Found {len(unanimous_picks)} unanimous picks:\n")
+        print(f"Found {len(unanimous_picks)} picks with positive edge:\n")
 
         for i, pick in enumerate(unanimous_picks, 1):
+            odds_str = f"{pick['odds']:+d}"
             print(f"{i}. {pick['game']}")
-            print(f"   🎯 BET: {pick['pick']}")
-            print(f"   ✅ All 3 models agree ({pick['type']})")
-            print(f"   💪 Confidence: {pick['confidence']:.1%}")
+            print(f"   🎯 BET: {pick['pick']} {odds_str}")
+            print(f"   💪 Probability: {pick['probability']:.1%}")
+            print(f"   🎯 Market (no-vig): {pick['market_prob']:.1%} | Edge: {pick['edge']:+.1%}")
+            print(f"   💵 EV per $1: {pick['ev']:+.3f}")
             print(f"   📊 {pick['details']}")
             print()
 
         print("=" * 80)
-        print(f"💎 STRONGEST UNANIMOUS PICKS (sorted by confidence):")
+        print("💎 STRONGEST PICKS (sorted by edge):")
         print("=" * 80)
 
-        sorted_picks = sorted(unanimous_picks, key=lambda x: x['confidence'], reverse=True)
+        sorted_picks = sorted(unanimous_picks, key=lambda x: x['edge'], reverse=True)
         for i, pick in enumerate(sorted_picks[:5], 1):
-            print(f"{i}. {pick['pick']:30s} | {pick['confidence']:.0%} | {pick['game']}")
+            print(f"{i}. {pick['pick']:30s} | {pick['edge']:+.1%} | {pick['game']}")
 
     else:
-        print("⚠️  No unanimous picks found (all 3 models must agree with 60%+ confidence)")
+        print("⚠️  No picks found with positive edge")
 
     print("\n" + "=" * 80)
 

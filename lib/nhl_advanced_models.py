@@ -13,6 +13,26 @@ import random
 from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
+from lib.poisson_calculator import PoissonCalculator
+
+
+def _sigmoid(x: float) -> float:
+    return 1.0 / (1.0 + math.exp(-x))
+
+
+def _clamp_prob(p: float, lo: float = 0.01, hi: float = 0.99) -> float:
+    return max(lo, min(hi, p))
+
+
+def _cover_probability_from_margin(margin: float, scale: float = 0.9) -> float:
+    return _clamp_prob(_sigmoid(margin / scale))
+
+
+def _split_total_into_lambdas(total: float, diff: float) -> Tuple[float, float]:
+    home_lambda = max(0.2, (total + diff) / 2.0)
+    away_lambda = max(0.2, total - home_lambda)
+    return home_lambda, away_lambda
+
 
 class NHLDecisionTree:
     """
@@ -137,9 +157,29 @@ class NHLDecisionTree:
             if recent_avg * 2 < line:
                 confidence = min(0.75, confidence + 0.05)
 
+        share = team1_expected / max(0.1, (team1_expected + team2_expected))
+        home_lambda = adjusted_total * share
+        away_lambda = max(0.1, adjusted_total - home_lambda)
+        total_probs = PoissonCalculator.calculate_total_probabilities(
+            home_lambda, away_lambda, line, max_goals=15
+        )
+        over_prob = total_probs['over_probability']
+        under_prob = total_probs['under_probability']
+        push_prob = max(0.0, 1.0 - over_prob - under_prob)
+
+        if prediction == "OVER":
+            confidence = max(confidence, over_prob)
+        elif prediction == "UNDER":
+            confidence = max(confidence, under_prob)
+        else:
+            confidence = 0.5
+
         return {
             'prediction': prediction,
             'confidence': confidence,
+            'over_probability': round(over_prob, 4),
+            'under_probability': round(under_prob, 4),
+            'push_probability': round(push_prob, 4),
             'expected_total': round(adjusted_total, 2),
             'line': line,
             'difference': round(adjusted_total - line, 2),
@@ -261,9 +301,27 @@ class NHLDecisionTree:
             if abs(cover_margin) > 0.8:
                 confidence = min(0.78, confidence + 0.05)
 
+        cover_prob = _cover_probability_from_margin(cover_margin)
+        push_prob = 0.0 if abs(spread) % 1.0 != 0 else max(0.0, 0.02 - abs(cover_margin) * 0.02)
+        no_cover_prob = max(0.0, 1.0 - cover_prob - push_prob)
+
+        if prediction == "COVER":
+            confidence = max(confidence, cover_prob)
+        elif prediction == "NO COVER":
+            confidence = max(confidence, no_cover_prob)
+        else:
+            confidence = 0.5
+
+        win_prob = _cover_probability_from_margin(xg_differential, scale=1.0)
+
         return {
             'prediction': prediction,
             'confidence': confidence,
+            'cover_probability': round(cover_prob, 4),
+            'no_cover_probability': round(no_cover_prob, 4),
+            'push_probability': round(push_prob, 4),
+            'team_win_probability': round(win_prob, 4),
+            'opp_win_probability': round(1.0 - win_prob, 4),
             'expected_differential': round(xg_differential, 2),
             'spread': spread,
             'cover_margin': round(cover_margin, 2),
@@ -367,7 +425,9 @@ class NHLPowerRankings:
         self,
         team1: str,
         team2: str,
-        team1_home: bool = True
+        team1_home: bool = True,
+        line_total: Optional[float] = None,
+        line_spread: Optional[float] = None
     ) -> Dict:
         """
         Predict game outcome using power rankings
@@ -399,9 +459,28 @@ class NHLPowerRankings:
         rating_factor = (avg_rating - self.default_rating) / 200.0
         expected_total = 6.0 + rating_factor
 
+        over_prob = under_prob = None
+        home_cover_prob = away_cover_prob = None
+        if line_total is not None:
+            home_lambda, away_lambda = _split_total_into_lambdas(expected_total, expected_diff)
+            total_probs = PoissonCalculator.calculate_total_probabilities(
+                home_lambda, away_lambda, line_total, max_goals=15
+            )
+            over_prob = total_probs['over_probability']
+            under_prob = total_probs['under_probability']
+
+        if line_spread is not None:
+            cover_margin = expected_diff + line_spread
+            home_cover_prob = _cover_probability_from_margin(cover_margin)
+            away_cover_prob = 1.0 - home_cover_prob
+
         return {
             'team1_win_probability': round(team1_win_prob, 3),
             'team2_win_probability': round(1 - team1_win_prob, 3),
+            'team1_cover_probability': round(home_cover_prob, 3) if home_cover_prob is not None else None,
+            'team2_cover_probability': round(away_cover_prob, 3) if away_cover_prob is not None else None,
+            'over_probability': round(over_prob, 3) if over_prob is not None else None,
+            'under_probability': round(under_prob, 3) if under_prob is not None else None,
             'expected_goal_differential': round(expected_diff, 2),
             'expected_total': round(expected_total, 1),
             'team1_rating': round(team1_rating, 1),
@@ -618,6 +697,7 @@ class NHLSimilarGameModel:
 
         over_pct = over_count / len(similar_games)
         under_pct = under_count / len(similar_games)
+        push_pct = push_count / len(similar_games)
 
         # Analyze ATS results
         cover_count = sum(1 for g in similar_games if g['spread_result'] == 'cover')
@@ -625,6 +705,15 @@ class NHLSimilarGameModel:
         ats_push_count = sum(1 for g in similar_games if g['spread_result'] == 'push')
 
         cover_pct = cover_count / len(similar_games)
+        no_cover_pct = no_cover_count / len(similar_games)
+        ats_push_pct = ats_push_count / len(similar_games)
+
+        # Analyze moneyline results
+        team1_win_count = sum(1 for g in similar_games if g['team1_goals'] > g['team2_goals'])
+        team2_win_count = sum(1 for g in similar_games if g['team2_goals'] > g['team1_goals'])
+        tie_count = sum(1 for g in similar_games if g['team2_goals'] == g['team1_goals'])
+        team1_win_pct = (team1_win_count + 0.5 * tie_count) / len(similar_games)
+        team2_win_pct = 1.0 - team1_win_pct
 
         # Calculate average outcomes
         avg_total = sum(g['total_goals'] for g in similar_games) / len(similar_games)
@@ -663,6 +752,9 @@ class NHLSimilarGameModel:
                 'confidence': round(ou_confidence, 3),
                 'over_percentage': round(over_pct, 3),
                 'under_percentage': round(under_pct, 3),
+                'push_percentage': round(push_pct, 3),
+                'over_probability': round(over_pct, 3),
+                'under_probability': round(under_pct, 3),
                 'average_total': round(avg_total, 1),
                 'line': line_total
             },
@@ -670,8 +762,17 @@ class NHLSimilarGameModel:
                 'prediction': ats_prediction,
                 'confidence': round(ats_confidence, 3),
                 'cover_percentage': round(cover_pct, 3),
+                'no_cover_percentage': round(no_cover_pct, 3),
+                'push_percentage': round(ats_push_pct, 3),
+                'cover_probability': round(cover_pct, 3),
+                'no_cover_probability': round(no_cover_pct, 3),
                 'average_goal_diff': round(avg_goal_diff, 2),
                 'spread': line_spread
+            },
+            'moneyline': {
+                'team1_win_probability': round(team1_win_pct, 3),
+                'team2_win_probability': round(team2_win_pct, 3),
+                'average_goal_diff': round(avg_goal_diff, 2)
             },
             'analysis': {
                 'similar_games_found': len(similar_games),

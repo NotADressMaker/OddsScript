@@ -3,8 +3,10 @@
 Show NHL Money Line picks where ALL 3 models agree on the winner
 """
 
-from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
 import random
+
+from lib import NHLDecisionTree, NHLPowerRankings, NHLSimilarGameModel
+from sportsbetlang.common.odds import implied_probability, remove_vig
 
 GAMES = [
     {'away': 'Nashville Predators', 'home': 'Boston Bruins', 'spread': -1.5, 'ou_line': 6.5, 'home_ml': -265, 'away_ml': +210},
@@ -50,19 +52,28 @@ POWER_RATINGS = {
     'San Jose Sharks': 1350, 'Vancouver Canucks': 1560, 'Washington Capitals': 1550, 'Seattle Kraken': 1520
 }
 
-def american_to_implied_prob(odds):
-    """Convert American odds to implied probability"""
-    if odds < 0:
-        return abs(odds) / (abs(odds) + 100)
+def fair_market_probs(odds_a, odds_b):
+    implied_a = implied_probability(odds_a)
+    implied_b = implied_probability(odds_b)
+    return remove_vig(implied_a, implied_b)
+
+
+def average(values):
+    return sum(values) / len(values) if values else None
+
+
+def expected_value_per_1(prob, odds):
+    if odds > 0:
+        win_amount = odds / 100
     else:
-        return 100 / (odds + 100)
+        win_amount = 100 / abs(odds)
+    return (prob * win_amount) - (1 - prob)
 
 def main():
     print("=" * 80)
     print("💰 NHL MONEY LINE PICKS - ALL 3 MODELS AGREE")
     print("=" * 80)
-    print("Showing ML picks where Decision Tree, Power Rankings, AND Similar Game")
-    print("models all agree on the winner\n")
+    print("Showing ML picks where model win probability beats no-vig market\n")
 
     # Initialize models
     tree = NHLDecisionTree()
@@ -90,7 +101,7 @@ def main():
         away_stats = TEAM_STATS[away_team]
         home_stats = TEAM_STATS[home_team]
 
-        # Decision Tree - use ATS expected differential
+        # Decision Tree
         dt_ats = tree.predict_ats(
             team_xgf=home_stats['xgf'], team_xga=home_stats['xga'],
             opp_xgf=away_stats['xgf'], opp_xga=away_stats['xga'],
@@ -99,18 +110,10 @@ def main():
             opp_recent_form=away_stats['recent_form']
         )
 
-        # Decision Tree winner (based on expected differential)
-        dt_winner = home_team if dt_ats['expected_differential'] > 0 else away_team
-        dt_confidence = abs(dt_ats['expected_differential']) * 0.2 + 0.50  # Scale to 50-70%
-        dt_confidence = min(0.70, max(0.50, dt_confidence))
-
         # Power Rankings
         rankings.set_rating(home_team, POWER_RATINGS[home_team])
         rankings.set_rating(away_team, POWER_RATINGS[away_team])
         pr = rankings.predict_game(home_team, away_team, team1_home=True)
-
-        pr_winner = home_team if pr['team1_win_probability'] > 0.50 else away_team
-        pr_confidence = max(pr['team1_win_probability'], pr['team2_win_probability'])
 
         # Similar Game
         sim_pred = sim_model.predict_from_similar(
@@ -119,65 +122,58 @@ def main():
             line_total=game['ou_line'], line_spread=game['spread'], team1_home=True
         )
 
-        sg_winner = None
-        sg_confidence = 0.50
-        if 'against_spread' in sim_pred:
-            avg_diff = sim_pred['against_spread']['average_goal_diff']
-            sg_winner = home_team if avg_diff > 0 else away_team
-            sg_confidence = min(0.70, 0.50 + abs(avg_diff) * 0.15)
+        home_prob_sources = [
+            dt_ats.get('team_win_probability'),
+            pr.get('team1_win_probability'),
+            sim_pred.get('moneyline', {}).get('team1_win_probability')
+        ]
+        p_home = average([p for p in home_prob_sources if p is not None])
+        if p_home is None:
+            continue
 
-        # Check if all 3 agree (with confidence threshold)
-        votes = []
-        if dt_confidence >= 0.52:  # Slight edge required
-            votes.append((dt_winner, dt_confidence, 'Decision Tree', dt_ats['expected_differential']))
-        if pr_confidence >= 0.52:
-            votes.append((pr_winner, pr_confidence, 'Power Rankings', pr['expected_goal_differential']))
-        if sg_winner and sg_confidence >= 0.52:
-            votes.append((sg_winner, sg_confidence, 'Similar Games', sim_pred['against_spread']['average_goal_diff']))
+        p_away = 1 - p_home
+        market_home_prob, market_away_prob = fair_market_probs(game['home_ml'], game['away_ml'])
+        edge_home = p_home - market_home_prob
+        edge_away = p_away - market_away_prob
 
-        # Check if all 3 agree on the same winner
-        if len(votes) == 3:
-            winners = [v[0] for v in votes]
-            if len(set(winners)) == 1:  # All agree on same winner
-                winner = winners[0]
-                avg_conf = sum(v[1] for v in votes) / 3
-                avg_diff = sum(v[3] for v in votes) / 3
+        if edge_home <= 0 and edge_away <= 0:
+            continue
 
-                # Get odds
-                if winner == home_team:
-                    odds = game['home_ml']
-                    loser = away_team
-                else:
-                    odds = game['away_ml']
-                    loser = home_team
+        if edge_home >= edge_away:
+            odds = game['home_ml']
+            winner = home_team
+            probability = p_home
+            market_prob = market_home_prob
+            edge = edge_home
+        else:
+            odds = game['away_ml']
+            winner = away_team
+            probability = p_away
+            market_prob = market_away_prob
+            edge = edge_away
 
-                implied_prob = american_to_implied_prob(odds)
-                edge = avg_conf - implied_prob
-
-                ml_picks.append({
-                    'game': f"{away_team} @ {home_team}",
-                    'winner': winner,
-                    'odds': odds,
-                    'confidence': avg_conf,
-                    'expected_diff': avg_diff,
-                    'implied_prob': implied_prob,
-                    'edge': edge,
-                    'models': [v[2] for v in votes]
-                })
+        ml_picks.append({
+            'game': f"{away_team} @ {home_team}",
+            'winner': winner,
+            'odds': odds,
+            'probability': probability,
+            'market_prob': market_prob,
+            'edge': edge,
+            'ev': expected_value_per_1(probability, odds),
+            'model_probs': home_prob_sources
+        })
 
     # Display results
     if ml_picks:
-        print(f"Found {len(ml_picks)} unanimous Money Line picks:\n")
+        print(f"Found {len(ml_picks)} Money Line picks with positive edge:\n")
 
         for i, pick in enumerate(ml_picks, 1):
             odds_str = f"{pick['odds']:+d}"
             print(f"{i}. {pick['game']}")
             print(f"   💰 BET: {pick['winner']} ML {odds_str}")
-            print(f"   ✅ All 3 models agree!")
-            print(f"   💪 Win Probability: {pick['confidence']:.1%}")
-            print(f"   📊 Expected Goal Diff: {pick['expected_diff']:+.2f}")
-            print(f"   🎯 Market: {pick['implied_prob']:.1%} | Model: {pick['confidence']:.1%} | Edge: {pick['edge']:+.1%}")
-            print(f"   🤖 {', '.join(pick['models'])}")
+            print(f"   💪 Win Probability: {pick['probability']:.1%}")
+            print(f"   🎯 Market (no-vig): {pick['market_prob']:.1%} | Edge: {pick['edge']:+.1%}")
+            print(f"   💵 EV per $1: {pick['ev']:+.3f}")
             print()
 
         print("=" * 80)
@@ -186,24 +182,19 @@ def main():
         sorted_picks = sorted(ml_picks, key=lambda x: x['edge'], reverse=True)
         for i, pick in enumerate(sorted_picks, 1):
             odds_str = f"{pick['odds']:+d}"
-            print(f"{i}. {pick['winner']:30s} {odds_str:>5s} | {pick['confidence']:.0%} win prob | {pick['edge']:+.1%} edge | {pick['game']}")
+            print(f"{i}. {pick['winner']:30s} {odds_str:>5s} | {pick['probability']:.0%} win prob | {pick['edge']:+.1%} edge | {pick['game']}")
 
         print("\n" + "=" * 80)
         print("📋 BETTING STRATEGY:")
         print("=" * 80)
 
-        positive_edge = [p for p in ml_picks if p['edge'] > 0]
-        if positive_edge:
-            print(f"✅ {len(positive_edge)} pick(s) with POSITIVE EDGE (model sees more value than market):\n")
-            for pick in positive_edge:
-                odds_str = f"{pick['odds']:+d}"
-                print(f"   🔥 {pick['winner']} ML {odds_str} - {pick['edge']:+.1%} edge")
-        else:
-            print("⚠️  No picks with positive edge (all favorites are fairly priced)")
+        print(f"✅ {len(ml_picks)} pick(s) with POSITIVE EDGE (model sees more value than market):\n")
+        for pick in ml_picks:
+            odds_str = f"{pick['odds']:+d}"
+            print(f"   🔥 {pick['winner']} ML {odds_str} - {pick['edge']:+.1%} edge")
 
     else:
-        print("⚠️  No unanimous Money Line picks found")
-        print("(All 3 models must agree on the same winner with 52%+ confidence each)")
+        print("⚠️  No Money Line picks with positive edge found")
 
     print("\n" + "=" * 80)
 
