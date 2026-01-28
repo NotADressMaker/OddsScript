@@ -23,6 +23,8 @@ class NHLFeatureEngineering:
         away_travel_zones: int = 0,
         home_goalie_gsax: float = 0.0,
         away_goalie_gsax: float = 0.0,
+        referee_goal_modifier: float = 1.0,
+        referee_home_bias: float = 0.0,
         *,
         include_raw: bool = True,
     ) -> Dict[str, float]:
@@ -35,6 +37,8 @@ class NHLFeatureEngineering:
             home_rest_days, away_rest_days: Rest days (0 = B2B, 1 = normal, etc.)
             home_travel_zones, away_travel_zones: Time zones crossed
             home_goalie_gsax, away_goalie_gsax: Starting goalie GSAx (Goals Saved Above Expected)
+            referee_goal_modifier: Multiplicative total-goal adjustment driven by referee tendencies
+            referee_home_bias: Home-leaning ref impact applied to goal share
             include_raw: If True, include some non-differential features too (useful for trees)
 
         Returns:
@@ -93,6 +97,10 @@ class NHLFeatureEngineering:
         # Goaltending
         f["gsax_diff"] = float(home_goalie_gsax) - float(away_goalie_gsax)
 
+        # Referee tendencies
+        f["referee_goal_modifier"] = float(referee_goal_modifier)
+        f["referee_home_bias"] = float(referee_home_bias)
+
         # ----------------------------
         # Special teams
         # ----------------------------
@@ -144,5 +152,7 @@ class NHLFeatureEngineering:
             f["away_corsi"] = away_corsi
             f["home_fenwick"] = home_fenwick
             f["away_fenwick"] = away_fenwick
+            f["home_goalie_gsax"] = float(home_goalie_gsax)
+            f["away_goalie_gsax"] = float(away_goalie_gsax)
 
         return f
