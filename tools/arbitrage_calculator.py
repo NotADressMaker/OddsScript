@@ -7,11 +7,11 @@ Supports 2-way and 3-way markets.
 """
 
 import argparse
-import json
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from enum import Enum
 
+from sportsbetlang.common.odds import american_to_decimal
 
 class MarketType(Enum):
     """Types of betting markets"""
@@ -31,30 +31,31 @@ class ArbitrageCalculator:
     """Calculate arbitrage opportunities"""
 
     @staticmethod
-    def american_to_decimal(odds: float) -> float:
-        """Convert American odds to decimal"""
-        if odds > 0:
-            return (odds / 100) + 1
-        else:
-            return (100 / abs(odds)) + 1
-
-    @staticmethod
-    def decimal_to_american(odds: float) -> float:
-        """Convert decimal odds to American"""
-        if odds >= 2.0:
-            return (odds - 1) * 100
-        else:
-            return -100 / (odds - 1)
-
-    @staticmethod
-    def implied_probability(odds: float, american: bool = True) -> float:
-        """Calculate implied probability from odds"""
+    def _to_decimal(odds: float, american: bool = True) -> float:
+        """Convert odds to decimal format with basic validation."""
         if american:
-            decimal_odds = ArbitrageCalculator.american_to_decimal(odds)
-        else:
-            decimal_odds = odds
+            if odds == 0:
+                raise ValueError("American odds cannot be 0")
+            return float(american_to_decimal(odds))
+        if odds <= 1:
+            raise ValueError("Decimal odds must be greater than 1")
+        return odds
 
-        return 1 / decimal_odds
+    @staticmethod
+    def _calculate_stakes(decimal_odds: List[float], total_stake: float) -> Dict:
+        """Calculate proportional stakes, returns, and profit for a stake size."""
+        probs = [1 / d for d in decimal_odds]
+        total_prob = sum(probs)
+        stakes = [(p / total_prob) * total_stake for p in probs]
+        returns = [s * d for s, d in zip(stakes, decimal_odds)]
+        profit = returns[0] - total_stake
+
+        return {
+            "total_probability": total_prob,
+            "stakes": stakes,
+            "returns": returns,
+            "profit": profit,
+        }
 
     @staticmethod
     def calculate_two_way_arb(
@@ -74,45 +75,34 @@ class ArbitrageCalculator:
             Dictionary with arbitrage details
         """
         # Convert to decimal if American
-        if american:
-            decimal1 = ArbitrageCalculator.american_to_decimal(odds1)
-            decimal2 = ArbitrageCalculator.american_to_decimal(odds2)
-        else:
-            decimal1 = odds1
-            decimal2 = odds2
+        decimal1 = ArbitrageCalculator._to_decimal(odds1, american)
+        decimal2 = ArbitrageCalculator._to_decimal(odds2, american)
 
-        # Calculate implied probabilities
-        prob1 = 1 / decimal1
-        prob2 = 1 / decimal2
-
-        # Total probability (should be < 1 for arbitrage)
-        total_prob = prob1 + prob2
+        totals = ArbitrageCalculator._calculate_stakes([decimal1, decimal2], 100)
+        total_prob = totals["total_probability"]
 
         # Check for arbitrage
         is_arb = total_prob < 1
         profit_margin = (1 / total_prob - 1) * 100 if total_prob < 1 else 0
 
-        # Calculate stakes for $100 total investment
-        total_stake = 100
-        stake1 = (prob1 / total_prob) * total_stake
-        stake2 = (prob2 / total_prob) * total_stake
-
-        # Calculate guaranteed profit
-        profit1 = (stake1 * decimal1) - total_stake
-        profit2 = (stake2 * decimal2) - total_stake
+        stake1, stake2 = totals["stakes"]
+        return1, return2 = totals["returns"]
+        profit1 = totals["profit"]
+        roi = (profit1 / 100) * 100
 
         return {
             'is_arbitrage': is_arb,
             'profit_margin': profit_margin,
             'total_probability': total_prob * 100,
+            'roi': roi,
             'stakes': {
                 'outcome1': stake1,
                 'outcome2': stake2,
-                'total': total_stake
+                'total': 100
             },
             'returns': {
-                'if_outcome1': stake1 * decimal1,
-                'if_outcome2': stake2 * decimal2
+                'if_outcome1': return1,
+                'if_outcome2': return2
             },
             'profit': {
                 'guaranteed': profit1,  # Should equal profit2 for true arb
@@ -144,50 +134,32 @@ class ArbitrageCalculator:
             Dictionary with arbitrage details
         """
         # Convert to decimal if American
-        if american:
-            decimal1 = ArbitrageCalculator.american_to_decimal(odds1)
-            decimal2 = ArbitrageCalculator.american_to_decimal(odds2)
-            decimal3 = ArbitrageCalculator.american_to_decimal(odds3)
-        else:
-            decimal1 = odds1
-            decimal2 = odds2
-            decimal3 = odds3
+        decimal1 = ArbitrageCalculator._to_decimal(odds1, american)
+        decimal2 = ArbitrageCalculator._to_decimal(odds2, american)
+        decimal3 = ArbitrageCalculator._to_decimal(odds3, american)
 
-        # Calculate implied probabilities
-        prob1 = 1 / decimal1
-        prob2 = 1 / decimal2
-        prob3 = 1 / decimal3
-
-        # Total probability
-        total_prob = prob1 + prob2 + prob3
+        totals = ArbitrageCalculator._calculate_stakes([decimal1, decimal2, decimal3], 100)
+        total_prob = totals["total_probability"]
 
         # Check for arbitrage
         is_arb = total_prob < 1
         profit_margin = (1 / total_prob - 1) * 100 if total_prob < 1 else 0
 
-        # Calculate stakes for $100 total investment
-        total_stake = 100
-        stake1 = (prob1 / total_prob) * total_stake
-        stake2 = (prob2 / total_prob) * total_stake
-        stake3 = (prob3 / total_prob) * total_stake
-
-        # Calculate returns
-        return1 = stake1 * decimal1
-        return2 = stake2 * decimal2
-        return3 = stake3 * decimal3
-
-        # Guaranteed profit (should be same for all outcomes)
-        profit = return1 - total_stake
+        stake1, stake2, stake3 = totals["stakes"]
+        return1, return2, return3 = totals["returns"]
+        profit = totals["profit"]
+        roi = (profit / 100) * 100
 
         return {
             'is_arbitrage': is_arb,
             'profit_margin': profit_margin,
             'total_probability': total_prob * 100,
+            'roi': roi,
             'stakes': {
                 'outcome1': stake1,
                 'outcome2': stake2,
                 'outcome3': stake3,
-                'total': total_stake
+                'total': 100
             },
             'returns': {
                 'if_outcome1': return1,
@@ -219,14 +191,16 @@ class ArbitrageCalculator:
         """
         if market_type == MarketType.TWO_WAY:
             # Find best odds for each outcome
-            outcomes = set(b.outcome for b in books)
-            if len(outcomes) != 2:
+            outcome_list = []
+            for book in books:
+                if book.outcome not in outcome_list:
+                    outcome_list.append(book.outcome)
+            if len(outcome_list) != 2:
                 return None
 
-            outcome_list = list(outcomes)
             best_odds = {}
 
-            for outcome in outcomes:
+            for outcome in outcome_list:
                 outcome_books = [b for b in books if b.outcome == outcome]
                 best_book = max(outcome_books, key=lambda b: b.odds)
                 best_odds[outcome] = best_book
@@ -251,14 +225,16 @@ class ArbitrageCalculator:
 
         elif market_type == MarketType.THREE_WAY:
             # Find best odds for each outcome
-            outcomes = set(b.outcome for b in books)
-            if len(outcomes) != 3:
+            outcome_list = []
+            for book in books:
+                if book.outcome not in outcome_list:
+                    outcome_list.append(book.outcome)
+            if len(outcome_list) != 3:
                 return None
 
-            outcome_list = list(outcomes)
             best_odds = {}
 
-            for outcome in outcomes:
+            for outcome in outcome_list:
                 outcome_books = [b for b in books if b.outcome == outcome]
                 best_book = max(outcome_books, key=lambda b: b.odds)
                 best_odds[outcome] = best_book
@@ -304,23 +280,13 @@ class ArbitrageCalculator:
             Arbitrage calculation with custom stake
         """
         # Convert to decimal
-        if american:
-            decimal_odds = [ArbitrageCalculator.american_to_decimal(o) for o in odds]
-        else:
-            decimal_odds = odds
+        decimal_odds = [ArbitrageCalculator._to_decimal(o, american) for o in odds]
 
-        # Calculate implied probabilities
-        probs = [1 / d for d in decimal_odds]
-        total_prob = sum(probs)
-
-        # Calculate stakes proportionally
-        stakes = [(p / total_prob) * total_stake for p in probs]
-
-        # Calculate returns
-        returns = [s * d for s, d in zip(stakes, decimal_odds)]
-
-        # Profit (should be same for all outcomes in true arb)
-        profit = returns[0] - total_stake
+        totals = ArbitrageCalculator._calculate_stakes(decimal_odds, total_stake)
+        total_prob = totals["total_probability"]
+        stakes = totals["stakes"]
+        returns = totals["returns"]
+        profit = totals["profit"]
 
         is_arb = total_prob < 1
         profit_margin = (1 / total_prob - 1) * 100 if is_arb else 0
@@ -329,6 +295,8 @@ class ArbitrageCalculator:
             'is_arbitrage': is_arb,
             'profit_margin': profit_margin,
             'total_stake': total_stake,
+            'total_probability': total_prob * 100,
+            'decimal_odds': decimal_odds,
             'stakes': stakes,
             'returns': returns,
             'guaranteed_profit': profit if is_arb else 0,
@@ -346,7 +314,7 @@ def print_arb_result(result: Dict, market_type: MarketType, total_stake: float =
         print(f"\n✅ ARBITRAGE FOUND!")
         print(f"   Profit Margin: {result['profit_margin']:.3f}%")
         print(f"   Guaranteed Profit: ${result['profit']['guaranteed']:.2f} per ${total_stake:.0f} invested")
-        print(f"   ROI: {result['profit']['per_100']:.2f}%")
+        print(f"   ROI: {result['roi']:.2f}%")
     else:
         print(f"\n❌ NO ARBITRAGE")
         print(f"   Total Probability: {result['total_probability']:.2f}%")
@@ -467,6 +435,7 @@ Examples:
             result['returns']['if_outcome2'] *= stake_ratio
             result['profit']['guaranteed'] *= stake_ratio
             result['profit']['per_100'] = (result['profit']['guaranteed'] / args.stake) * 100
+            result['roi'] = (result['profit']['guaranteed'] / args.stake) * 100
 
         print_arb_result(result, MarketType.TWO_WAY, args.stake)
 
@@ -490,6 +459,7 @@ Examples:
             result['returns']['if_outcome3'] *= stake_ratio
             result['profit']['guaranteed'] *= stake_ratio
             result['profit']['per_100'] = (result['profit']['guaranteed'] / args.stake) * 100
+            result['roi'] = (result['profit']['guaranteed'] / args.stake) * 100
 
         print_arb_result(result, MarketType.THREE_WAY, args.stake)
 
@@ -523,6 +493,7 @@ Examples:
                 result['returns'][key] *= stake_ratio
             result['profit']['guaranteed'] *= stake_ratio
             result['profit']['per_100'] = (result['profit']['guaranteed'] / args.stake) * 100
+            result['roi'] = (result['profit']['guaranteed'] / args.stake) * 100
 
         print_arb_result(result, market_type, args.stake)
 
