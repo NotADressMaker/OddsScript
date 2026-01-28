@@ -6,6 +6,7 @@ Bet the same amount (usually 1-5% of bankroll) on each bet.
 """
 
 
+
 class FlatBetting:
     """
     Flat betting strategy - bet same amount each time

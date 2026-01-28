@@ -890,7 +890,7 @@ pip install -e .
 - **Martingale** (`strategies/martingale.py`) - Classic doubling strategy (high risk)
 - **Fibonacci** (`strategies/fibonacci.py`) - Fibonacci sequence progression
 - **Flat Betting** (`strategies/flat_betting.py`) - Recommended safe strategy
-- **Percentage Betting** (`strategies/flat_betting.py`) - Bet a fixed percentage of current bankroll
+- **Percentage Betting** (`strategies/percentage_betting.py`) - Bet a fixed percentage of current bankroll
 
 ### Command-Line Tools
 
