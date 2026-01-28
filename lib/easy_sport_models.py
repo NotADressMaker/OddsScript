@@ -420,30 +420,17 @@ def quick_wnba_prediction(team_off_rtg: float, team_def_rtg: float,
         >>> prob = quick_wnba_prediction(105, 100, 102, 101, home=True, rest_days_team=3, rest_days_opp=1)
         >>> print(f"Win probability: {prob:.1%}")
     """
-    # Calculate net ratings
-    team_net = team_off_rtg - team_def_rtg
-    opp_net = opp_off_rtg - opp_def_rtg
+    from lib.wnba_analytics import WNBAAnalytics
 
-    net_diff = team_net - opp_net
-
-    # Home court advantage
-    if home:
-        net_diff += 3.0  # 6% advantage = 3 points
-
-    # Rest advantage (important in WNBA!)
-    rest_diff = rest_days_team - rest_days_opp
-    if abs(rest_diff) >= 3:
-        net_diff += rest_diff * 1.5
-    elif abs(rest_diff) == 2:
-        net_diff += rest_diff * 1.0
-    elif abs(rest_diff) == 1:
-        net_diff += rest_diff * 0.5
-
-    # Convert to probability
-    import math
-    prob = 1 / (1 + math.exp(-net_diff / 11))
-
-    return max(0.1, min(0.9, prob))
+    return WNBAAnalytics.calculate_moneyline_probability(
+        team_off_rtg,
+        team_def_rtg,
+        opp_off_rtg,
+        opp_def_rtg,
+        home,
+        rest_days_team,
+        rest_days_opp
+    )
 
 
 def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,

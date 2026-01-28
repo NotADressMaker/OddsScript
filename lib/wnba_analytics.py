@@ -45,6 +45,7 @@ class WNBAAnalytics:
 
     # Rest advantage is crucial in WNBA due to compressed schedule
     REST_ADVANTAGE_MULTIPLIER = 1.5  # More important than NBA
+    MAX_REST_ADVANTAGE = 6.0         # Cap rest impact to avoid extremes
 
     @staticmethod
     def calculate_rest_advantage(
@@ -66,18 +67,19 @@ class WNBAAnalytics:
         """
         rest_diff = team_rest_days - opponent_rest_days
 
-        # Rest advantage is more pronounced in WNBA
-        if abs(rest_diff) >= 3:
-            # 3+ day difference = significant advantage
-            return rest_diff * 1.5
-        elif abs(rest_diff) == 2:
-            # 2 day difference = moderate advantage
-            return rest_diff * 1.0
-        elif abs(rest_diff) == 1:
-            # 1 day difference = small advantage
-            return rest_diff * 0.5
-        else:
+        if rest_diff == 0:
             return 0.0
+
+        # Diminishing returns beyond 3 days, scaled for WNBA schedules
+        base_multiplier = 0.5 * WNBAAnalytics.REST_ADVANTAGE_MULTIPLIER
+        base_advantage = min(abs(rest_diff), 3) * base_multiplier
+        extra_days = max(0, abs(rest_diff) - 3)
+        extra_advantage = extra_days * 0.25 * WNBAAnalytics.REST_ADVANTAGE_MULTIPLIER
+
+        advantage = (base_advantage + extra_advantage) * (1 if rest_diff > 0 else -1)
+
+        return max(-WNBAAnalytics.MAX_REST_ADVANTAGE,
+                   min(WNBAAnalytics.MAX_REST_ADVANTAGE, advantage))
 
     @staticmethod
     def calculate_back_to_back_penalty(
@@ -104,6 +106,43 @@ class WNBAAnalytics:
             return base_penalty - 1.5
 
         return base_penalty
+
+    @staticmethod
+    def calculate_schedule_adjustment(
+        team_rest_days: int,
+        opponent_rest_days: int,
+        team_travel_penalty: float = 0.0,
+        opponent_travel_penalty: float = 0.0
+    ) -> float:
+        """
+        Combine rest, back-to-back, and travel adjustments into a single rating tweak.
+
+        Args:
+            team_rest_days: Days of rest for team
+            opponent_rest_days: Days of rest for opponent
+            team_travel_penalty: Precomputed travel penalty for team (negative)
+            opponent_travel_penalty: Precomputed travel penalty for opponent (negative)
+
+        Returns:
+            Net rating adjustment in points (positive = team advantage)
+        """
+        rest_advantage = WNBAAnalytics.calculate_rest_advantage(
+            team_rest_days, opponent_rest_days
+        )
+
+        team_b2b_penalty = WNBAAnalytics.calculate_back_to_back_penalty(
+            team_rest_days == 0
+        )
+        opp_b2b_penalty = WNBAAnalytics.calculate_back_to_back_penalty(
+            opponent_rest_days == 0
+        )
+
+        return rest_advantage + team_b2b_penalty - opp_b2b_penalty + team_travel_penalty - opponent_travel_penalty
+
+    @staticmethod
+    def clamp_probability(probability: float, minimum: float, maximum: float) -> float:
+        """Clamp a probability to a range."""
+        return max(minimum, min(maximum, probability))
 
     @staticmethod
     def calculate_game_total(
@@ -155,7 +194,9 @@ class WNBAAnalytics:
         spread: float,
         is_home: bool = True,
         team_rest_days: int = 2,
-        opponent_rest_days: int = 2
+        opponent_rest_days: int = 2,
+        team_travel_penalty: float = 0.0,
+        opponent_travel_penalty: float = 0.0
     ) -> float:
         """
         Calculate probability of covering spread with WNBA-specific adjustments
@@ -178,11 +219,12 @@ class WNBAAnalytics:
         if is_home:
             rating_diff += WNBAAnalytics.AVG_HOME_ADVANTAGE
 
-        # Rest advantage
-        rest_advantage = WNBAAnalytics.calculate_rest_advantage(
-            team_rest_days, opponent_rest_days
+        rating_diff += WNBAAnalytics.calculate_schedule_adjustment(
+            team_rest_days,
+            opponent_rest_days,
+            team_travel_penalty,
+            opponent_travel_penalty
         )
-        rating_diff += rest_advantage
 
         # Expected margin
         expected_margin = rating_diff
@@ -197,7 +239,7 @@ class WNBAAnalytics:
         # Convert to probability using cumulative normal distribution
         probability = 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
-        return max(0.01, min(0.99, probability))
+        return WNBAAnalytics.clamp_probability(probability, 0.01, 0.99)
 
     @staticmethod
     def calculate_moneyline_probability(
@@ -207,7 +249,9 @@ class WNBAAnalytics:
         opp_def_rating: float,
         is_home: bool = True,
         team_rest_days: int = 2,
-        opp_rest_days: int = 2
+        opp_rest_days: int = 2,
+        team_travel_penalty: float = 0.0,
+        opp_travel_penalty: float = 0.0
     ) -> float:
         """
         Calculate win probability for moneyline betting
@@ -235,21 +279,23 @@ class WNBAAnalytics:
         if is_home:
             rating_diff += WNBAAnalytics.AVG_HOME_ADVANTAGE
 
-        # Rest advantage (important in WNBA!)
-        rest_advantage = WNBAAnalytics.calculate_rest_advantage(
-            team_rest_days, opp_rest_days
+        rating_diff += WNBAAnalytics.calculate_schedule_adjustment(
+            team_rest_days,
+            opp_rest_days,
+            team_travel_penalty,
+            opp_travel_penalty
         )
-        rating_diff += rest_advantage
 
         # Convert rating difference to probability
         # Using Pythagorean expectation adapted for WNBA
         exponent = 14.0  # WNBA-specific exponent
 
-        win_pct = (rating_diff + 100) ** exponent / (
-            ((rating_diff + 100) ** exponent) + (100 ** exponent)
+        rating_base = max(1.0, rating_diff + 100)
+        win_pct = (rating_base ** exponent) / (
+            (rating_base ** exponent) + (100 ** exponent)
         )
 
-        return max(0.05, min(0.95, win_pct))
+        return WNBAAnalytics.clamp_probability(win_pct, 0.05, 0.95)
 
     @staticmethod
     def calculate_playoff_adjustments(
