@@ -217,13 +217,16 @@ class NHLAdvancedAnalytics:
         home_gsax: float = 0.0,
         away_gsax: float = 0.0,
         league_gsax_avg: float = NHLConstants.LEAGUE_GSAX_AVG,
-        impact_per_gsax: float = 0.12,
+        impact_per_gsax: float = 0.16,
     ) -> Tuple[float, float]:
         """
         Better goalie (higher GSAx) lowers opponent expected goals.
         """
         home_adj = 1.0 - (home_gsax - league_gsax_avg) * impact_per_gsax
         away_adj = 1.0 - (away_gsax - league_gsax_avg) * impact_per_gsax
+
+        home_adj = max(0.75, min(home_adj, 1.25))
+        away_adj = max(0.75, min(away_adj, 1.25))
 
         adj_home = home_xg * away_adj
         adj_away = away_xg * home_adj
@@ -421,12 +424,17 @@ class NHLAnalytics:
         team2_goals_avg: float,
         total_line: float,
         goalie_adjustment: float = 1.0,
+        referee_adjustment: float = 1.0,
         max_goals_sum: int = 25,
     ) -> Dict[str, float]:
         """
         Legacy over/under probability.
         """
-        total_lambda = (float(team1_goals_avg) + float(team2_goals_avg)) * float(goalie_adjustment)
+        total_lambda = (
+            (float(team1_goals_avg) + float(team2_goals_avg))
+            * float(goalie_adjustment)
+            * float(referee_adjustment)
+        )
 
         # use calculator if present and compatible; otherwise internal Poisson sums
         if PoissonCalculator is not None and hasattr(PoissonCalculator, "calculate_total_probabilities"):
@@ -440,6 +448,7 @@ class NHLAnalytics:
                     "expected_total": float(total_lambda),
                     "line": float(total_line),
                     "goalie_adjustment": float(goalie_adjustment),
+                    "referee_adjustment": float(referee_adjustment),
                 }
             except Exception:
                 pass
@@ -452,6 +461,7 @@ class NHLAnalytics:
             "expected_total": float(total_lambda),
             "line": float(total_line),
             "goalie_adjustment": float(goalie_adjustment),
+            "referee_adjustment": float(referee_adjustment),
         }
 
     @staticmethod
@@ -698,10 +708,14 @@ class NHLBettingInterface:
 
         home_adv = float(features.get("home_advantage", NHLConstants.AVG_HOME_ADVANTAGE))
         gsax_diff = float(features.get("gsax_diff", 0.0))
+        referee_goal_modifier = float(features.get("referee_goal_modifier", 1.0))
+        referee_home_bias = float(features.get("referee_home_bias", 0.0))
 
         strength = float(features.get("xgf_diff", features.get("xg_diff", 0.0)))
 
-        share = 0.5 + 0.06 * strength + 0.05 * home_adv + 0.02 * gsax_diff
+        total *= self._clamp(referee_goal_modifier, 0.85, 1.15)
+
+        share = 0.5 + 0.06 * strength + 0.05 * home_adv + 0.05 * gsax_diff + 0.03 * referee_home_bias
         share = self._clamp(share, 0.35, 0.65)
 
         home_xg = total * share
