@@ -118,6 +118,7 @@ class CBBAnalytics:
         spread: float,
         is_home: bool = True,
         home_advantage: Optional[float] = None,
+        neutral_site: bool = False,
         team_conference: Optional[CBBConference] = None,
         opponent_conference: Optional[CBBConference] = None,
         is_conference_game: bool = False
@@ -131,6 +132,7 @@ class CBBAnalytics:
             spread: Point spread (negative means favorite)
             is_home: Whether team is playing at home
             home_advantage: Custom home court advantage (overrides default)
+            neutral_site: Neutral site game (no home court advantage)
             team_conference: Team's conference
             opponent_conference: Opponent's conference
             is_conference_game: Whether this is a conference game
@@ -142,7 +144,11 @@ class CBBAnalytics:
         if home_advantage is None:
             home_advantage = CBBAnalytics.AVG_HOME_ADVANTAGE
 
-        home_adj = home_advantage if is_home else -home_advantage
+        home_advantage = max(0.0, min(home_advantage, CBBAnalytics.MAX_HOME_ADVANTAGE))
+        if neutral_site:
+            home_adj = 0.0
+        else:
+            home_adj = home_advantage if is_home else -home_advantage
 
         # Conference strength adjustment
         conf_adj = 0.0
@@ -179,7 +185,8 @@ class CBBAnalytics:
             'spread': spread,
             'home_advantage_used': home_adj,
             'conference_adjustment': conf_adj,
-            'is_conference_game': is_conference_game
+            'is_conference_game': is_conference_game,
+            'neutral_site': neutral_site
         }
 
     @staticmethod
@@ -234,7 +241,9 @@ class CBBAnalytics:
         team_rating: float,
         opponent_rating: float,
         first_half_spread: float,
-        is_home: bool = True
+        is_home: bool = True,
+        home_advantage: Optional[float] = None,
+        neutral_site: bool = False
     ) -> Dict:
         """
         Calculate first half spread probability
@@ -246,12 +255,21 @@ class CBBAnalytics:
             opponent_rating: Opponent power rating
             first_half_spread: First half point spread
             is_home: Whether team is playing at home
+            home_advantage: Custom home court advantage (overrides default)
+            neutral_site: Neutral site game (no home court advantage)
 
         Returns:
             First half cover probability
         """
         # First half home advantage is slightly less
-        home_adj = (CBBAnalytics.AVG_HOME_ADVANTAGE * 0.75) if is_home else -(CBBAnalytics.AVG_HOME_ADVANTAGE * 0.75)
+        if home_advantage is None:
+            home_advantage = CBBAnalytics.AVG_HOME_ADVANTAGE
+
+        home_advantage = max(0.0, min(home_advantage, CBBAnalytics.MAX_HOME_ADVANTAGE)) * 0.75
+        if neutral_site:
+            home_adj = 0.0
+        else:
+            home_adj = home_advantage if is_home else -home_advantage
 
         # Expected point differential (scale to first half ~48% of scoring)
         full_game_diff = (team_rating - opponent_rating) + home_adj
@@ -272,7 +290,8 @@ class CBBAnalytics:
         return {
             'cover_probability': cover_prob,
             'expected_margin': first_half_diff,
-            'spread': first_half_spread
+            'spread': first_half_spread,
+            'neutral_site': neutral_site
         }
 
     @staticmethod
@@ -295,24 +314,24 @@ class CBBAnalytics:
         # Seed difference
         seed_diff = lower_seed - higher_seed
 
-        # Historical upset rates by seed matchup
-        # Based on historical NCAA tournament data
+        # Historical upset rates by seed difference (higher seed loses)
+        # Approximate NCAA tournament averages; larger gaps mean fewer upsets.
         historical_upset_rates = {
-            1: 0.01,   # 1 vs 16 (extremely rare)
-            2: 0.06,   # 1 vs 15, 2 vs 15
-            3: 0.15,   # 1 vs 14, 2 vs 15, 3 vs 16 (rare now)
-            4: 0.21,   # 4 vs 13, 5 vs 12
-            5: 0.36,   # 5 vs 12 (most common upset)
-            6: 0.38,   # 6 vs 11
-            7: 0.40,   # 7 vs 10
-            8: 0.48,   # 8 vs 9 (essentially 50/50)
-            9: 0.52,   # 9 vs 8
-            10: 0.60,  # 10 vs 7
-            11: 0.62,  # 11 vs 6
-            12: 0.64,  # 12 vs 5
-            13: 0.79,  # 13 vs 4
-            14: 0.85,  # 14 vs 3, 15 vs 2
-            15: 0.94   # 15 vs 1, 16 vs 2
+            1: 0.50,   # 8 vs 9 (essentially 50/50)
+            2: 0.42,   # 7 vs 9 / 8 vs 10
+            3: 0.40,   # 7 vs 10
+            4: 0.33,   # 6 vs 10 / 6 vs 11
+            5: 0.30,   # 6 vs 11
+            6: 0.28,   # 5 vs 11 / 6 vs 12
+            7: 0.35,   # 5 vs 12 (most common upset)
+            8: 0.24,   # 4 vs 12 / 5 vs 13
+            9: 0.20,   # 4 vs 13
+            10: 0.18,  # 3 vs 13 / 4 vs 14
+            11: 0.16,  # 3 vs 14
+            12: 0.12,  # 2 vs 14 / 3 vs 15
+            13: 0.08,  # 2 vs 15
+            14: 0.04,  # 2 vs 16
+            15: 0.01   # 1 vs 16 (extremely rare)
         }
 
         base_upset_prob = historical_upset_rates.get(seed_diff, 0.50)
@@ -320,7 +339,8 @@ class CBBAnalytics:
         # Adjust based on actual rating difference
         # If rating difference is less than expected, upset more likely
         expected_rating_diff = seed_diff * 3.5  # Rough estimate
-        rating_adjustment = (expected_rating_diff - rating_diff) * 0.02
+        adjustment_scale = 0.02 * (base_upset_prob / 0.5)
+        rating_adjustment = (expected_rating_diff - rating_diff) * adjustment_scale
 
         adjusted_upset_prob = max(0.01, min(0.99, base_upset_prob + rating_adjustment))
 
@@ -405,11 +425,21 @@ class CBBAnalytics:
             'seed': team_seed,
             'rating': team_rating,
             'region': bracket_region,
-            'round_of_32': min(0.999, round_32_probs.get(team_seed, 0.5) * (1 + rating_factor)),
-            'sweet_16': min(0.999, sweet_16_probs.get(team_seed, 0.2) * (1 + rating_factor * 1.5)),
-            'elite_8': min(0.999, elite_8_probs.get(team_seed, 0.1) * (1 + rating_factor * 2)),
-            'final_4': min(0.999, final_4_probs.get(team_seed, 0.05) * (1 + rating_factor * 2.5)),
-            'championship': min(0.999, championship_probs.get(team_seed, 0.01) * (1 + rating_factor * 3))
+            'round_of_32': CBBAnalytics._clamp_probability(
+                round_32_probs.get(team_seed, 0.5) * (1 + rating_factor)
+            ),
+            'sweet_16': CBBAnalytics._clamp_probability(
+                sweet_16_probs.get(team_seed, 0.2) * (1 + rating_factor * 1.5)
+            ),
+            'elite_8': CBBAnalytics._clamp_probability(
+                elite_8_probs.get(team_seed, 0.1) * (1 + rating_factor * 2)
+            ),
+            'final_4': CBBAnalytics._clamp_probability(
+                final_4_probs.get(team_seed, 0.05) * (1 + rating_factor * 2.5)
+            ),
+            'championship': CBBAnalytics._clamp_probability(
+                championship_probs.get(team_seed, 0.01) * (1 + rating_factor * 3)
+            )
         }
 
     @staticmethod
@@ -417,7 +447,9 @@ class CBBAnalytics:
         home_rating: float,
         away_rating: float,
         home_advantage: Optional[float] = None,
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
+        neutral_site: bool = False,
+        rng: Optional[random.Random] = None
     ) -> Dict:
         """
         Simulate a single college basketball game
@@ -426,24 +458,27 @@ class CBBAnalytics:
             home_rating: Home team rating (average points)
             away_rating: Away team rating (average points)
             home_advantage: Custom home court advantage
-            seed: Random seed for reproducibility
+            seed: Random seed for reproducibility (ignored if rng provided)
+            neutral_site: Neutral site game (no home court advantage)
+            rng: Optional random generator for reproducible simulations
 
         Returns:
             Game result
         """
-        if seed is not None:
-            random.seed(seed)
+        if rng is None:
+            rng = random.Random(seed) if seed is not None else random
 
         # Add home court advantage
         if home_advantage is None:
             home_advantage = CBBAnalytics.AVG_HOME_ADVANTAGE
 
-        home_adj = home_rating + home_advantage
+        home_advantage = max(0.0, min(home_advantage, CBBAnalytics.MAX_HOME_ADVANTAGE))
+        home_adj = home_rating if neutral_site else home_rating + home_advantage
         away_adj = away_rating
 
         # Simulate scores using normal distribution
-        home_score = max(0, int(random.gauss(home_adj, 10) + 0.5))
-        away_score = max(0, int(random.gauss(away_adj, 10) + 0.5))
+        home_score = max(0, int(rng.gauss(home_adj, 10) + 0.5))
+        away_score = max(0, int(rng.gauss(away_adj, 10) + 0.5))
 
         margin = home_score - away_score
         total = home_score + away_score
@@ -451,8 +486,8 @@ class CBBAnalytics:
         # Handle overtime (roughly 6% of games)
         if margin == 0:
             # Overtime scoring (typically 5-10 points per team)
-            home_ot = random.randint(5, 10)
-            away_ot = random.randint(5, 10)
+            home_ot = rng.randint(5, 10)
+            away_ot = rng.randint(5, 10)
 
             if home_ot > away_ot:
                 home_score += home_ot
@@ -476,7 +511,8 @@ class CBBAnalytics:
             'margin': abs(margin),
             'total': total,
             'result': result,
-            'is_blowout': abs(margin) > 20
+            'is_blowout': abs(margin) > 20,
+            'neutral_site': neutral_site
         }
 
     @staticmethod
@@ -498,8 +534,7 @@ class CBBAnalytics:
         Returns:
             Season results with standings
         """
-        if seed is not None:
-            random.seed(seed)
+        rng = random.Random(seed) if seed is not None else random
 
         team_names = list(teams.keys())
         standings = {team: {'wins': 0, 'losses': 0, 'pf': 0, 'pa': 0, 'conf_wins': 0, 'conf_losses': 0}
@@ -510,8 +545,8 @@ class CBBAnalytics:
 
         for _ in range(total_games):
             # Random matchup
-            home_team = random.choice(team_names)
-            away_team = random.choice([t for t in team_names if t != home_team])
+            home_team = rng.choice(team_names)
+            away_team = rng.choice([t for t in team_names if t != home_team])
 
             # Determine if conference game
             is_conf_game = False
@@ -521,7 +556,11 @@ class CBBAnalytics:
                               conference_teams[home_team] == conference_teams[away_team])
 
             # Simulate game
-            game = CBBAnalytics.simulate_game(teams[home_team], teams[away_team])
+            game = CBBAnalytics.simulate_game(
+                teams[home_team],
+                teams[away_team],
+                rng=rng
+            )
 
             # Update standings
             standings[home_team]['pf'] += game['home_score']
@@ -578,6 +617,13 @@ class CBBAnalytics:
         """
         return 0.5 * (1 + math.erf(z / math.sqrt(2)))
 
+    @staticmethod
+    def _clamp_probability(value: float) -> float:
+        """
+        Clamp probability to [0.0, 0.999] to avoid invalid outputs.
+        """
+        return max(0.0, min(0.999, value))
+
 
 def calculate_cbb_kenpom_probability(
     kenpom_1: float,
@@ -590,13 +636,13 @@ def calculate_cbb_kenpom_probability(
     Args:
         kenpom_1: Team 1 KenPom rating
         kenpom_2: Team 2 KenPom rating
-        home_advantage: Home court advantage in points
+        home_advantage: Points to subtract to normalize to a neutral court
 
     Returns:
         Probability of team 1 winning
     """
-    expected_margin = kenpom_1 - kenpom_2 + home_advantage
-    std_dev = 12.5
+    expected_margin = kenpom_1 - kenpom_2 - home_advantage
+    std_dev = 12.0
 
     z_score = expected_margin / std_dev
     return CBBAnalytics._normal_cdf(z_score)
