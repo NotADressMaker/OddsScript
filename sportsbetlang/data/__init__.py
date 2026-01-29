@@ -11,10 +11,12 @@ from sportsbetlang.data.storage import (
 
 from sportsbetlang.data.csv_adapter import CSVStorage
 from sportsbetlang.data.sqlite_adapter import SQLiteStorage
+from sportsbetlang.data.dataset_storage import DatasetStorage
 
 __all__ = [
     'StorageBackend',
     'create_storage',
     'CSVStorage',
     'SQLiteStorage',
+    'DatasetStorage',
 ]
