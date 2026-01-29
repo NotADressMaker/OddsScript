@@ -205,6 +205,8 @@ let direct = kelly(0.60, -110)
 
 ## Built-in Functions
 
+Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting and stats helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`).
+
 ### Odds Conversion
 
 - `american_to_decimal(odds)` - Convert American odds to decimal format
