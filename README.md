@@ -205,7 +205,7 @@ let direct = kelly(0.60, -110)
 
 ## Built-in Functions
 
-Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting and stats helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`). You can optionally tag numeric values with `odds()`, `probability()`, and `stake()` to get clearer runtime validation errors when passing values into betting helpers.
+Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting and stats helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`).
 
 ### Odds Conversion
 

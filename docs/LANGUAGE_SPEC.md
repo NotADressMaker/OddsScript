@@ -78,8 +78,7 @@ bet_statement      = "bet" [ bet_type ] expression
 bet_type           = "spread" | "moneyline" | "total" ;
 bet_param          = "spread" expression ;
 
-parlay_statement   = "parlay" "[" [ expression { "," expression } ] "]"
-                     [ "stake" expression ] ;
+parlay_statement   = "parlay" expression [ "stake" expression ] ;
 
 expression         = or_expression ;
 or_expression      = and_expression { "or" and_expression } ;
@@ -115,9 +114,8 @@ string             = STRING ;
 ## 3) Semantics
 
 ### 3.1 Values and Types
-- Values are dynamically typed: numbers, strings, booleans, arrays, dictionaries, bets, modules, and tagged numbers.
+- Values are dynamically typed: numbers, strings, booleans, arrays, dictionaries, bets, and modules.
 - Arrays support indexing with `[]`. Dictionaries use string or value keys and allow `dict.key` access.
-- Tagged numbers carry semantic meaning for numeric values (e.g., `odds`, `probability`, `stake`).
 
 ### 3.2 Variables and Scope
 - `let` defines mutable variables; `const` defines immutable variables.
@@ -140,20 +138,13 @@ string             = STRING ;
 - `import module as alias` binds the module namespace to `alias`.
   - Example: `import stats as s` binds `s`.
 - `from module import name [as alias]` binds one or more module exports directly into scope.
-- Core utilities are available globally; betting and stats helpers are exposed through their modules.
 
-### 3.6 Tagged Numeric Helpers
-- `odds(value)` creates an odds-tagged number.
-- `probability(value)` creates a probability-tagged number (0–1).
-- `stake(value)` creates a stake-tagged number.
-- Built-ins that expect odds/probability/stake validate tags when provided and emit clearer errors on mismatches.
-
-### 3.7 Betting Statements
+### 3.6 Betting Statements
 - `bet` creates a bet object and returns it.
 - `parlay` creates a parlay object composed of bet expressions.
 - Additional betting parameters (like `spread`) are passed to the bet object.
 
-### 3.8 Errors
+### 3.7 Errors
 - Accessing an undefined variable or member raises a runtime error.
 - Reassigning a `const` raises a runtime error.
 - Importing an unknown module raises a runtime error.

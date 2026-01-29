@@ -96,90 +96,6 @@ class Module:
         raise RuntimeError(f"Module '{self.name}' has no member '{name}'")
 
 
-@dataclass(frozen=True)
-class TaggedNumber:
-    """Numeric value with a semantic tag (e.g., odds, probability, stake)."""
-    value: float
-    tag: str
-
-    def _coerce_other(self, other: Any) -> float:
-        if isinstance(other, TaggedNumber):
-            if other.tag != self.tag:
-                raise RuntimeError(f"Cannot mix tagged values '{self.tag}' and '{other.tag}'")
-            return other.value
-        if isinstance(other, (int, float)):
-            return other
-        raise RuntimeError(f"Cannot operate on tagged value with {type(other)}")
-
-    def _binary_op(self, other: Any, op, op_name: str) -> "TaggedNumber":
-        other_value = self._coerce_other(other)
-        return TaggedNumber(op(self.value, other_value), self.tag)
-
-    def _compare(self, other: Any, op, op_name: str) -> bool:
-        other_value = self._coerce_other(other)
-        return op(self.value, other_value)
-
-    def __add__(self, other: Any) -> "TaggedNumber":
-        return self._binary_op(other, lambda a, b: a + b, "add")
-
-    def __radd__(self, other: Any) -> "TaggedNumber":
-        return self.__add__(other)
-
-    def __sub__(self, other: Any) -> "TaggedNumber":
-        return self._binary_op(other, lambda a, b: a - b, "sub")
-
-    def __rsub__(self, other: Any) -> "TaggedNumber":
-        other_value = self._coerce_other(other)
-        return TaggedNumber(other_value - self.value, self.tag)
-
-    def __mul__(self, other: Any) -> "TaggedNumber":
-        return self._binary_op(other, lambda a, b: a * b, "mul")
-
-    def __rmul__(self, other: Any) -> "TaggedNumber":
-        return self.__mul__(other)
-
-    def __truediv__(self, other: Any) -> "TaggedNumber":
-        return self._binary_op(other, lambda a, b: a / b, "truediv")
-
-    def __rtruediv__(self, other: Any) -> "TaggedNumber":
-        other_value = self._coerce_other(other)
-        return TaggedNumber(other_value / self.value, self.tag)
-
-    def __mod__(self, other: Any) -> "TaggedNumber":
-        return self._binary_op(other, lambda a, b: a % b, "mod")
-
-    def __rmod__(self, other: Any) -> "TaggedNumber":
-        other_value = self._coerce_other(other)
-        return TaggedNumber(other_value % self.value, self.tag)
-
-    def __neg__(self) -> "TaggedNumber":
-        return TaggedNumber(-self.value, self.tag)
-
-    def __pos__(self) -> "TaggedNumber":
-        return self
-
-    def __eq__(self, other: Any) -> bool:
-        return self._compare(other, lambda a, b: a == b, "eq")
-
-    def __lt__(self, other: Any) -> bool:
-        return self._compare(other, lambda a, b: a < b, "lt")
-
-    def __le__(self, other: Any) -> bool:
-        return self._compare(other, lambda a, b: a <= b, "le")
-
-    def __gt__(self, other: Any) -> bool:
-        return self._compare(other, lambda a, b: a > b, "gt")
-
-    def __ge__(self, other: Any) -> bool:
-        return self._compare(other, lambda a, b: a >= b, "ge")
-
-    def __float__(self) -> float:
-        return float(self.value)
-
-    def __repr__(self) -> str:
-        return f"{self.tag}({self.value})"
-
-
 class Interpreter:
     def __init__(self):
         self.global_env = Environment()
@@ -198,28 +114,15 @@ class Interpreter:
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
 
-        def register_global_builtin(name: str, func: Any, module: Optional[str] = None):
+        def register_builtin(name: str, func: Any, module: Optional[str] = None):
             self.global_env.define(name, func)
             if module:
                 module_exports = modules.setdefault(module, {})
                 module_exports[name] = func
 
-        def register_module_builtin(name: str, func: Any, module: str):
-            module_exports = modules.setdefault(module, {})
-            module_exports[name] = func
-
         modules: Dict[str, Dict[str, Any]] = {}
 
-        def tag_value(tag: str, value: Any) -> TaggedNumber:
-            return TaggedNumber(self.unwrap_number(value, label=tag), tag)
-
-        def ensure_probability(value: Any, label: str = "probability") -> float:
-            prob = self.unwrap_number(value, expected_tag="probability", label=label)
-            if not 0 <= prob <= 1:
-                raise RuntimeError(f"Expected {label} between 0 and 1, got {prob}")
-            return prob
-
-        def american_to_decimal(odds: Any) -> float:
+        def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
             odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
             if odds_value > 0:
@@ -400,39 +303,36 @@ class Interpreter:
             return PoissonCalculator.simulate_matches(home_lambda, away_lambda, num_simulations)
 
         # Register built-in functions
-        register_module_builtin('american_to_decimal', american_to_decimal, module='betting')
-        register_module_builtin('decimal_to_american', decimal_to_american, module='betting')
-        register_module_builtin('implied_probability', implied_probability, module='betting')
-        register_module_builtin('calculate_ev', calculate_ev, module='betting')
-        register_module_builtin('kelly_criterion', kelly_criterion, module='betting')
-        register_module_builtin('parlay_odds', parlay_odds, module='betting')
-        register_module_builtin('parlay_probability', parlay_probability, module='betting')
-        register_module_builtin('break_even_percentage', break_even_percentage, module='betting')
-        register_module_builtin('vig_calculator', vig_calculator, module='betting')
-        register_module_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
-        register_module_builtin('units_to_risk', units_to_risk, module='betting')
-        register_module_builtin('roi_calculator', roi_calculator, module='betting')
-        register_module_builtin('round_robin', round_robin, module='betting')
-        register_module_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
-        register_module_builtin('hedge_stake', hedge_stake, module='betting')
-        register_global_builtin('odds', lambda value: tag_value("odds", value), module='core')
-        register_global_builtin('probability', lambda value: tag_value("probability", value), module='core')
-        register_global_builtin('stake', lambda value: tag_value("stake", value), module='core')
-        register_global_builtin('abs', abs, module='core')
-        register_global_builtin('min', min, module='core')
-        register_global_builtin('max', max, module='core')
-        register_global_builtin('sqrt', math.sqrt, module='core')
-        register_global_builtin('pow', pow, module='core')
-        register_global_builtin('len', len, module='core')
-        register_global_builtin('range', range, module='core')
-        register_global_builtin('sum', sum, module='core')
+        register_builtin('american_to_decimal', american_to_decimal, module='betting')
+        register_builtin('decimal_to_american', decimal_to_american, module='betting')
+        register_builtin('implied_probability', implied_probability, module='betting')
+        register_builtin('calculate_ev', calculate_ev, module='betting')
+        register_builtin('kelly_criterion', kelly_criterion, module='betting')
+        register_builtin('parlay_odds', parlay_odds, module='betting')
+        register_builtin('parlay_probability', parlay_probability, module='betting')
+        register_builtin('break_even_percentage', break_even_percentage, module='betting')
+        register_builtin('vig_calculator', vig_calculator, module='betting')
+        register_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
+        register_builtin('units_to_risk', units_to_risk, module='betting')
+        register_builtin('roi_calculator', roi_calculator, module='betting')
+        register_builtin('round_robin', round_robin, module='betting')
+        register_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
+        register_builtin('hedge_stake', hedge_stake, module='betting')
+        register_builtin('abs', abs, module='core')
+        register_builtin('min', min, module='core')
+        register_builtin('max', max, module='core')
+        register_builtin('sqrt', math.sqrt, module='core')
+        register_builtin('pow', pow, module='core')
+        register_builtin('len', len, module='core')
+        register_builtin('range', range, module='core')
+        register_builtin('sum', sum, module='core')
 
         # Poisson distribution functions
-        register_module_builtin('poisson_probability', poisson_probability, module='stats')
-        register_module_builtin('poisson_cumulative', poisson_cumulative, module='stats')
-        register_module_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
-        register_module_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
-        register_module_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
+        register_builtin('poisson_probability', poisson_probability, module='stats')
+        register_builtin('poisson_cumulative', poisson_cumulative, module='stats')
+        register_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
+        register_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
+        register_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
 
         for name, exports in modules.items():
             self.modules[name] = Module(name, exports)
