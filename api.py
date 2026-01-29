@@ -26,12 +26,14 @@ Usage:
     http://localhost:8000/docs
 """
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import json
 from datetime import datetime
+from pathlib import Path
 
 # Import SportsBetLang
 from lib import (
@@ -40,6 +42,7 @@ from lib import (
     BettingDatabase, create_database,
     train_and_predict
 )
+from sportsbetlang.data.dataset_storage import DatasetStorage
 
 # Create FastAPI app
 app = FastAPI(
@@ -61,6 +64,10 @@ app.add_middleware(
 
 # Initialize database
 db = create_database("api_betting.db")
+dataset_storage = DatasetStorage(
+    db_path=Path("data/datasets/datasets.db"),
+    storage_dir=Path("data/datasets/uploads")
+)
 
 # WebSocket manager for real-time updates
 class ConnectionManager:
@@ -989,6 +996,67 @@ async def export_bets(
             "count": len(bets),
             "filename": f"bets_{datetime.now().strftime('%Y%m%d')}.json"
         }
+
+@app.post("/datasets/upload")
+async def upload_dataset(
+    file: UploadFile = File(...),
+    dataset_type: str = Form("generic"),
+    name: Optional[str] = Form(None),
+    compress: bool = Form(True)
+):
+    """
+    Upload a dataset file and persist it efficiently.
+
+    Supports CSV/JSON/text uploads with optional gzip compression.
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+
+    record = dataset_storage.save_upload(
+        upload_file=file,
+        dataset_type=dataset_type,
+        name=name,
+        compress=compress
+    )
+
+    return {
+        "message": "Dataset uploaded successfully",
+        "dataset": record
+    }
+
+@app.get("/datasets")
+async def list_datasets(dataset_type: Optional[str] = None):
+    """List uploaded datasets."""
+    datasets = dataset_storage.list_datasets(dataset_type=dataset_type)
+    return {
+        "count": len(datasets),
+        "datasets": datasets
+    }
+
+@app.get("/datasets/{dataset_id}")
+async def get_dataset(dataset_id: str):
+    """Get dataset metadata."""
+    dataset = dataset_storage.get_dataset(dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+    return dataset
+
+@app.get("/datasets/{dataset_id}/download")
+async def download_dataset(dataset_id: str):
+    """Download a stored dataset file."""
+    dataset = dataset_storage.get_dataset(dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    file_path = Path(dataset["storage_path"])
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Dataset file missing")
+
+    return FileResponse(
+        path=file_path,
+        filename=dataset["original_filename"],
+        media_type=dataset.get("content_type") or "application/octet-stream"
+    )
 
 @app.get("/statistics/summary")
 async def get_statistics_summary():
