@@ -3,6 +3,7 @@ SportsBetLang Interpreter - Executes the AST with built-in betting functions
 """
 
 import math
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
@@ -101,6 +102,15 @@ class Interpreter:
         self.modules: Dict[str, Module] = {}
         self.setup_builtins()
 
+    def unwrap_number(self, value: Any, expected_tag: Optional[str] = None, label: str = "value") -> float:
+        if isinstance(value, TaggedNumber):
+            if expected_tag and value.tag != expected_tag:
+                raise RuntimeError(f"Expected {label} to be '{expected_tag}', got '{value.tag}'")
+            return value.value
+        if isinstance(value, (int, float)):
+            return value
+        raise RuntimeError(f"Expected {label} to be a number")
+
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
 
@@ -114,38 +124,45 @@ class Interpreter:
 
         def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
-            if odds > 0:
-                return (odds / 100) + 1
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            if odds_value > 0:
+                return (odds_value / 100) + 1
             else:
-                return (100 / abs(odds)) + 1
+                return (100 / abs(odds_value)) + 1
 
-        def decimal_to_american(odds: float) -> float:
+        def decimal_to_american(odds: Any) -> float:
             """Convert decimal odds to American odds"""
-            if odds >= 2.0:
-                return (odds - 1) * 100
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="decimal_odds")
+            if odds_value >= 2.0:
+                return (odds_value - 1) * 100
             else:
-                return -100 / (odds - 1)
+                return -100 / (odds_value - 1)
 
-        def implied_probability(odds: float) -> float:
+        def implied_probability(odds: Any) -> TaggedNumber:
             """Calculate implied probability from American odds"""
-            if odds > 0:
-                return 100 / (odds + 100)
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            if odds_value > 0:
+                probability = 100 / (odds_value + 100)
             else:
-                return abs(odds) / (abs(odds) + 100)
+                probability = abs(odds_value) / (abs(odds_value) + 100)
+            return TaggedNumber(probability, "probability")
 
-        def calculate_ev(true_prob: float, odds: float, stake: float = 100) -> float:
+        def calculate_ev(true_prob: Any, odds: Any, stake: Any = 100) -> float:
             """Calculate expected value of a bet"""
+            prob = ensure_probability(true_prob, label="true_prob")
             decimal_odds = american_to_decimal(odds)
-            win_amount = stake * (decimal_odds - 1)
-            loss_amount = stake
-            ev = (true_prob * win_amount) - ((1 - true_prob) * loss_amount)
+            stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
+            win_amount = stake_value * (decimal_odds - 1)
+            loss_amount = stake_value
+            ev = (prob * win_amount) - ((1 - prob) * loss_amount)
             return ev
 
-        def kelly_criterion(true_prob: float, odds: float) -> float:
+        def kelly_criterion(true_prob: Any, odds: Any) -> float:
             """Calculate optimal bet size using Kelly Criterion"""
+            prob = ensure_probability(true_prob, label="true_prob")
             decimal_odds = american_to_decimal(odds)
             b = decimal_odds - 1  # net odds received on the wager
-            p = true_prob
+            p = prob
             q = 1 - p
             kelly = (b * p - q) / b
             return max(0, kelly)  # Don't bet if kelly is negative
@@ -158,28 +175,28 @@ class Interpreter:
                 combined *= odd
             return decimal_to_american(combined)
 
-        def parlay_probability(*probs) -> float:
+        def parlay_probability(*probs) -> TaggedNumber:
             """Calculate probability of winning a parlay"""
             result = 1
             for p in probs:
-                result *= p
-            return result
+                result *= ensure_probability(p, label="parlay_prob")
+            return TaggedNumber(result, "probability")
 
-        def break_even_percentage(odds: float) -> float:
+        def break_even_percentage(odds: Any) -> TaggedNumber:
             """Calculate break-even win percentage"""
             return implied_probability(odds)
 
-        def vig_calculator(odds1: float, odds2: float) -> float:
+        def vig_calculator(odds1: Any, odds2: Any) -> float:
             """Calculate bookmaker's vig (juice) from two-way market"""
-            prob1 = implied_probability(odds1)
-            prob2 = implied_probability(odds2)
+            prob1 = ensure_probability(implied_probability(odds1), label="odds1")
+            prob2 = ensure_probability(implied_probability(odds2), label="odds2")
             total = prob1 + prob2
             vig = total - 1
             return vig * 100  # Return as percentage
 
-        def true_odds_from_vig(odds: float, total_vig: float) -> float:
+        def true_odds_from_vig(odds: Any, total_vig: float) -> float:
             """Remove vig to get true odds"""
-            implied_prob = implied_probability(odds)
+            implied_prob = ensure_probability(implied_probability(odds), label="odds")
             true_prob = implied_prob / (1 + total_vig)
             if true_prob >= 0.5:
                 true_american = -100 * true_prob / (1 - true_prob)
@@ -187,14 +204,16 @@ class Interpreter:
                 true_american = 100 * (1 - true_prob) / true_prob
             return true_american
 
-        def units_to_risk(odds: float, units_to_win: float = 1) -> float:
+        def units_to_risk(odds: Any, units_to_win: Any = 1) -> float:
             """Calculate units to risk to win specified units"""
-            if odds > 0:
-                return units_to_win * (100 / odds)
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            units_value = self.unwrap_number(units_to_win, expected_tag="stake", label="units_to_win")
+            if odds_value > 0:
+                return units_value * (100 / odds_value)
             else:
-                return units_to_win * (abs(odds) / 100)
+                return units_value * (abs(odds_value) / 100)
 
-        def roi_calculator(wins: int, losses: int, avg_odds: float) -> float:
+        def roi_calculator(wins: int, losses: int, avg_odds: Any) -> float:
             """Calculate ROI from betting record"""
             if wins + losses == 0:
                 return 0
@@ -210,7 +229,7 @@ class Interpreter:
             from math import comb
             return comb(bets_count, parlay_size)
 
-        def arbitrage_stakes(odds1: float, odds2: float, total_stake: float = 100) -> Dict:
+        def arbitrage_stakes(odds1: Any, odds2: Any, total_stake: Any = 100) -> Dict:
             """Calculate two-way arbitrage stakes and expected profit"""
             decimal1 = american_to_decimal(odds1)
             decimal2 = american_to_decimal(odds2)
@@ -219,39 +238,41 @@ class Interpreter:
             implied2 = 1 / decimal2
             total_implied = implied1 + implied2
 
-            stake1 = total_stake * (implied1 / total_implied)
-            stake2 = total_stake * (implied2 / total_implied)
+            total_value = self.unwrap_number(total_stake, expected_tag="stake", label="total_stake")
+            stake1 = total_value * (implied1 / total_implied)
+            stake2 = total_value * (implied2 / total_implied)
 
             payout1 = stake1 * decimal1
             payout2 = stake2 * decimal2
-            profit = min(payout1, payout2) - total_stake
+            profit = min(payout1, payout2) - total_value
 
             return {
                 'odds1': odds1,
                 'odds2': odds2,
-                'stake_total': total_stake,
+                'stake_total': total_value,
                 'stake1': stake1,
                 'stake2': stake2,
                 'total_implied': total_implied,
                 'arb_margin_pct': (1 - total_implied) * 100,
                 'profit': profit,
-                'roi_pct': (profit / total_stake) * 100
+                'roi_pct': (profit / total_value) * 100
             }
 
-        def hedge_stake(odds: float, stake: float, hedge_odds: float) -> Dict:
+        def hedge_stake(odds: Any, stake: Any, hedge_odds: Any) -> Dict:
             """Calculate hedge stake to lock in profit on a two-way bet"""
             decimal_main = american_to_decimal(odds)
             decimal_hedge = american_to_decimal(hedge_odds)
 
-            hedge_amount = stake * (decimal_main - 1) / (decimal_hedge - 1)
-            total_stake = stake + hedge_amount
+            stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
+            hedge_amount = stake_value * (decimal_main - 1) / (decimal_hedge - 1)
+            total_stake = stake_value + hedge_amount
 
-            profit_main = (stake * decimal_main) - total_stake
+            profit_main = (stake_value * decimal_main) - total_stake
             profit_hedge = (hedge_amount * decimal_hedge) - total_stake
 
             return {
                 'original_odds': odds,
-                'original_stake': stake,
+                'original_stake': stake_value,
                 'hedge_odds': hedge_odds,
                 'hedge_stake': hedge_amount,
                 'total_stake': total_stake,
@@ -546,12 +567,14 @@ class Interpreter:
         team = self.eval_node(node.team, env)
         odds = self.eval_node(node.odds, env) if node.odds else -110
         stake = self.eval_node(node.stake, env) if node.stake else 100
+        odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+        stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
 
         kwargs = {}
         for key, value_node in node.additional_params.items():
-            kwargs[key] = self.eval_node(value_node, env)
+            kwargs[key] = self.unwrap_number(self.eval_node(value_node, env), label=key)
 
-        bet = Bet(node.bet_type, team, odds, stake, **kwargs)
+        bet = Bet(node.bet_type, team, odds_value, stake_value, **kwargs)
         print(f"Created: {bet}")
         return bet
 
