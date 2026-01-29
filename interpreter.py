@@ -104,15 +104,11 @@ class Interpreter:
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
 
-        def register_global_builtin(name: str, func: Any, module: Optional[str] = None):
+        def register_builtin(name: str, func: Any, module: Optional[str] = None):
             self.global_env.define(name, func)
             if module:
                 module_exports = modules.setdefault(module, {})
                 module_exports[name] = func
-
-        def register_module_builtin(name: str, func: Any, module: str):
-            module_exports = modules.setdefault(module, {})
-            module_exports[name] = func
 
         modules: Dict[str, Dict[str, Any]] = {}
 
@@ -286,36 +282,36 @@ class Interpreter:
             return PoissonCalculator.simulate_matches(home_lambda, away_lambda, num_simulations)
 
         # Register built-in functions
-        register_module_builtin('american_to_decimal', american_to_decimal, module='betting')
-        register_module_builtin('decimal_to_american', decimal_to_american, module='betting')
-        register_module_builtin('implied_probability', implied_probability, module='betting')
-        register_module_builtin('calculate_ev', calculate_ev, module='betting')
-        register_module_builtin('kelly_criterion', kelly_criterion, module='betting')
-        register_module_builtin('parlay_odds', parlay_odds, module='betting')
-        register_module_builtin('parlay_probability', parlay_probability, module='betting')
-        register_module_builtin('break_even_percentage', break_even_percentage, module='betting')
-        register_module_builtin('vig_calculator', vig_calculator, module='betting')
-        register_module_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
-        register_module_builtin('units_to_risk', units_to_risk, module='betting')
-        register_module_builtin('roi_calculator', roi_calculator, module='betting')
-        register_module_builtin('round_robin', round_robin, module='betting')
-        register_module_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
-        register_module_builtin('hedge_stake', hedge_stake, module='betting')
-        register_global_builtin('abs', abs, module='core')
-        register_global_builtin('min', min, module='core')
-        register_global_builtin('max', max, module='core')
-        register_global_builtin('sqrt', math.sqrt, module='core')
-        register_global_builtin('pow', pow, module='core')
-        register_global_builtin('len', len, module='core')
-        register_global_builtin('range', range, module='core')
-        register_global_builtin('sum', sum, module='core')
+        register_builtin('american_to_decimal', american_to_decimal, module='betting')
+        register_builtin('decimal_to_american', decimal_to_american, module='betting')
+        register_builtin('implied_probability', implied_probability, module='betting')
+        register_builtin('calculate_ev', calculate_ev, module='betting')
+        register_builtin('kelly_criterion', kelly_criterion, module='betting')
+        register_builtin('parlay_odds', parlay_odds, module='betting')
+        register_builtin('parlay_probability', parlay_probability, module='betting')
+        register_builtin('break_even_percentage', break_even_percentage, module='betting')
+        register_builtin('vig_calculator', vig_calculator, module='betting')
+        register_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
+        register_builtin('units_to_risk', units_to_risk, module='betting')
+        register_builtin('roi_calculator', roi_calculator, module='betting')
+        register_builtin('round_robin', round_robin, module='betting')
+        register_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
+        register_builtin('hedge_stake', hedge_stake, module='betting')
+        register_builtin('abs', abs, module='core')
+        register_builtin('min', min, module='core')
+        register_builtin('max', max, module='core')
+        register_builtin('sqrt', math.sqrt, module='core')
+        register_builtin('pow', pow, module='core')
+        register_builtin('len', len, module='core')
+        register_builtin('range', range, module='core')
+        register_builtin('sum', sum, module='core')
 
         # Poisson distribution functions
-        register_module_builtin('poisson_probability', poisson_probability, module='stats')
-        register_module_builtin('poisson_cumulative', poisson_cumulative, module='stats')
-        register_module_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
-        register_module_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
-        register_module_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
+        register_builtin('poisson_probability', poisson_probability, module='stats')
+        register_builtin('poisson_cumulative', poisson_cumulative, module='stats')
+        register_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
+        register_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
+        register_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
 
         for name, exports in modules.items():
             self.modules[name] = Module(name, exports)

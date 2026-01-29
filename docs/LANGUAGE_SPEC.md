@@ -78,8 +78,7 @@ bet_statement      = "bet" [ bet_type ] expression
 bet_type           = "spread" | "moneyline" | "total" ;
 bet_param          = "spread" expression ;
 
-parlay_statement   = "parlay" "[" [ expression { "," expression } ] "]"
-                     [ "stake" expression ] ;
+parlay_statement   = "parlay" expression [ "stake" expression ] ;
 
 expression         = or_expression ;
 or_expression      = and_expression { "or" and_expression } ;
@@ -139,7 +138,6 @@ string             = STRING ;
 - `import module as alias` binds the module namespace to `alias`.
   - Example: `import stats as s` binds `s`.
 - `from module import name [as alias]` binds one or more module exports directly into scope.
-- Core utilities are available globally; betting and stats helpers are exposed through their modules.
 
 ### 3.6 Betting Statements
 - `bet` creates a bet object and returns it.
