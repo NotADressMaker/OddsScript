@@ -85,7 +85,7 @@ from lib.easy_sport_models import (
 from lib.database import BettingDatabase, create_database
 
 # Import sport-specific analytics packages
-from lib.nba_analytics import NBAAnalytics
+from lib.nba_analytics import NBAAnalytics, NBABettingInterface
 from lib.nfl_analytics import NFLAnalytics
 from lib.nhl_analytics import NHLAnalytics, NHLAdvancedAnalytics
 from lib.mlb_analytics import MLBAnalytics
@@ -166,6 +166,7 @@ __all__ = [
 
     # Sport-Specific Analytics Packages
     'NBAAnalytics',
+    'NBABettingInterface',
     'NFLAnalytics',
     'NHLAnalytics',
     'NHLAdvancedAnalytics',
