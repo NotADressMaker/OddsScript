@@ -201,6 +201,9 @@ class Lexer:
                 string_val += self.current_char()
                 self.advance()
 
+        if self.current_char() != quote_char:
+            raise SyntaxError(f"Unterminated string at {start_line}:{start_col}")
+
         self.advance()  # Skip closing quote
         return Token(TokenType.STRING, string_val, start_line, start_col)
 

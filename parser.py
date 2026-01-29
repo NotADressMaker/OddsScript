@@ -608,7 +608,7 @@ class Parser:
                 self.advance()
 
         self.expect(TokenType.RBRACE)
-        return DictLiteral(pairs)
+        return self.with_span(DictLiteral(pairs), lbrace_token)
 
     def parse_module_path(self) -> str:
         if self.current_token().type == TokenType.STRING:
