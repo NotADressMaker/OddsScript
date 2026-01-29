@@ -103,7 +103,7 @@ from lib import SBL, EasySportModel
 ```
 
 📚 **[Installation Guide](INSTALL.md)** - All installation methods
-📘 **[Language Specification](docs/LANGUAGE_SPEC.md)** - Grammar and semantics reference
+📘 **[Language Specification](docs/LANGUAGE_SPEC.md)** - Grammar, semantics, and LLM/automation-friendly conventions
 
 ## Quick Start
 

@@ -148,3 +148,40 @@ string             = STRING ;
 - Accessing an undefined variable or member raises a runtime error.
 - Reassigning a `const` raises a runtime error.
 - Importing an unknown module raises a runtime error.
+
+## 4) LLM/Automation-Friendly Conventions
+
+These conventions make generated SportsBetLang easier to parse, review, and run in automated systems. They are stylistic; they do not change semantics.
+
+### 4.1 Canonical Formatting
+- Use **one statement per line** (even inside blocks).
+- Prefer **explicit parentheses** for complex expressions to make precedence unambiguous.
+- Keep **keywords explicit** (e.g., always include `odds` and `stake` fields when relevant).
+- Use **trailing commas** only in multi-line arrays/dictionaries.
+
+### 4.2 Naming and Structure
+- Use **descriptive, stable identifiers** (e.g., `home_team`, `implied_prob`).
+- Avoid reusing variable names for different meanings in the same scope.
+- Keep function signatures small; prefer passing structured dictionaries for many parameters.
+
+### 4.3 Deterministic Output Style
+When generating code with an AI system:
+- Emit **imports first**, then constants/configs, then function definitions, then executable statements.
+- Avoid implicit type changes (e.g., don’t reuse a number variable as an array).
+- Prefer **literal values** over computed defaults unless necessary.
+
+### 4.4 Error-Avoidance Checklist
+- Ensure all referenced identifiers are declared before use.
+- Use `const` for configuration values to prevent accidental mutation.
+- Include `return` at the end of functions that are expected to return a value.
+
+### 4.5 LLM-Friendly Bet Construction
+- Always include an explicit bet type (`spread`, `moneyline`, or `total`) when known.
+- Provide `odds` and `stake` even when defaults exist in surrounding code.
+- Prefer literal team/market labels in `bet` statements to reduce ambiguity.
+- Use a single `parlay` statement with a list of bet expressions rather than incremental mutation.
+
+### 4.6 Stability and Diff Hygiene
+- Keep inputs and outputs deterministic: avoid using time-based values unless required.
+- Avoid chained member/index access deeper than two levels; assign intermediates to named variables.
+- Group related constants together and avoid interleaving with executable statements.
