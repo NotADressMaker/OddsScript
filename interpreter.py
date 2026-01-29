@@ -368,7 +368,29 @@ class Interpreter:
             return node.value
 
         elif isinstance(node, Identifier):
-            return env.get(node.name)
+            try:
+                return env.get(node.name)
+            except RuntimeError as err:
+                self.runtime_error(str(err), node)
+
+        elif isinstance(node, ImportStatement):
+            try:
+                module = self.load_module(node.module)
+                alias = node.alias or node.module.split(".")[-1]
+                env.define(alias, module)
+                return module
+            except RuntimeError as err:
+                self.runtime_error(str(err), node)
+
+        elif isinstance(node, FromImportStatement):
+            try:
+                module = self.load_module(node.module)
+                for name, alias in node.imports:
+                    value = module.get(name)
+                    env.define(alias or name, value)
+                return None
+            except RuntimeError as err:
+                self.runtime_error(str(err), node)
 
         elif isinstance(node, ImportStatement):
             module = self.load_module(node.module)
@@ -402,11 +424,14 @@ class Interpreter:
 
         elif isinstance(node, Assignment):
             value = self.eval_node(node.value, env)
-            if env.exists(node.name):
-                env.set(node.name, value)
-            else:
-                env.define(node.name, value, node.is_const)
-            return value
+            try:
+                if env.exists(node.name):
+                    env.set(node.name, value)
+                else:
+                    env.define(node.name, value, node.is_const)
+                return value
+            except RuntimeError as err:
+                self.runtime_error(str(err), node)
 
         elif isinstance(node, FunctionCall):
             return self.eval_function_call(node, env)
