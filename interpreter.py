@@ -83,13 +83,34 @@ class Bet:
         return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+d}, ${self.stake:.2f})"
 
 
+class Module:
+    """Represents a module namespace"""
+    def __init__(self, name: str, exports: Dict[str, Any]):
+        self.name = name
+        self.exports = exports
+
+    def get(self, name: str) -> Any:
+        if name in self.exports:
+            return self.exports[name]
+        raise RuntimeError(f"Module '{self.name}' has no member '{name}'")
+
+
 class Interpreter:
     def __init__(self):
         self.global_env = Environment()
+        self.modules: Dict[str, Module] = {}
         self.setup_builtins()
 
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
+
+        def register_builtin(name: str, func: Any, module: Optional[str] = None):
+            self.global_env.define(name, func)
+            if module:
+                module_exports = modules.setdefault(module, {})
+                module_exports[name] = func
+
+        modules: Dict[str, Dict[str, Any]] = {}
 
         def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
@@ -261,36 +282,44 @@ class Interpreter:
             return PoissonCalculator.simulate_matches(home_lambda, away_lambda, num_simulations)
 
         # Register built-in functions
-        self.global_env.define('american_to_decimal', american_to_decimal)
-        self.global_env.define('decimal_to_american', decimal_to_american)
-        self.global_env.define('implied_probability', implied_probability)
-        self.global_env.define('calculate_ev', calculate_ev)
-        self.global_env.define('kelly_criterion', kelly_criterion)
-        self.global_env.define('parlay_odds', parlay_odds)
-        self.global_env.define('parlay_probability', parlay_probability)
-        self.global_env.define('break_even_percentage', break_even_percentage)
-        self.global_env.define('vig_calculator', vig_calculator)
-        self.global_env.define('true_odds_from_vig', true_odds_from_vig)
-        self.global_env.define('units_to_risk', units_to_risk)
-        self.global_env.define('roi_calculator', roi_calculator)
-        self.global_env.define('round_robin', round_robin)
-        self.global_env.define('arbitrage_stakes', arbitrage_stakes)
-        self.global_env.define('hedge_stake', hedge_stake)
-        self.global_env.define('abs', abs)
-        self.global_env.define('min', min)
-        self.global_env.define('max', max)
-        self.global_env.define('sqrt', math.sqrt)
-        self.global_env.define('pow', pow)
-        self.global_env.define('len', len)
-        self.global_env.define('range', range)
-        self.global_env.define('sum', sum)
+        register_builtin('american_to_decimal', american_to_decimal, module='betting')
+        register_builtin('decimal_to_american', decimal_to_american, module='betting')
+        register_builtin('implied_probability', implied_probability, module='betting')
+        register_builtin('calculate_ev', calculate_ev, module='betting')
+        register_builtin('kelly_criterion', kelly_criterion, module='betting')
+        register_builtin('parlay_odds', parlay_odds, module='betting')
+        register_builtin('parlay_probability', parlay_probability, module='betting')
+        register_builtin('break_even_percentage', break_even_percentage, module='betting')
+        register_builtin('vig_calculator', vig_calculator, module='betting')
+        register_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
+        register_builtin('units_to_risk', units_to_risk, module='betting')
+        register_builtin('roi_calculator', roi_calculator, module='betting')
+        register_builtin('round_robin', round_robin, module='betting')
+        register_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
+        register_builtin('hedge_stake', hedge_stake, module='betting')
+        register_builtin('abs', abs, module='core')
+        register_builtin('min', min, module='core')
+        register_builtin('max', max, module='core')
+        register_builtin('sqrt', math.sqrt, module='core')
+        register_builtin('pow', pow, module='core')
+        register_builtin('len', len, module='core')
+        register_builtin('range', range, module='core')
+        register_builtin('sum', sum, module='core')
 
         # Poisson distribution functions
-        self.global_env.define('poisson_probability', poisson_probability)
-        self.global_env.define('poisson_cumulative', poisson_cumulative)
-        self.global_env.define('poisson_simulate_event', poisson_simulate_event)
-        self.global_env.define('poisson_simulate_match', poisson_simulate_match)
-        self.global_env.define('poisson_simulate_matches', poisson_simulate_matches)
+        register_builtin('poisson_probability', poisson_probability, module='stats')
+        register_builtin('poisson_cumulative', poisson_cumulative, module='stats')
+        register_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
+        register_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
+        register_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
+
+        for name, exports in modules.items():
+            self.modules[name] = Module(name, exports)
+
+    def load_module(self, module_path: str) -> Module:
+        if module_path in self.modules:
+            return self.modules[module_path]
+        raise RuntimeError(f"Unknown module '{module_path}'")
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
@@ -320,6 +349,19 @@ class Interpreter:
         elif isinstance(node, Identifier):
             return env.get(node.name)
 
+        elif isinstance(node, ImportStatement):
+            module = self.load_module(node.module)
+            alias = node.alias or node.module.split(".")[-1]
+            env.define(alias, module)
+            return module
+
+        elif isinstance(node, FromImportStatement):
+            module = self.load_module(node.module)
+            for name, alias in node.imports:
+                value = module.get(name)
+                env.define(alias or name, value)
+            return None
+
         elif isinstance(node, ArrayLiteral):
             return [self.eval_node(elem, env) for elem in node.elements]
 
@@ -347,6 +389,10 @@ class Interpreter:
 
         elif isinstance(node, FunctionCall):
             return self.eval_function_call(node, env)
+
+        elif isinstance(node, CallExpression):
+            callee = self.eval_node(node.callee, env)
+            return self.call_function_value(callee, node.arguments, env)
 
         elif isinstance(node, IfStatement):
             condition = self.eval_node(node.condition, env)
@@ -396,6 +442,8 @@ class Interpreter:
             obj = self.eval_node(node.object, env)
             if isinstance(obj, Bet):
                 return getattr(obj, node.member)
+            elif isinstance(obj, Module):
+                return obj.get(node.member)
             elif isinstance(obj, dict):
                 return obj.get(node.member)
             else:
@@ -453,26 +501,19 @@ class Interpreter:
         else:
             raise RuntimeError(f"Unknown unary operator: {node.operator}")
 
-    def eval_function_call(self, node: FunctionCall, env: Environment) -> Any:
-        if node.name == 'print':
-            args = [self.eval_node(arg, env) for arg in node.arguments]
-            print(*args)
-            return None
-
-        func = env.get(node.name)
-
-        # Built-in Python function
+    def call_function_value(self, func: Any, arg_nodes: List[ASTNode], env: Environment) -> Any:
         if callable(func) and not isinstance(func, FunctionDef):
-            args = [self.eval_node(arg, env) for arg in node.arguments]
+            args = [self.eval_node(arg, env) for arg in arg_nodes]
             return func(*args)
 
-        # User-defined function
         if isinstance(func, FunctionDef):
-            if len(node.arguments) != len(func.parameters):
-                raise RuntimeError(f"Function '{node.name}' expects {len(func.parameters)} arguments, got {len(node.arguments)}")
+            if len(arg_nodes) != len(func.parameters):
+                raise RuntimeError(
+                    f"Function '{func.name}' expects {len(func.parameters)} arguments, got {len(arg_nodes)}"
+                )
 
             func_env = Environment(env)
-            for param, arg in zip(func.parameters, node.arguments):
+            for param, arg in zip(func.parameters, arg_nodes):
                 arg_value = self.eval_node(arg, env)
                 func_env.define(param, arg_value)
 
@@ -484,7 +525,22 @@ class Interpreter:
             except ReturnValue as ret:
                 return ret.value
 
-        raise RuntimeError(f"'{node.name}' is not a function")
+        raise RuntimeError("Target is not a function")
+
+    def eval_function_call(self, node: FunctionCall, env: Environment) -> Any:
+        if node.name == 'print':
+            args = [self.eval_node(arg, env) for arg in node.arguments]
+            print(*args)
+            return None
+
+        func = env.get(node.name)
+
+        try:
+            return self.call_function_value(func, node.arguments, env)
+        except RuntimeError as err:
+            if str(err) == "Target is not a function":
+                raise RuntimeError(f"'{node.name}' is not a function")
+            raise
 
     def eval_bet_statement(self, node: BetStatement, env: Environment) -> Bet:
         team = self.eval_node(node.team, env)
