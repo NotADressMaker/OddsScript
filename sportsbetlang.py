@@ -119,6 +119,8 @@ BUILT-IN FUNCTIONS:
   parlay_odds(odds1, odds2, ...)      # Calculate parlay odds
   vig_calculator(odds1, odds2)        # Calculate bookmaker's vig
   break_even_percentage(odds)         # Break-even win percentage
+  arbitrage_stakes(odds1, odds2, stake) # Two-way arbitrage sizing
+  hedge_stake(odds, stake, hedge_odds)  # Hedge bet sizing
 
 CONTROL FLOW:
   if condition { ... } else { ... }   # Conditional

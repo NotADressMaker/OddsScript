@@ -188,6 +188,56 @@ class Interpreter:
             from math import comb
             return comb(bets_count, parlay_size)
 
+        def arbitrage_stakes(odds1: float, odds2: float, total_stake: float = 100) -> Dict:
+            """Calculate two-way arbitrage stakes and expected profit"""
+            decimal1 = american_to_decimal(odds1)
+            decimal2 = american_to_decimal(odds2)
+
+            implied1 = 1 / decimal1
+            implied2 = 1 / decimal2
+            total_implied = implied1 + implied2
+
+            stake1 = total_stake * (implied1 / total_implied)
+            stake2 = total_stake * (implied2 / total_implied)
+
+            payout1 = stake1 * decimal1
+            payout2 = stake2 * decimal2
+            profit = min(payout1, payout2) - total_stake
+
+            return {
+                'odds1': odds1,
+                'odds2': odds2,
+                'stake_total': total_stake,
+                'stake1': stake1,
+                'stake2': stake2,
+                'total_implied': total_implied,
+                'arb_margin_pct': (1 - total_implied) * 100,
+                'profit': profit,
+                'roi_pct': (profit / total_stake) * 100
+            }
+
+        def hedge_stake(odds: float, stake: float, hedge_odds: float) -> Dict:
+            """Calculate hedge stake to lock in profit on a two-way bet"""
+            decimal_main = american_to_decimal(odds)
+            decimal_hedge = american_to_decimal(hedge_odds)
+
+            hedge_amount = stake * (decimal_main - 1) / (decimal_hedge - 1)
+            total_stake = stake + hedge_amount
+
+            profit_main = (stake * decimal_main) - total_stake
+            profit_hedge = (hedge_amount * decimal_hedge) - total_stake
+
+            return {
+                'original_odds': odds,
+                'original_stake': stake,
+                'hedge_odds': hedge_odds,
+                'hedge_stake': hedge_amount,
+                'total_stake': total_stake,
+                'profit_if_original_wins': profit_main,
+                'profit_if_hedge_wins': profit_hedge,
+                'locked_profit': min(profit_main, profit_hedge)
+            }
+
         # Register built-in functions
         self.global_env.define('american_to_decimal', american_to_decimal)
         self.global_env.define('decimal_to_american', decimal_to_american)
@@ -202,6 +252,8 @@ class Interpreter:
         self.global_env.define('units_to_risk', units_to_risk)
         self.global_env.define('roi_calculator', roi_calculator)
         self.global_env.define('round_robin', round_robin)
+        self.global_env.define('arbitrage_stakes', arbitrage_stakes)
+        self.global_env.define('hedge_stake', hedge_stake)
         self.global_env.define('abs', abs)
         self.global_env.define('min', min)
         self.global_env.define('max', max)
