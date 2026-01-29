@@ -32,6 +32,9 @@ class TokenType(Enum):
     LET = auto()
     CONST = auto()
     PRINT = auto()
+    IMPORT = auto()
+    FROM = auto()
+    AS = auto()
 
     # Betting specific
     TEAM = auto()
@@ -109,6 +112,9 @@ class Lexer:
         'let': TokenType.LET,
         'const': TokenType.CONST,
         'print': TokenType.PRINT,
+        'import': TokenType.IMPORT,
+        'from': TokenType.FROM,
+        'as': TokenType.AS,
         'spread': TokenType.SPREAD,
         'moneyline': TokenType.MONEYLINE,
         'total': TokenType.TOTAL,

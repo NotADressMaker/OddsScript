@@ -3,6 +3,7 @@ SportsBetLang Interpreter - Executes the AST with built-in betting functions
 """
 
 import math
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
@@ -83,48 +84,182 @@ class Bet:
         return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+d}, ${self.stake:.2f})"
 
 
+class Module:
+    """Represents a module namespace"""
+    def __init__(self, name: str, exports: Dict[str, Any]):
+        self.name = name
+        self.exports = exports
+
+    def get(self, name: str) -> Any:
+        if name in self.exports:
+            return self.exports[name]
+        raise RuntimeError(f"Module '{self.name}' has no member '{name}'")
+
+
+@dataclass(frozen=True)
+class TaggedNumber:
+    """Numeric value with a semantic tag (e.g., odds, probability, stake)."""
+    value: float
+    tag: str
+
+    def _coerce_other(self, other: Any) -> float:
+        if isinstance(other, TaggedNumber):
+            if other.tag != self.tag:
+                raise RuntimeError(f"Cannot mix tagged values '{self.tag}' and '{other.tag}'")
+            return other.value
+        if isinstance(other, (int, float)):
+            return other
+        raise RuntimeError(f"Cannot operate on tagged value with {type(other)}")
+
+    def _binary_op(self, other: Any, op, op_name: str) -> "TaggedNumber":
+        other_value = self._coerce_other(other)
+        return TaggedNumber(op(self.value, other_value), self.tag)
+
+    def _compare(self, other: Any, op, op_name: str) -> bool:
+        other_value = self._coerce_other(other)
+        return op(self.value, other_value)
+
+    def __add__(self, other: Any) -> "TaggedNumber":
+        return self._binary_op(other, lambda a, b: a + b, "add")
+
+    def __radd__(self, other: Any) -> "TaggedNumber":
+        return self.__add__(other)
+
+    def __sub__(self, other: Any) -> "TaggedNumber":
+        return self._binary_op(other, lambda a, b: a - b, "sub")
+
+    def __rsub__(self, other: Any) -> "TaggedNumber":
+        other_value = self._coerce_other(other)
+        return TaggedNumber(other_value - self.value, self.tag)
+
+    def __mul__(self, other: Any) -> "TaggedNumber":
+        return self._binary_op(other, lambda a, b: a * b, "mul")
+
+    def __rmul__(self, other: Any) -> "TaggedNumber":
+        return self.__mul__(other)
+
+    def __truediv__(self, other: Any) -> "TaggedNumber":
+        return self._binary_op(other, lambda a, b: a / b, "truediv")
+
+    def __rtruediv__(self, other: Any) -> "TaggedNumber":
+        other_value = self._coerce_other(other)
+        return TaggedNumber(other_value / self.value, self.tag)
+
+    def __mod__(self, other: Any) -> "TaggedNumber":
+        return self._binary_op(other, lambda a, b: a % b, "mod")
+
+    def __rmod__(self, other: Any) -> "TaggedNumber":
+        other_value = self._coerce_other(other)
+        return TaggedNumber(other_value % self.value, self.tag)
+
+    def __neg__(self) -> "TaggedNumber":
+        return TaggedNumber(-self.value, self.tag)
+
+    def __pos__(self) -> "TaggedNumber":
+        return self
+
+    def __eq__(self, other: Any) -> bool:
+        return self._compare(other, lambda a, b: a == b, "eq")
+
+    def __lt__(self, other: Any) -> bool:
+        return self._compare(other, lambda a, b: a < b, "lt")
+
+    def __le__(self, other: Any) -> bool:
+        return self._compare(other, lambda a, b: a <= b, "le")
+
+    def __gt__(self, other: Any) -> bool:
+        return self._compare(other, lambda a, b: a > b, "gt")
+
+    def __ge__(self, other: Any) -> bool:
+        return self._compare(other, lambda a, b: a >= b, "ge")
+
+    def __float__(self) -> float:
+        return float(self.value)
+
+    def __repr__(self) -> str:
+        return f"{self.tag}({self.value})"
+
+
 class Interpreter:
     def __init__(self):
         self.global_env = Environment()
+        self.modules: Dict[str, Module] = {}
         self.setup_builtins()
+
+    def unwrap_number(self, value: Any, expected_tag: Optional[str] = None, label: str = "value") -> float:
+        if isinstance(value, TaggedNumber):
+            if expected_tag and value.tag != expected_tag:
+                raise RuntimeError(f"Expected {label} to be '{expected_tag}', got '{value.tag}'")
+            return value.value
+        if isinstance(value, (int, float)):
+            return value
+        raise RuntimeError(f"Expected {label} to be a number")
 
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
 
-        def american_to_decimal(odds: float) -> float:
+        def register_global_builtin(name: str, func: Any, module: Optional[str] = None):
+            self.global_env.define(name, func)
+            if module:
+                module_exports = modules.setdefault(module, {})
+                module_exports[name] = func
+
+        def register_module_builtin(name: str, func: Any, module: str):
+            module_exports = modules.setdefault(module, {})
+            module_exports[name] = func
+
+        modules: Dict[str, Dict[str, Any]] = {}
+
+        def tag_value(tag: str, value: Any) -> TaggedNumber:
+            return TaggedNumber(self.unwrap_number(value, label=tag), tag)
+
+        def ensure_probability(value: Any, label: str = "probability") -> float:
+            prob = self.unwrap_number(value, expected_tag="probability", label=label)
+            if not 0 <= prob <= 1:
+                raise RuntimeError(f"Expected {label} between 0 and 1, got {prob}")
+            return prob
+
+        def american_to_decimal(odds: Any) -> float:
             """Convert American odds to decimal odds"""
-            if odds > 0:
-                return (odds / 100) + 1
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            if odds_value > 0:
+                return (odds_value / 100) + 1
             else:
-                return (100 / abs(odds)) + 1
+                return (100 / abs(odds_value)) + 1
 
-        def decimal_to_american(odds: float) -> float:
+        def decimal_to_american(odds: Any) -> float:
             """Convert decimal odds to American odds"""
-            if odds >= 2.0:
-                return (odds - 1) * 100
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="decimal_odds")
+            if odds_value >= 2.0:
+                return (odds_value - 1) * 100
             else:
-                return -100 / (odds - 1)
+                return -100 / (odds_value - 1)
 
-        def implied_probability(odds: float) -> float:
+        def implied_probability(odds: Any) -> TaggedNumber:
             """Calculate implied probability from American odds"""
-            if odds > 0:
-                return 100 / (odds + 100)
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            if odds_value > 0:
+                probability = 100 / (odds_value + 100)
             else:
-                return abs(odds) / (abs(odds) + 100)
+                probability = abs(odds_value) / (abs(odds_value) + 100)
+            return TaggedNumber(probability, "probability")
 
-        def calculate_ev(true_prob: float, odds: float, stake: float = 100) -> float:
+        def calculate_ev(true_prob: Any, odds: Any, stake: Any = 100) -> float:
             """Calculate expected value of a bet"""
+            prob = ensure_probability(true_prob, label="true_prob")
             decimal_odds = american_to_decimal(odds)
-            win_amount = stake * (decimal_odds - 1)
-            loss_amount = stake
-            ev = (true_prob * win_amount) - ((1 - true_prob) * loss_amount)
+            stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
+            win_amount = stake_value * (decimal_odds - 1)
+            loss_amount = stake_value
+            ev = (prob * win_amount) - ((1 - prob) * loss_amount)
             return ev
 
-        def kelly_criterion(true_prob: float, odds: float) -> float:
+        def kelly_criterion(true_prob: Any, odds: Any) -> float:
             """Calculate optimal bet size using Kelly Criterion"""
+            prob = ensure_probability(true_prob, label="true_prob")
             decimal_odds = american_to_decimal(odds)
             b = decimal_odds - 1  # net odds received on the wager
-            p = true_prob
+            p = prob
             q = 1 - p
             kelly = (b * p - q) / b
             return max(0, kelly)  # Don't bet if kelly is negative
@@ -137,28 +272,28 @@ class Interpreter:
                 combined *= odd
             return decimal_to_american(combined)
 
-        def parlay_probability(*probs) -> float:
+        def parlay_probability(*probs) -> TaggedNumber:
             """Calculate probability of winning a parlay"""
             result = 1
             for p in probs:
-                result *= p
-            return result
+                result *= ensure_probability(p, label="parlay_prob")
+            return TaggedNumber(result, "probability")
 
-        def break_even_percentage(odds: float) -> float:
+        def break_even_percentage(odds: Any) -> TaggedNumber:
             """Calculate break-even win percentage"""
             return implied_probability(odds)
 
-        def vig_calculator(odds1: float, odds2: float) -> float:
+        def vig_calculator(odds1: Any, odds2: Any) -> float:
             """Calculate bookmaker's vig (juice) from two-way market"""
-            prob1 = implied_probability(odds1)
-            prob2 = implied_probability(odds2)
+            prob1 = ensure_probability(implied_probability(odds1), label="odds1")
+            prob2 = ensure_probability(implied_probability(odds2), label="odds2")
             total = prob1 + prob2
             vig = total - 1
             return vig * 100  # Return as percentage
 
-        def true_odds_from_vig(odds: float, total_vig: float) -> float:
+        def true_odds_from_vig(odds: Any, total_vig: float) -> float:
             """Remove vig to get true odds"""
-            implied_prob = implied_probability(odds)
+            implied_prob = ensure_probability(implied_probability(odds), label="odds")
             true_prob = implied_prob / (1 + total_vig)
             if true_prob >= 0.5:
                 true_american = -100 * true_prob / (1 - true_prob)
@@ -166,14 +301,16 @@ class Interpreter:
                 true_american = 100 * (1 - true_prob) / true_prob
             return true_american
 
-        def units_to_risk(odds: float, units_to_win: float = 1) -> float:
+        def units_to_risk(odds: Any, units_to_win: Any = 1) -> float:
             """Calculate units to risk to win specified units"""
-            if odds > 0:
-                return units_to_win * (100 / odds)
+            odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+            units_value = self.unwrap_number(units_to_win, expected_tag="stake", label="units_to_win")
+            if odds_value > 0:
+                return units_value * (100 / odds_value)
             else:
-                return units_to_win * (abs(odds) / 100)
+                return units_value * (abs(odds_value) / 100)
 
-        def roi_calculator(wins: int, losses: int, avg_odds: float) -> float:
+        def roi_calculator(wins: int, losses: int, avg_odds: Any) -> float:
             """Calculate ROI from betting record"""
             if wins + losses == 0:
                 return 0
@@ -189,7 +326,7 @@ class Interpreter:
             from math import comb
             return comb(bets_count, parlay_size)
 
-        def arbitrage_stakes(odds1: float, odds2: float, total_stake: float = 100) -> Dict:
+        def arbitrage_stakes(odds1: Any, odds2: Any, total_stake: Any = 100) -> Dict:
             """Calculate two-way arbitrage stakes and expected profit"""
             decimal1 = american_to_decimal(odds1)
             decimal2 = american_to_decimal(odds2)
@@ -198,39 +335,41 @@ class Interpreter:
             implied2 = 1 / decimal2
             total_implied = implied1 + implied2
 
-            stake1 = total_stake * (implied1 / total_implied)
-            stake2 = total_stake * (implied2 / total_implied)
+            total_value = self.unwrap_number(total_stake, expected_tag="stake", label="total_stake")
+            stake1 = total_value * (implied1 / total_implied)
+            stake2 = total_value * (implied2 / total_implied)
 
             payout1 = stake1 * decimal1
             payout2 = stake2 * decimal2
-            profit = min(payout1, payout2) - total_stake
+            profit = min(payout1, payout2) - total_value
 
             return {
                 'odds1': odds1,
                 'odds2': odds2,
-                'stake_total': total_stake,
+                'stake_total': total_value,
                 'stake1': stake1,
                 'stake2': stake2,
                 'total_implied': total_implied,
                 'arb_margin_pct': (1 - total_implied) * 100,
                 'profit': profit,
-                'roi_pct': (profit / total_stake) * 100
+                'roi_pct': (profit / total_value) * 100
             }
 
-        def hedge_stake(odds: float, stake: float, hedge_odds: float) -> Dict:
+        def hedge_stake(odds: Any, stake: Any, hedge_odds: Any) -> Dict:
             """Calculate hedge stake to lock in profit on a two-way bet"""
             decimal_main = american_to_decimal(odds)
             decimal_hedge = american_to_decimal(hedge_odds)
 
-            hedge_amount = stake * (decimal_main - 1) / (decimal_hedge - 1)
-            total_stake = stake + hedge_amount
+            stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
+            hedge_amount = stake_value * (decimal_main - 1) / (decimal_hedge - 1)
+            total_stake = stake_value + hedge_amount
 
-            profit_main = (stake * decimal_main) - total_stake
+            profit_main = (stake_value * decimal_main) - total_stake
             profit_hedge = (hedge_amount * decimal_hedge) - total_stake
 
             return {
                 'original_odds': odds,
-                'original_stake': stake,
+                'original_stake': stake_value,
                 'hedge_odds': hedge_odds,
                 'hedge_stake': hedge_amount,
                 'total_stake': total_stake,
@@ -261,36 +400,47 @@ class Interpreter:
             return PoissonCalculator.simulate_matches(home_lambda, away_lambda, num_simulations)
 
         # Register built-in functions
-        self.global_env.define('american_to_decimal', american_to_decimal)
-        self.global_env.define('decimal_to_american', decimal_to_american)
-        self.global_env.define('implied_probability', implied_probability)
-        self.global_env.define('calculate_ev', calculate_ev)
-        self.global_env.define('kelly_criterion', kelly_criterion)
-        self.global_env.define('parlay_odds', parlay_odds)
-        self.global_env.define('parlay_probability', parlay_probability)
-        self.global_env.define('break_even_percentage', break_even_percentage)
-        self.global_env.define('vig_calculator', vig_calculator)
-        self.global_env.define('true_odds_from_vig', true_odds_from_vig)
-        self.global_env.define('units_to_risk', units_to_risk)
-        self.global_env.define('roi_calculator', roi_calculator)
-        self.global_env.define('round_robin', round_robin)
-        self.global_env.define('arbitrage_stakes', arbitrage_stakes)
-        self.global_env.define('hedge_stake', hedge_stake)
-        self.global_env.define('abs', abs)
-        self.global_env.define('min', min)
-        self.global_env.define('max', max)
-        self.global_env.define('sqrt', math.sqrt)
-        self.global_env.define('pow', pow)
-        self.global_env.define('len', len)
-        self.global_env.define('range', range)
-        self.global_env.define('sum', sum)
+        register_module_builtin('american_to_decimal', american_to_decimal, module='betting')
+        register_module_builtin('decimal_to_american', decimal_to_american, module='betting')
+        register_module_builtin('implied_probability', implied_probability, module='betting')
+        register_module_builtin('calculate_ev', calculate_ev, module='betting')
+        register_module_builtin('kelly_criterion', kelly_criterion, module='betting')
+        register_module_builtin('parlay_odds', parlay_odds, module='betting')
+        register_module_builtin('parlay_probability', parlay_probability, module='betting')
+        register_module_builtin('break_even_percentage', break_even_percentage, module='betting')
+        register_module_builtin('vig_calculator', vig_calculator, module='betting')
+        register_module_builtin('true_odds_from_vig', true_odds_from_vig, module='betting')
+        register_module_builtin('units_to_risk', units_to_risk, module='betting')
+        register_module_builtin('roi_calculator', roi_calculator, module='betting')
+        register_module_builtin('round_robin', round_robin, module='betting')
+        register_module_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
+        register_module_builtin('hedge_stake', hedge_stake, module='betting')
+        register_global_builtin('odds', lambda value: tag_value("odds", value), module='core')
+        register_global_builtin('probability', lambda value: tag_value("probability", value), module='core')
+        register_global_builtin('stake', lambda value: tag_value("stake", value), module='core')
+        register_global_builtin('abs', abs, module='core')
+        register_global_builtin('min', min, module='core')
+        register_global_builtin('max', max, module='core')
+        register_global_builtin('sqrt', math.sqrt, module='core')
+        register_global_builtin('pow', pow, module='core')
+        register_global_builtin('len', len, module='core')
+        register_global_builtin('range', range, module='core')
+        register_global_builtin('sum', sum, module='core')
 
         # Poisson distribution functions
-        self.global_env.define('poisson_probability', poisson_probability)
-        self.global_env.define('poisson_cumulative', poisson_cumulative)
-        self.global_env.define('poisson_simulate_event', poisson_simulate_event)
-        self.global_env.define('poisson_simulate_match', poisson_simulate_match)
-        self.global_env.define('poisson_simulate_matches', poisson_simulate_matches)
+        register_module_builtin('poisson_probability', poisson_probability, module='stats')
+        register_module_builtin('poisson_cumulative', poisson_cumulative, module='stats')
+        register_module_builtin('poisson_simulate_event', poisson_simulate_event, module='stats')
+        register_module_builtin('poisson_simulate_match', poisson_simulate_match, module='stats')
+        register_module_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
+
+        for name, exports in modules.items():
+            self.modules[name] = Module(name, exports)
+
+    def load_module(self, module_path: str) -> Module:
+        if module_path in self.modules:
+            return self.modules[module_path]
+        raise RuntimeError(f"Unknown module '{module_path}'")
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
@@ -320,6 +470,19 @@ class Interpreter:
         elif isinstance(node, Identifier):
             return env.get(node.name)
 
+        elif isinstance(node, ImportStatement):
+            module = self.load_module(node.module)
+            alias = node.alias or node.module.split(".")[-1]
+            env.define(alias, module)
+            return module
+
+        elif isinstance(node, FromImportStatement):
+            module = self.load_module(node.module)
+            for name, alias in node.imports:
+                value = module.get(name)
+                env.define(alias or name, value)
+            return None
+
         elif isinstance(node, ArrayLiteral):
             return [self.eval_node(elem, env) for elem in node.elements]
 
@@ -347,6 +510,10 @@ class Interpreter:
 
         elif isinstance(node, FunctionCall):
             return self.eval_function_call(node, env)
+
+        elif isinstance(node, CallExpression):
+            callee = self.eval_node(node.callee, env)
+            return self.call_function_value(callee, node.arguments, env)
 
         elif isinstance(node, IfStatement):
             condition = self.eval_node(node.condition, env)
@@ -396,6 +563,8 @@ class Interpreter:
             obj = self.eval_node(node.object, env)
             if isinstance(obj, Bet):
                 return getattr(obj, node.member)
+            elif isinstance(obj, Module):
+                return obj.get(node.member)
             elif isinstance(obj, dict):
                 return obj.get(node.member)
             else:
@@ -453,26 +622,19 @@ class Interpreter:
         else:
             raise RuntimeError(f"Unknown unary operator: {node.operator}")
 
-    def eval_function_call(self, node: FunctionCall, env: Environment) -> Any:
-        if node.name == 'print':
-            args = [self.eval_node(arg, env) for arg in node.arguments]
-            print(*args)
-            return None
-
-        func = env.get(node.name)
-
-        # Built-in Python function
+    def call_function_value(self, func: Any, arg_nodes: List[ASTNode], env: Environment) -> Any:
         if callable(func) and not isinstance(func, FunctionDef):
-            args = [self.eval_node(arg, env) for arg in node.arguments]
+            args = [self.eval_node(arg, env) for arg in arg_nodes]
             return func(*args)
 
-        # User-defined function
         if isinstance(func, FunctionDef):
-            if len(node.arguments) != len(func.parameters):
-                raise RuntimeError(f"Function '{node.name}' expects {len(func.parameters)} arguments, got {len(node.arguments)}")
+            if len(arg_nodes) != len(func.parameters):
+                raise RuntimeError(
+                    f"Function '{func.name}' expects {len(func.parameters)} arguments, got {len(arg_nodes)}"
+                )
 
             func_env = Environment(env)
-            for param, arg in zip(func.parameters, node.arguments):
+            for param, arg in zip(func.parameters, arg_nodes):
                 arg_value = self.eval_node(arg, env)
                 func_env.define(param, arg_value)
 
@@ -484,18 +646,35 @@ class Interpreter:
             except ReturnValue as ret:
                 return ret.value
 
-        raise RuntimeError(f"'{node.name}' is not a function")
+        raise RuntimeError("Target is not a function")
+
+    def eval_function_call(self, node: FunctionCall, env: Environment) -> Any:
+        if node.name == 'print':
+            args = [self.eval_node(arg, env) for arg in node.arguments]
+            print(*args)
+            return None
+
+        func = env.get(node.name)
+
+        try:
+            return self.call_function_value(func, node.arguments, env)
+        except RuntimeError as err:
+            if str(err) == "Target is not a function":
+                raise RuntimeError(f"'{node.name}' is not a function")
+            raise
 
     def eval_bet_statement(self, node: BetStatement, env: Environment) -> Bet:
         team = self.eval_node(node.team, env)
         odds = self.eval_node(node.odds, env) if node.odds else -110
         stake = self.eval_node(node.stake, env) if node.stake else 100
+        odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
+        stake_value = self.unwrap_number(stake, expected_tag="stake", label="stake")
 
         kwargs = {}
         for key, value_node in node.additional_params.items():
-            kwargs[key] = self.eval_node(value_node, env)
+            kwargs[key] = self.unwrap_number(self.eval_node(value_node, env), label=key)
 
-        bet = Bet(node.bet_type, team, odds, stake, **kwargs)
+        bet = Bet(node.bet_type, team, odds_value, stake_value, **kwargs)
         print(f"Created: {bet}")
         return bet
 
