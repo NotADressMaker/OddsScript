@@ -13,7 +13,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: radial-gradient(circle at top, rgba(255, 255, 255, 0.25), transparent 45%),
+                        linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #0ea5e9 100%);
             min-height: 100vh;
             padding: 24px;
             color: #101828;
@@ -28,6 +29,7 @@
             text-align: center;
             color: white;
             margin-bottom: 30px;
+            position: relative;
         }
 
         .header h1 {
@@ -46,18 +48,49 @@
             gap: 8px;
             padding: 6px 14px;
             border-radius: 999px;
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(8px);
             font-weight: 600;
             letter-spacing: 0.3px;
             margin-bottom: 12px;
         }
 
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.14);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 16px;
+            padding: 14px 16px;
+            color: #eef2ff;
+            text-align: left;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+        }
+
+        .stat-card span {
+            display: block;
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .stat-card strong {
+            font-size: 1.2rem;
+        }
+
         .card {
-            background: white;
-            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.96);
+            border-radius: 18px;
             padding: 30px;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.15);
+            box-shadow: 0 24px 50px rgba(15, 23, 42, 0.18);
             margin-bottom: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.3);
         }
 
         .card h2 {
@@ -95,10 +128,11 @@
         input, select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            border: 1px solid #d0d5dd;
+            border-radius: 10px;
             font-size: 16px;
             transition: border-color 0.3s;
+            background: #f9fafb;
         }
 
         input:focus, select:focus {
@@ -108,16 +142,17 @@
         }
 
         button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 60%, #0ea5e9 100%);
             color: white;
             border: none;
             padding: 15px 30px;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             width: 100%;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 16px 30px rgba(79, 70, 229, 0.3);
         }
 
         button:hover {
@@ -132,9 +167,9 @@
             display: none;
             margin-top: 20px;
             padding: 20px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            border: 1px solid #eaecf0;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
         }
 
         .results.show {
@@ -219,18 +254,21 @@
         .tab {
             flex: 1;
             padding: 15px;
-            background: white;
-            border: none;
-            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 14px;
             cursor: pointer;
             font-weight: 600;
             transition: all 0.3s;
-            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(10px);
+            color: #1d1f2b;
         }
 
         .tab.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 70%);
             color: white;
+            border: none;
         }
 
         .tab-content {
@@ -272,6 +310,20 @@
             <div class="badge">Live Insights • Smart Betting</div>
             <h1>🎯 SportsBetLang</h1>
             <p>Professional betting intelligence with quick calculators and performance snapshots.</p>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <span>Today's Edge Finder</span>
+                    <strong>+3.2% Avg ROI</strong>
+                </div>
+                <div class="stat-card">
+                    <span>Model Confidence</span>
+                    <strong>Up to 62% Win Rate</strong>
+                </div>
+                <div class="stat-card">
+                    <span>Tracked Markets</span>
+                    <strong>NBA • NHL • Soccer</strong>
+                </div>
+            </div>
         </div>
 
         <div class="tabs">
