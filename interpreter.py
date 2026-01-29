@@ -10,6 +10,12 @@ from lexer import TokenType
 from lib.poisson_calculator import PoissonCalculator
 
 
+@dataclass(frozen=True)
+class TaggedNumber:
+    value: float
+    tag: str
+
+
 class ReturnValue(Exception):
     """Exception used to handle return statements"""
     def __init__(self, value):
@@ -121,6 +127,20 @@ class Interpreter:
                 module_exports[name] = func
 
         modules: Dict[str, Dict[str, Any]] = {}
+
+        def ensure_probability(value: Any, label: str = "probability") -> float:
+            if isinstance(value, TaggedNumber):
+                if value.tag != "probability":
+                    raise RuntimeError(f"Expected {label} to be 'probability', got '{value.tag}'")
+                prob_value = value.value
+            elif isinstance(value, (int, float)):
+                prob_value = value
+            else:
+                raise RuntimeError(f"Expected {label} to be a probability")
+
+            if not 0 <= prob_value <= 1:
+                raise RuntimeError(f"Expected {label} to be between 0 and 1")
+            return prob_value
 
         def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
