@@ -103,6 +103,7 @@ from lib import SBL, EasySportModel
 ```
 
 📚 **[Installation Guide](INSTALL.md)** - All installation methods
+📘 **[Language Specification](docs/LANGUAGE_SPEC.md)** - Grammar and semantics reference
 
 ## Quick Start
 
@@ -185,6 +186,21 @@ func analyze_bet(true_prob, odds, stake) {
 }
 
 let bet_size = analyze_bet(0.60, -110, 100)
+```
+
+### Modules and Imports
+
+```sportsbetlang
+# Import a module namespace
+import betting
+import stats as s
+
+# Or import specific functions
+from betting import kelly_criterion as kelly
+
+let kelly_size = betting.kelly_criterion(0.60, -110)
+let sim = s.poisson_simulate_match(1.4, 1.1)
+let direct = kelly(0.60, -110)
 ```
 
 ## Built-in Functions
