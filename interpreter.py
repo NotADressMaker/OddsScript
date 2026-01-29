@@ -87,7 +87,7 @@ class Bet:
 
     def __repr__(self):
         spread_info = f" ({self.spread:+.1f})" if self.spread else ""
-        return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+d}, ${self.stake:.2f})"
+        return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+.2f}, ${self.stake:.2f})"
 
 
 class Module:
