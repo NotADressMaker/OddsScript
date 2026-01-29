@@ -65,6 +65,12 @@ class FunctionCall(ASTNode):
 
 
 @dataclass
+class CallExpression(ASTNode):
+    callee: ASTNode
+    arguments: List[ASTNode]
+
+
+@dataclass
 class IfStatement(ASTNode):
     condition: ASTNode
     then_block: List[ASTNode]
@@ -133,6 +139,18 @@ class ParlayStatement(ASTNode):
     stake: ASTNode
 
 
+@dataclass
+class ImportStatement(ASTNode):
+    module: str
+    alias: Optional[str] = None
+
+
+@dataclass
+class FromImportStatement(ASTNode):
+    module: str
+    imports: List[tuple[str, Optional[str]]]
+
+
 class Parser:
     def __init__(self, tokens: List[Token]):
         self.tokens = tokens
@@ -198,6 +216,10 @@ class Parser:
             return self.parse_parlay_statement()
         elif token.type == TokenType.PRINT:
             return self.parse_print_statement()
+        elif token.type == TokenType.IMPORT:
+            return self.parse_import_statement()
+        elif token.type == TokenType.FROM:
+            return self.parse_from_import_statement()
         elif token.type == TokenType.IDENTIFIER:
             # Could be assignment or function call
             if self.peek_token().type == TokenType.ASSIGN:
@@ -490,7 +512,7 @@ class Parser:
                 if isinstance(left, Identifier):
                     left = FunctionCall(left.name, args)
                 else:
-                    raise SyntaxError("Invalid function call")
+                    left = CallExpression(left, args)
 
             elif self.current_token().type == TokenType.LBRACKET:
                 # Index access
@@ -571,3 +593,45 @@ class Parser:
 
         self.expect(TokenType.RBRACE)
         return DictLiteral(pairs)
+
+    def parse_module_path(self) -> str:
+        if self.current_token().type == TokenType.STRING:
+            token = self.current_token()
+            self.advance()
+            return token.value
+
+        token = self.expect(TokenType.IDENTIFIER)
+        parts = [token.value]
+        while self.current_token().type == TokenType.DOT:
+            self.advance()
+            part_token = self.expect(TokenType.IDENTIFIER)
+            parts.append(part_token.value)
+        return ".".join(parts)
+
+    def parse_import_statement(self) -> ImportStatement:
+        self.expect(TokenType.IMPORT)
+        module = self.parse_module_path()
+        alias = None
+        if self.current_token().type == TokenType.AS:
+            self.advance()
+            alias_token = self.expect(TokenType.IDENTIFIER)
+            alias = alias_token.value
+        return ImportStatement(module, alias)
+
+    def parse_from_import_statement(self) -> FromImportStatement:
+        self.expect(TokenType.FROM)
+        module = self.parse_module_path()
+        self.expect(TokenType.IMPORT)
+        imports = []
+        while True:
+            name_token = self.expect(TokenType.IDENTIFIER)
+            alias = None
+            if self.current_token().type == TokenType.AS:
+                self.advance()
+                alias_token = self.expect(TokenType.IDENTIFIER)
+                alias = alias_token.value
+            imports.append((name_token.value, alias))
+            if self.current_token().type != TokenType.COMMA:
+                break
+            self.advance()
+        return FromImportStatement(module, imports)
