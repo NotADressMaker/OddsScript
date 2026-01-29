@@ -412,19 +412,6 @@ class Interpreter:
             except RuntimeError as err:
                 self.runtime_error(str(err), node)
 
-        elif isinstance(node, ImportStatement):
-            module = self.load_module(node.module)
-            alias = node.alias or node.module.split(".")[-1]
-            env.define(alias, module)
-            return module
-
-        elif isinstance(node, FromImportStatement):
-            module = self.load_module(node.module)
-            for name, alias in node.imports:
-                value = module.get(name)
-                env.define(alias or name, value)
-            return None
-
         elif isinstance(node, ArrayLiteral):
             return [self.eval_node(elem, env) for elem in node.elements]
 
