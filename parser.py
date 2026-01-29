@@ -526,7 +526,7 @@ class Parser:
                 if isinstance(left, Identifier):
                     left = self.with_span(FunctionCall(left.name, args), call_token)
                 else:
-                    left = self.with_span(CallExpression(left, args), call_token)
+                    left = CallExpression(left, args)
 
             elif self.current_token().type == TokenType.LBRACKET:
                 # Index access
@@ -608,7 +608,7 @@ class Parser:
                 self.advance()
 
         self.expect(TokenType.RBRACE)
-        return self.with_span(DictLiteral(pairs), lbrace_token)
+        return DictLiteral(pairs)
 
     def parse_module_path(self) -> str:
         if self.current_token().type == TokenType.STRING:
@@ -625,17 +625,17 @@ class Parser:
         return ".".join(parts)
 
     def parse_import_statement(self) -> ImportStatement:
-        import_token = self.expect(TokenType.IMPORT)
+        self.expect(TokenType.IMPORT)
         module = self.parse_module_path()
         alias = None
         if self.current_token().type == TokenType.AS:
             self.advance()
             alias_token = self.expect(TokenType.IDENTIFIER)
             alias = alias_token.value
-        return self.with_span(ImportStatement(module, alias), import_token)
+        return ImportStatement(module, alias)
 
     def parse_from_import_statement(self) -> FromImportStatement:
-        from_token = self.expect(TokenType.FROM)
+        self.expect(TokenType.FROM)
         module = self.parse_module_path()
         self.expect(TokenType.IMPORT)
         imports = []
@@ -650,4 +650,4 @@ class Parser:
             if self.current_token().type != TokenType.COMMA:
                 break
             self.advance()
-        return self.with_span(FromImportStatement(module, imports), from_token)
+        return FromImportStatement(module, imports)
