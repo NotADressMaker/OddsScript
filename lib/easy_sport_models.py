@@ -437,8 +437,6 @@ def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
                         opp_xg_for: float, opp_xg_against: float,
                         home: bool = True,
                         home_advantage: float = 0.25,
-                        team_goalie_gsax: float = 0.0,
-                        opp_goalie_gsax: float = 0.0,
                         include_overtime: bool = True) -> float:
     """
     Quick NHL prediction using Expected Goals (xG)
@@ -450,8 +448,6 @@ def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
         opp_xg_against: Opponent expected goals against per game
         home: Home ice advantage
         home_advantage: Goals to add for home ice (default 0.25)
-        team_goalie_gsax: Team goalie goals saved above expected
-        opp_goalie_gsax: Opponent goalie goals saved above expected
         include_overtime: Whether to split regulation draws into OT
 
     Returns:
@@ -477,21 +473,9 @@ def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
     expected_team_xg = max(0.25, min(expected_team_xg, 5.5))
     expected_opp_xg = max(0.25, min(expected_opp_xg, 5.5))
 
-    home_xg = expected_team_xg if home else expected_opp_xg
-    away_xg = expected_opp_xg if home else expected_team_xg
-    home_gsax = team_goalie_gsax if home else opp_goalie_gsax
-    away_gsax = opp_goalie_gsax if home else team_goalie_gsax
-
-    home_xg, away_xg = NHLAdvancedAnalytics.adjust_for_goalies(
-        home_xg=home_xg,
-        away_xg=away_xg,
-        home_gsax=home_gsax,
-        away_gsax=away_gsax,
-    )
-
     result = NHLAdvancedAnalytics.predict_game_from_xg(
-        home_xg=home_xg,
-        away_xg=away_xg,
+        home_xg=expected_team_xg if home else expected_opp_xg,
+        away_xg=expected_opp_xg if home else expected_team_xg,
         include_overtime=include_overtime,
     )
 
