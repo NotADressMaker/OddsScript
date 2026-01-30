@@ -435,7 +435,9 @@ def quick_wnba_prediction(team_off_rtg: float, team_def_rtg: float,
 
 def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
                         opp_xg_for: float, opp_xg_against: float,
-                        home: bool = True) -> float:
+                        home: bool = True,
+                        home_advantage: float = 0.25,
+                        include_overtime: bool = True) -> float:
     """
     Quick NHL prediction using Expected Goals (xG)
 
@@ -445,6 +447,8 @@ def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
         opp_xg_for: Opponent expected goals for per game
         opp_xg_against: Opponent expected goals against per game
         home: Home ice advantage
+        home_advantage: Goals to add for home ice (default 0.25)
+        include_overtime: Whether to split regulation draws into OT
 
     Returns:
         Win probability
@@ -453,22 +457,29 @@ def quick_nhl_prediction(team_xg_for: float, team_xg_against: float,
         >>> prob = quick_nhl_prediction(3.2, 2.8, 2.9, 3.0, home=True)
         >>> print(f"Win probability: {prob:.1%}")
     """
-    # Calculate goal differentials
-    team_goal_diff = team_xg_for - team_xg_against
-    opp_goal_diff = opp_xg_for - opp_xg_against
+    from lib.nhl_analytics import NHLAdvancedAnalytics
 
-    diff = team_goal_diff - opp_goal_diff
+    # Blend team offense with opponent defense for expected scoring
+    expected_team_xg = (team_xg_for + opp_xg_against) / 2.0
+    expected_opp_xg = (opp_xg_for + team_xg_against) / 2.0
 
-    # Home ice advantage
+    # Apply home ice advantage to the home team expected goals
     if home:
-        diff += 0.1  # Smaller in NHL
+        expected_team_xg += home_advantage
+    else:
+        expected_opp_xg += home_advantage
 
-    # Convert to probability
-    import math
-    prob = 0.5 + (diff / 10)
-    prob = max(0.1, min(0.9, prob))
+    # Clamp to avoid extreme values on small samples
+    expected_team_xg = max(0.25, min(expected_team_xg, 5.5))
+    expected_opp_xg = max(0.25, min(expected_opp_xg, 5.5))
 
-    return prob
+    result = NHLAdvancedAnalytics.predict_game_from_xg(
+        home_xg=expected_team_xg if home else expected_opp_xg,
+        away_xg=expected_opp_xg if home else expected_team_xg,
+        include_overtime=include_overtime,
+    )
+
+    return float(result["home_win_probability"] if home else result["away_win_probability"])
 
 
 def quick_mlb_prediction(team_rating: float, opp_rating: float,
