@@ -104,6 +104,9 @@ from lib.nhl_advanced_models import (
     quick_nhl_decision_tree_ats
 )
 
+# Expert opinion consensus model
+from lib.expert_opinion_model import ExpertConsensusModel, ExpertSource, ExpertOpinion
+
 __all__ = [
     # Simplified API (recommended for beginners)
     'SBL',
@@ -183,4 +186,9 @@ __all__ = [
     'NHLSimilarGameModel',
     'quick_nhl_decision_tree_ou',
     'quick_nhl_decision_tree_ats',
+
+    # Expert opinion consensus model
+    'ExpertConsensusModel',
+    'ExpertSource',
+    'ExpertOpinion',
 ]
