@@ -592,6 +592,7 @@ print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
 
 *Real-time:*
 - `/ws` - WebSocket for real-time updates
+- `/stream/live` - Server-Sent Events (SSE) stream for live updates
 
 **Real-time WebSocket Updates:**
 
@@ -604,6 +605,25 @@ ws.onmessage = (event) => {
 };
 ```
 
+**Live SSE Stream:**
+
+```javascript
+const stream = new EventSource('http://localhost:8000/stream/live?types=bet_placed,bankroll_update');
+
+stream.addEventListener('bet_placed', (event) => {
+    const update = JSON.parse(event.data);
+    console.log('New bet placed:', update);
+});
+
+stream.addEventListener('bankroll_update', (event) => {
+    const update = JSON.parse(event.data);
+    console.log('Bankroll updated:', update);
+});
+```
+
+To resume a dropped connection, the stream includes event IDs. Your client can reconnect with the
+`Last-Event-ID` header (or let `EventSource` handle it automatically).
+
 **Docker Deployment:**
 
 ```bash
@@ -613,6 +633,23 @@ docker run -p 8000:8000 sportsbetlang-api
 
 # Or use docker-compose
 docker-compose up -d
+```
+
+**Serverless Deployment (AWS Lambda / Google Cloud Functions):**
+
+```bash
+# Install serverless adapters
+pip install -r requirements-api.txt
+```
+
+```bash
+# AWS Lambda (API Gateway)
+# handler: serverless.lambda_handler
+```
+
+```bash
+# Google Cloud Functions (HTTP)
+# entrypoint: serverless.gcf_app
 ```
 
 **Features:**
