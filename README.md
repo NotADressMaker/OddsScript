@@ -592,6 +592,7 @@ print(response.json()['kelly_size'])  # 0.1 (bet 10% of bankroll)
 
 *Real-time:*
 - `/ws` - WebSocket for real-time updates
+- `/stream/live` - Server-Sent Events (SSE) stream for live updates
 
 **Real-time WebSocket Updates:**
 
@@ -602,6 +603,22 @@ ws.onmessage = (event) => {
     const update = JSON.parse(event.data);
     console.log('New bet placed:', update);
 };
+```
+
+**Live SSE Stream:**
+
+```javascript
+const stream = new EventSource('http://localhost:8000/stream/live?types=bet_placed,bankroll_update');
+
+stream.addEventListener('bet_placed', (event) => {
+    const update = JSON.parse(event.data);
+    console.log('New bet placed:', update);
+});
+
+stream.addEventListener('bankroll_update', (event) => {
+    const update = JSON.parse(event.data);
+    console.log('Bankroll updated:', update);
+});
 ```
 
 **Docker Deployment:**
