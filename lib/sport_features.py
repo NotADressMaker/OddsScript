@@ -57,6 +57,25 @@ class NBAFeatures:
         """
         return (efg_pct * 0.40) - (tov_pct * 0.25) + (orb_pct * 0.20) + (ftr * 0.15)
 
+    @staticmethod
+    def create_four_factors_differential(team_efg_pct: float, team_tov_pct: float,
+                                         team_orb_pct: float, team_ftr: float,
+                                         opp_efg_pct: float, opp_tov_pct: float,
+                                         opp_orb_pct: float, opp_ftr: float) -> float:
+        """
+        Calculate four factors differential between team and opponent
+
+        Returns:
+            Team four factors score minus opponent four factors score
+        """
+        team_score = NBAFeatures.create_four_factors_score(
+            team_efg_pct, team_tov_pct, team_orb_pct, team_ftr
+        )
+        opp_score = NBAFeatures.create_four_factors_score(
+            opp_efg_pct, opp_tov_pct, opp_orb_pct, opp_ftr
+        )
+        return team_score - opp_score
+
 
 class NFLFeatures:
     """NFL-specific feature engineering"""
