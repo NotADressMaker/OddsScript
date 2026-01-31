@@ -180,7 +180,7 @@ class Parser:
         return token
 
     def skip_newlines(self):
-        while self.current_token().type == TokenType.NEWLINE:
+        while self.current_token().type in (TokenType.NEWLINE, TokenType.SEMICOLON):
             self.advance()
 
     def parse(self) -> Program:
@@ -331,6 +331,8 @@ class Parser:
 
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
+                if self.current_token().type == TokenType.RPAREN:
+                    break
 
         self.expect(TokenType.RPAREN)
         self.expect(TokenType.LBRACE)
@@ -394,6 +396,8 @@ class Parser:
 
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
+                if self.current_token().type == TokenType.RBRACKET:
+                    break
 
         self.expect(TokenType.RBRACKET)
 
@@ -413,6 +417,8 @@ class Parser:
             args.append(self.parse_expression())
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
+                if self.current_token().type == TokenType.RPAREN:
+                    break
 
         self.expect(TokenType.RPAREN)
         return self.with_span(FunctionCall('print', args), print_token)
@@ -520,6 +526,8 @@ class Parser:
                     args.append(self.parse_expression())
                     if self.current_token().type == TokenType.COMMA:
                         self.advance()
+                        if self.current_token().type == TokenType.RPAREN:
+                            break
 
                 self.expect(TokenType.RPAREN)
 
@@ -590,6 +598,8 @@ class Parser:
             elements.append(self.parse_expression())
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
+                if self.current_token().type == TokenType.RBRACKET:
+                    break
 
         self.expect(TokenType.RBRACKET)
         return self.with_span(ArrayLiteral(elements), lbracket_token)
@@ -606,6 +616,8 @@ class Parser:
 
             if self.current_token().type == TokenType.COMMA:
                 self.advance()
+                if self.current_token().type == TokenType.RBRACE:
+                    break
 
         self.expect(TokenType.RBRACE)
         return self.with_span(DictLiteral(pairs), lbrace_token)
@@ -650,4 +662,6 @@ class Parser:
             if self.current_token().type != TokenType.COMMA:
                 break
             self.advance()
+            if self.current_token().type in (TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.EOF):
+                break
         return FromImportStatement(module, imports)
