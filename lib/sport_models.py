@@ -56,6 +56,14 @@ class NBAModels:
         - home_court
         - rest_advantage (team_rest - opp_rest)
         - pace_differential
+        - team_offensive_rating
+        - team_defensive_rating
+        - opponent_offensive_rating
+        - opponent_defensive_rating
+        - four_factors_differential
+        - recent_net_rating_differential
+        - matchup_history_differential
+        - recent_ats_trend
         """
         return (Model()
                 .named("NBA Spread Coverage")
@@ -66,7 +74,15 @@ class NBAModels:
                     'spread',
                     'home_court',
                     'rest_advantage',
-                    'pace_differential'
+                    'pace_differential',
+                    'team_offensive_rating',
+                    'team_defensive_rating',
+                    'opponent_offensive_rating',
+                    'opponent_defensive_rating',
+                    'four_factors_differential',
+                    'recent_net_rating_differential',
+                    'matchup_history_differential',
+                    'recent_ats_trend'
                 ])
                 .with_normalization('standard'))
 
