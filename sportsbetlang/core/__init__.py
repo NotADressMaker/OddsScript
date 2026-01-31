@@ -8,6 +8,7 @@ from sportsbetlang.core.lexer import Lexer, Token, TokenType
 from sportsbetlang.core.parser import Parser
 from sportsbetlang.core.interpreter import Interpreter, Environment
 from sportsbetlang.core.codegen import CodeGenerator, generate_code, GeneratedCode
+from sportsbetlang.core.jit import JITCompiler, JITCompilationError, JITCompilationResult
 
 __all__ = [
     'Lexer',
@@ -19,4 +20,7 @@ __all__ = [
     'CodeGenerator',
     'GeneratedCode',
     'generate_code',
+    'JITCompiler',
+    'JITCompilationError',
+    'JITCompilationResult',
 ]
