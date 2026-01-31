@@ -364,10 +364,297 @@ class Interpreter:
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
+        program = self.optimize_program(program)
         result = None
         for statement in program.statements:
             result = self.eval_node(statement, self.global_env)
         return result
+
+    def optimize_program(self, program: Program) -> Program:
+        return Program(
+            statements=self.optimize_statements(program.statements),
+            line=program.line,
+            column=program.column,
+        )
+
+    def optimize_statements(self, statements: List[ASTNode]) -> List[ASTNode]:
+        optimized: List[ASTNode] = []
+        for statement in statements:
+            optimized.extend(self.optimize_statement(statement))
+        return optimized
+
+    def optimize_statement(self, statement: ASTNode) -> List[ASTNode]:
+        if isinstance(statement, IfStatement):
+            condition = self.optimize_node(statement.condition)
+            if self.is_literal(condition):
+                if self.is_truthy_literal(condition):
+                    return self.optimize_statements(statement.then_block)
+                return self.optimize_statements(statement.else_block or [])
+            then_block = self.optimize_statements(statement.then_block)
+            else_block = (
+                self.optimize_statements(statement.else_block) if statement.else_block else None
+            )
+            return [
+                IfStatement(
+                    condition=condition,
+                    then_block=then_block,
+                    else_block=else_block,
+                    line=statement.line,
+                    column=statement.column,
+                )
+            ]
+
+        if isinstance(statement, WhileLoop):
+            condition = self.optimize_node(statement.condition)
+            if self.is_literal(condition) and not self.is_truthy_literal(condition):
+                return []
+            body = self.optimize_statements(statement.body)
+            return [
+                WhileLoop(
+                    condition=condition,
+                    body=body,
+                    line=statement.line,
+                    column=statement.column,
+                )
+            ]
+
+        if isinstance(statement, ForLoop):
+            iterable = self.optimize_node(statement.iterable)
+            body = self.optimize_statements(statement.body)
+            return [
+                ForLoop(
+                    variable=statement.variable,
+                    iterable=iterable,
+                    body=body,
+                    line=statement.line,
+                    column=statement.column,
+                )
+            ]
+
+        optimized = self.optimize_node(statement)
+        return [optimized] if optimized is not None else []
+
+    def optimize_node(self, node: ASTNode) -> ASTNode:
+        if isinstance(node, Program):
+            return self.optimize_program(node)
+
+        if isinstance(node, BinaryOp):
+            left = self.optimize_node(node.left)
+            right = self.optimize_node(node.right)
+            folded = self.try_fold_binary(node, left, right)
+            if folded:
+                return folded
+            return BinaryOp(
+                left=left,
+                operator=node.operator,
+                right=right,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, UnaryOp):
+            operand = self.optimize_node(node.operand)
+            folded = self.try_fold_unary(node, operand)
+            if folded:
+                return folded
+            return UnaryOp(
+                operator=node.operator,
+                operand=operand,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, ArrayLiteral):
+            elements = [self.optimize_node(elem) for elem in node.elements]
+            return ArrayLiteral(elements=elements, line=node.line, column=node.column)
+
+        if isinstance(node, DictLiteral):
+            pairs = [
+                (self.optimize_node(key), self.optimize_node(value))
+                for key, value in node.pairs
+            ]
+            return DictLiteral(pairs=pairs, line=node.line, column=node.column)
+
+        if isinstance(node, IndexAccess):
+            return IndexAccess(
+                object=self.optimize_node(node.object),
+                index=self.optimize_node(node.index),
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, MemberAccess):
+            return MemberAccess(
+                object=self.optimize_node(node.object),
+                member=node.member,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, Assignment):
+            return Assignment(
+                name=node.name,
+                value=self.optimize_node(node.value),
+                is_const=node.is_const,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, FunctionCall):
+            return FunctionCall(
+                name=node.name,
+                arguments=[self.optimize_node(arg) for arg in node.arguments],
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, CallExpression):
+            return CallExpression(
+                callee=self.optimize_node(node.callee),
+                arguments=[self.optimize_node(arg) for arg in node.arguments],
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, FunctionDef):
+            return FunctionDef(
+                name=node.name,
+                parameters=node.parameters,
+                body=self.optimize_statements(node.body),
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, ReturnStatement):
+            value = self.optimize_node(node.value) if node.value else None
+            return ReturnStatement(value=value, line=node.line, column=node.column)
+
+        if isinstance(node, IfStatement):
+            optimized = self.optimize_statement(node)
+            return optimized[0] if optimized else node
+
+        if isinstance(node, WhileLoop):
+            optimized = self.optimize_statement(node)
+            return optimized[0] if optimized else node
+
+        if isinstance(node, ForLoop):
+            optimized = self.optimize_statement(node)
+            return optimized[0] if optimized else node
+
+        if isinstance(node, BetStatement):
+            additional_params = {
+                key: self.optimize_node(value)
+                for key, value in node.additional_params.items()
+            }
+            return BetStatement(
+                bet_type=node.bet_type,
+                team=self.optimize_node(node.team),
+                odds=self.optimize_node(node.odds) if node.odds else None,
+                stake=self.optimize_node(node.stake) if node.stake else None,
+                additional_params=additional_params,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, ParlayStatement):
+            return ParlayStatement(
+                bets=[self.optimize_node(bet) for bet in node.bets],
+                stake=self.optimize_node(node.stake) if node.stake else None,
+                line=node.line,
+                column=node.column,
+            )
+
+        if isinstance(node, (NumberLiteral, StringLiteral, BooleanLiteral, Identifier, ImportStatement, FromImportStatement)):
+            return node
+
+        return node
+
+    def try_fold_binary(self, node: BinaryOp, left: ASTNode, right: ASTNode) -> Optional[ASTNode]:
+        if not (self.is_literal(left) and self.is_literal(right)):
+            return None
+
+        left_value = self.literal_value(left)
+        right_value = self.literal_value(right)
+
+        try:
+            if node.operator == TokenType.PLUS:
+                result = left_value + right_value
+            elif node.operator == TokenType.MINUS:
+                result = left_value - right_value
+            elif node.operator == TokenType.MULTIPLY:
+                result = left_value * right_value
+            elif node.operator == TokenType.DIVIDE:
+                result = left_value / right_value
+            elif node.operator == TokenType.MODULO:
+                result = left_value % right_value
+            elif node.operator == TokenType.EQUAL:
+                result = left_value == right_value
+            elif node.operator == TokenType.NOT_EQUAL:
+                result = left_value != right_value
+            elif node.operator == TokenType.LESS_THAN:
+                result = left_value < right_value
+            elif node.operator == TokenType.GREATER_THAN:
+                result = left_value > right_value
+            elif node.operator == TokenType.LESS_EQUAL:
+                result = left_value <= right_value
+            elif node.operator == TokenType.GREATER_EQUAL:
+                result = left_value >= right_value
+            elif node.operator == TokenType.AND:
+                result = self.is_truthy_literal(left) and self.is_truthy_literal(right)
+            elif node.operator == TokenType.OR:
+                result = self.is_truthy_literal(left) or self.is_truthy_literal(right)
+            else:
+                return None
+        except Exception:
+            return None
+
+        return self.make_literal(result, node)
+
+    def try_fold_unary(self, node: UnaryOp, operand: ASTNode) -> Optional[ASTNode]:
+        if not self.is_literal(operand):
+            return None
+
+        value = self.literal_value(operand)
+        try:
+            if node.operator == TokenType.MINUS:
+                result = -value
+            elif node.operator == TokenType.NOT:
+                result = not self.is_truthy_literal(operand)
+            else:
+                return None
+        except Exception:
+            return None
+
+        return self.make_literal(result, node)
+
+    def is_literal(self, node: ASTNode) -> bool:
+        return isinstance(node, (NumberLiteral, StringLiteral, BooleanLiteral))
+
+    def literal_value(self, node: ASTNode) -> Any:
+        if isinstance(node, NumberLiteral):
+            return node.value
+        if isinstance(node, StringLiteral):
+            return node.value
+        if isinstance(node, BooleanLiteral):
+            return node.value
+        raise RuntimeError("Node is not a literal")
+
+    def is_truthy_literal(self, node: ASTNode) -> bool:
+        value = self.literal_value(node)
+        if value is None or value is False:
+            return False
+        if value == 0 or value == "":
+            return False
+        return True
+
+    def make_literal(self, value: Any, source: ASTNode) -> Optional[ASTNode]:
+        if isinstance(value, bool):
+            return BooleanLiteral(value=value, line=source.line, column=source.column)
+        if isinstance(value, (int, float)):
+            return NumberLiteral(value=value, line=source.line, column=source.column)
+        if isinstance(value, str):
+            return StringLiteral(value=value, line=source.line, column=source.column)
+        return None
 
     def eval_node(self, node: ASTNode, env: Environment) -> Any:
         """Evaluate an AST node"""
