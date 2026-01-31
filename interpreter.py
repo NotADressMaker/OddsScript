@@ -15,11 +15,63 @@ class TaggedNumber:
     value: float
     tag: str
 
+    def __float__(self) -> float:
+        return float(self.value)
+
+    def _coerce(self, other: Any) -> float:
+        return other.value if isinstance(other, TaggedNumber) else float(other)
+
+    def __add__(self, other: Any) -> float:
+        return float(self.value) + self._coerce(other)
+
+    def __radd__(self, other: Any) -> float:
+        return self._coerce(other) + float(self.value)
+
+    def __sub__(self, other: Any) -> float:
+        return float(self.value) - self._coerce(other)
+
+    def __rsub__(self, other: Any) -> float:
+        return self._coerce(other) - float(self.value)
+
+    def __mul__(self, other: Any) -> float:
+        return float(self.value) * self._coerce(other)
+
+    def __rmul__(self, other: Any) -> float:
+        return self._coerce(other) * float(self.value)
+
+    def __truediv__(self, other: Any) -> float:
+        return float(self.value) / self._coerce(other)
+
+    def __rtruediv__(self, other: Any) -> float:
+        return self._coerce(other) / float(self.value)
+
 
 class ReturnValue(Exception):
     """Exception used to handle return statements"""
     def __init__(self, value):
         self.value = value
+
+
+@dataclass
+class LanguageRuntimeError(RuntimeError):
+    message: str
+    line: Optional[int] = None
+    column: Optional[int] = None
+    call_stack: Optional[List[str]] = None
+
+    def __post_init__(self) -> None:
+        super().__init__(self.message)
+
+    def format(self) -> str:
+        details = self.message
+        if self.line is not None and self.column is not None:
+            details = f"{details} (line {self.line}, column {self.column})"
+        if self.call_stack:
+            details = f"{details}\nCall stack:\n  " + "\n  ".join(self.call_stack)
+        return details
+
+    def __str__(self) -> str:
+        return self.format()
 
 
 class Environment:
@@ -103,9 +155,13 @@ class Module:
 
 
 class Interpreter:
-    def __init__(self):
+    def __init__(self, max_steps: int = 1_000_000, max_call_depth: int = 1_000):
         self.global_env = Environment()
         self.modules: Dict[str, Module] = {}
+        self.max_steps = max_steps
+        self.max_call_depth = max_call_depth
+        self.steps_remaining = max_steps
+        self.call_stack: List[str] = []
         self.setup_builtins()
 
     def unwrap_number(self, value: Any, expected_tag: Optional[str] = None, label: str = "value") -> float:
@@ -116,6 +172,11 @@ class Interpreter:
         if isinstance(value, (int, float)):
             return value
         raise RuntimeError(f"Expected {label} to be a number")
+
+    def unwrap_tagged(self, value: Any) -> Any:
+        if isinstance(value, TaggedNumber):
+            return value.value
+        return value
 
     def setup_builtins(self):
         """Setup built-in functions for betting operations"""
@@ -364,11 +425,22 @@ class Interpreter:
 
     def interpret(self, program: Program) -> Any:
         """Execute the program"""
+        self.steps_remaining = self.max_steps
         program = self.optimize_program(program)
         result = None
         for statement in program.statements:
             result = self.eval_node(statement, self.global_env)
         return result
+
+    def runtime_error(self, message: str, node: Optional[ASTNode] = None) -> None:
+        line = getattr(node, "line", None) if node else None
+        column = getattr(node, "column", None) if node else None
+        raise LanguageRuntimeError(message, line=line, column=column, call_stack=list(self.call_stack))
+
+    def tick(self, node: Optional[ASTNode] = None) -> None:
+        self.steps_remaining -= 1
+        if self.steps_remaining < 0:
+            self.runtime_error("Execution step limit exceeded", node)
 
     def optimize_program(self, program: Program) -> Program:
         return Program(
@@ -658,6 +730,19 @@ class Interpreter:
 
     def eval_node(self, node: ASTNode, env: Environment) -> Any:
         """Evaluate an AST node"""
+        self.tick(node)
+
+        try:
+            return self._eval_node(node, env)
+        except ReturnValue:
+            raise
+        except LanguageRuntimeError:
+            raise
+        except RuntimeError as err:
+            self.runtime_error(str(err), node)
+
+    def _eval_node(self, node: ASTNode, env: Environment) -> Any:
+        """Internal evaluation implementation"""
 
         if isinstance(node, Program):
             result = None
@@ -675,29 +760,20 @@ class Interpreter:
             return node.value
 
         elif isinstance(node, Identifier):
-            try:
-                return env.get(node.name)
-            except RuntimeError as err:
-                self.runtime_error(str(err), node)
+            return env.get(node.name)
 
         elif isinstance(node, ImportStatement):
-            try:
-                module = self.load_module(node.module)
-                alias = node.alias or node.module.split(".")[-1]
-                env.define(alias, module)
-                return module
-            except RuntimeError as err:
-                self.runtime_error(str(err), node)
+            module = self.load_module(node.module)
+            alias = node.alias or node.module.split(".")[-1]
+            env.define(alias, module)
+            return module
 
         elif isinstance(node, FromImportStatement):
-            try:
-                module = self.load_module(node.module)
-                for name, alias in node.imports:
-                    value = module.get(name)
-                    env.define(alias or name, value)
-                return None
-            except RuntimeError as err:
-                self.runtime_error(str(err), node)
+            module = self.load_module(node.module)
+            for name, alias in node.imports:
+                value = module.get(name)
+                env.define(alias or name, value)
+            return None
 
         elif isinstance(node, ArrayLiteral):
             return [self.eval_node(elem, env) for elem in node.elements]
@@ -718,14 +794,11 @@ class Interpreter:
 
         elif isinstance(node, Assignment):
             value = self.eval_node(node.value, env)
-            try:
-                if env.exists(node.name):
-                    env.set(node.name, value)
-                else:
-                    env.define(node.name, value, node.is_const)
-                return value
-            except RuntimeError as err:
-                self.runtime_error(str(err), node)
+            if env.exists(node.name):
+                env.set(node.name, value)
+            else:
+                env.define(node.name, value, node.is_const)
+            return value
 
         elif isinstance(node, FunctionCall):
             return self.eval_function_call(node, env)
@@ -799,8 +872,8 @@ class Interpreter:
             raise RuntimeError(f"Unknown node type: {type(node)}")
 
     def eval_binary_op(self, node: BinaryOp, env: Environment) -> Any:
-        left = self.eval_node(node.left, env)
-        right = self.eval_node(node.right, env)
+        left = self.unwrap_tagged(self.eval_node(node.left, env))
+        right = self.unwrap_tagged(self.eval_node(node.right, env))
 
         if node.operator == TokenType.PLUS:
             return left + right
@@ -832,7 +905,7 @@ class Interpreter:
             raise RuntimeError(f"Unknown binary operator: {node.operator}")
 
     def eval_unary_op(self, node: UnaryOp, env: Environment) -> Any:
-        operand = self.eval_node(node.operand, env)
+        operand = self.unwrap_tagged(self.eval_node(node.operand, env))
 
         if node.operator == TokenType.MINUS:
             return -operand
@@ -847,6 +920,8 @@ class Interpreter:
             return func(*args)
 
         if isinstance(func, FunctionDef):
+            if len(self.call_stack) >= self.max_call_depth:
+                self.runtime_error("Maximum call depth exceeded", func)
             if len(arg_nodes) != len(func.parameters):
                 raise RuntimeError(
                     f"Function '{func.name}' expects {len(func.parameters)} arguments, got {len(arg_nodes)}"
@@ -857,6 +932,7 @@ class Interpreter:
                 arg_value = self.eval_node(arg, env)
                 func_env.define(param, arg_value)
 
+            self.call_stack.append(func.name)
             try:
                 result = None
                 for stmt in func.body:
@@ -864,6 +940,8 @@ class Interpreter:
                 return result
             except ReturnValue as ret:
                 return ret.value
+            finally:
+                self.call_stack.pop()
 
         raise RuntimeError("Target is not a function")
 

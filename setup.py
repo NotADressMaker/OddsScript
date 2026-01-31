@@ -19,7 +19,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/NotADressMaker/SportsBetLang",
-    packages=find_packages(include=['lib', 'lib.*', 'tools', 'tools.*']),
+    packages=find_packages(include=['lib', 'lib.*', 'tools', 'tools.*', 'sportsbetlang', 'sportsbetlang.*']),
+    py_modules=['lexer', 'parser', 'interpreter'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -46,7 +47,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'sportsbetlang=sportsbetlang:main',
+            'sportsbetlang=sportsbetlang.cli:main',
         ],
     },
     package_data={

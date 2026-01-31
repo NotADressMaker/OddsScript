@@ -8,7 +8,7 @@ from lexer import Token, TokenType, Lexer
 
 
 # AST Node Types
-@dataclass
+@dataclass(kw_only=True)
 class ASTNode:
     line: Optional[int] = None
     column: Optional[int] = None
@@ -175,7 +175,9 @@ class Parser:
     def expect(self, token_type: TokenType) -> Token:
         token = self.current_token()
         if token.type != token_type:
-            raise SyntaxError(f"Expected {token_type.name}, got {token.type.name} at {token.line}:{token.column}")
+            raise SyntaxError(
+                f"Expected {token_type.name}, got {self.format_token(token)} at line {token.line}, column {token.column}"
+            )
         self.advance()
         return token
 
@@ -234,6 +236,14 @@ class Parser:
         node.line = token.line
         node.column = token.column
         return node
+
+    def format_token(self, token: Token) -> str:
+        if token.type == TokenType.EOF:
+            return "EOF"
+        value = token.value
+        if token.type == TokenType.STRING:
+            value = repr(value)
+        return f"{token.type.name} ({value})"
 
     def parse_variable_declaration(self) -> Assignment:
         is_const = self.current_token().type == TokenType.CONST
@@ -534,7 +544,7 @@ class Parser:
                 if isinstance(left, Identifier):
                     left = self.with_span(FunctionCall(left.name, args), call_token)
                 else:
-                    left = CallExpression(left, args)
+                    left = self.with_span(CallExpression(left, args), call_token)
 
             elif self.current_token().type == TokenType.LBRACKET:
                 # Index access
@@ -588,7 +598,9 @@ class Parser:
             return self.parse_dict_literal()
 
         else:
-            raise SyntaxError(f"Unexpected token {token.type.name} at {token.line}:{token.column}")
+            raise SyntaxError(
+                f"Unexpected token {self.format_token(token)} at line {token.line}, column {token.column}"
+            )
 
     def parse_array_literal(self) -> ArrayLiteral:
         lbracket_token = self.expect(TokenType.LBRACKET)
@@ -637,17 +649,17 @@ class Parser:
         return ".".join(parts)
 
     def parse_import_statement(self) -> ImportStatement:
-        self.expect(TokenType.IMPORT)
+        import_token = self.expect(TokenType.IMPORT)
         module = self.parse_module_path()
         alias = None
         if self.current_token().type == TokenType.AS:
             self.advance()
             alias_token = self.expect(TokenType.IDENTIFIER)
             alias = alias_token.value
-        return ImportStatement(module, alias)
+        return self.with_span(ImportStatement(module, alias), import_token)
 
     def parse_from_import_statement(self) -> FromImportStatement:
-        self.expect(TokenType.FROM)
+        from_token = self.expect(TokenType.FROM)
         module = self.parse_module_path()
         self.expect(TokenType.IMPORT)
         imports = []
@@ -664,4 +676,4 @@ class Parser:
             self.advance()
             if self.current_token().type in (TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.EOF):
                 break
-        return FromImportStatement(module, imports)
+        return self.with_span(FromImportStatement(module, imports), from_token)

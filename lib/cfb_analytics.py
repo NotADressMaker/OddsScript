@@ -650,7 +650,7 @@ def calculate_cfb_sp_plus_probability(
     Returns:
         Probability of team 1 winning
     """
-    expected_margin = sp_plus_1 - sp_plus_2 + home_advantage
+    expected_margin = sp_plus_1 - sp_plus_2 - home_advantage
     std_dev = 17.0
 
     z_score = expected_margin / std_dev

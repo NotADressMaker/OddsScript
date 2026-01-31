@@ -1,77 +1,69 @@
-#!/usr/bin/env python3
 """
-SportsBetLang - A programming language for sports betting
-Main entry point for running SportsBetLang programs
+SportsBetLang CLI entry point.
 """
 
+from __future__ import annotations
+
+import argparse
 import sys
+from pathlib import Path
+
+from interpreter import Interpreter, LanguageRuntimeError
 from lexer import Lexer
 from parser import Parser
-from interpreter import Interpreter, LanguageRuntimeError
 
 
-def run_file(filename: str):
-    """Execute a SportsBetLang file"""
-    try:
-        with open(filename, 'r') as f:
-            source = f.read()
-
-        run(source, filename)
-    except FileNotFoundError:
-        print(f"Error: File '{filename}' not found")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Error reading file: {e}")
-        sys.exit(1)
-
-
-def run(source: str, filename: str = "<stdin>"):
-    """Execute SportsBetLang source code"""
-    try:
-        # Lexical analysis
-        lexer = Lexer(source)
-        tokens = lexer.tokenize()
-
-        # Parsing
-        parser = Parser(tokens)
-        ast = parser.parse()
-
-        # Interpretation
-        interpreter = Interpreter()
-        interpreter.interpret(ast)
-
-    except SyntaxError as e:
-        print(f"Syntax Error in {filename}: {e}")
-        sys.exit(1)
-    except LanguageRuntimeError as e:
-        print(f"Runtime Error in {filename}: {e.format()}")
-        sys.exit(1)
-    except RuntimeError as e:
-        print(f"Runtime Error in {filename}: {e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"Unexpected Error in {filename}: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="sportsbetlang",
+        description="Run SportsBetLang programs or start an interactive REPL.",
+    )
+    parser.add_argument(
+        "source",
+        nargs="?",
+        help="Path to a .odds SportsBetLang program to execute.",
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=1_000_000,
+        help="Maximum interpreter steps before aborting (default: 1,000,000).",
+    )
+    return parser
 
 
-def repl():
-    """Run an interactive REPL"""
+def run_source(source: str, filename: str, max_steps: int) -> None:
+    lexer = Lexer(source)
+    tokens = lexer.tokenize()
+    parser = Parser(tokens)
+    ast = parser.parse()
+    interpreter = Interpreter(max_steps=max_steps)
+    interpreter.interpret(ast)
+
+
+def run_file(path: str, max_steps: int) -> None:
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File '{path}' not found")
+    source = file_path.read_text(encoding="utf-8")
+    run_source(source, str(file_path), max_steps)
+
+
+def repl(max_steps: int) -> None:
     print("SportsBetLang v1.0 - Sports Betting Programming Language")
     print("Type 'exit' or 'quit' to exit, 'help' for help")
     print()
 
-    interpreter = Interpreter()
+    interpreter = Interpreter(max_steps=max_steps)
 
     while True:
         try:
             line = input(">>> ")
 
-            if line.strip() in ['exit', 'quit']:
+            if line.strip() in ["exit", "quit"]:
                 break
 
-            if line.strip() == 'help':
+            if line.strip() == "help":
                 print_help()
                 continue
 
@@ -94,14 +86,13 @@ def repl():
         except KeyboardInterrupt:
             print("\nInterrupted")
             break
-        except LanguageRuntimeError as e:
-            print(f"Error: {e.format()}")
-        except Exception as e:
-            print(f"Error: {e}")
+        except LanguageRuntimeError as exc:
+            print(f"Error: {exc.format()}")
+        except Exception as exc:
+            print(f"Error: {exc}")
 
 
-def print_help():
-    """Print help information"""
+def print_help() -> None:
     help_text = """
 SportsBetLang - Sports Betting Programming Language
 
@@ -139,20 +130,29 @@ EXAMPLES:
     print(help_text)
 
 
-def main():
-    """Main entry point"""
-    if len(sys.argv) == 1:
-        repl()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] in ['-h', '--help']:
-            print_help()
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+
+    try:
+        if args.source:
+            run_file(args.source, max_steps=args.max_steps)
         else:
-            run_file(sys.argv[1])
-    else:
-        print("Usage: sportsbetlang.py [filename]")
-        print("       sportsbetlang.py          (start REPL)")
-        sys.exit(1)
+            repl(max_steps=args.max_steps)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except LanguageRuntimeError as exc:
+        print(f"Runtime Error: {exc.format()}")
+        return 1
+    except SyntaxError as exc:
+        print(f"Syntax Error: {exc}")
+        return 1
+    except Exception as exc:
+        print(f"Unexpected Error: {exc}")
+        return 1
+    return 0
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    raise SystemExit(main())
