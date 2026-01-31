@@ -28,10 +28,13 @@ Usage:
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Depends, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from contextlib import nullcontext, redirect_stdout
+import asyncio
+from dataclasses import dataclass
+from collections import deque
 import io
 import json
 from datetime import datetime
@@ -94,6 +97,74 @@ class ConnectionManager:
                 pass
 
 manager = ConnectionManager()
+
+
+@dataclass
+class StreamSubscriber:
+    queue: asyncio.Queue
+    allowed_types: Optional[set] = None
+    last_event_id: int = 0
+
+
+class LiveStreamManager:
+    def __init__(self, history_size: int = 500, queue_size: int = 200):
+        self.subscribers: List[StreamSubscriber] = []
+        self.history = deque(maxlen=history_size)
+        self.queue_size = queue_size
+        self._event_id = 0
+        self._lock = asyncio.Lock()
+
+    async def connect(self, allowed_types: Optional[set] = None, last_event_id: int = 0) -> StreamSubscriber:
+        queue: asyncio.Queue = asyncio.Queue(maxsize=self.queue_size)
+        subscriber = StreamSubscriber(queue=queue, allowed_types=allowed_types, last_event_id=last_event_id)
+        async with self._lock:
+            self.subscribers.append(subscriber)
+        return subscriber
+
+    async def disconnect(self, subscriber: StreamSubscriber) -> None:
+        async with self._lock:
+            if subscriber in self.subscribers:
+                self.subscribers.remove(subscriber)
+
+    async def publish(self, message: dict) -> int:
+        async with self._lock:
+            self._event_id += 1
+            event_id = self._event_id
+
+        enriched = dict(message)
+        enriched.setdefault("id", event_id)
+
+        self.history.append(enriched)
+        for subscriber in list(self.subscribers):
+            if subscriber.allowed_types:
+                message_type = enriched.get("type", "message")
+                if message_type not in subscriber.allowed_types:
+                    continue
+            await self._enqueue(subscriber.queue, enriched)
+
+        return event_id
+
+    async def replay(self, last_event_id: int, allowed_types: Optional[set] = None) -> List[dict]:
+        events = [event for event in self.history if event.get("id", 0) > last_event_id]
+        if allowed_types:
+            return [event for event in events if event.get("type") in allowed_types]
+        return events
+
+    async def _enqueue(self, queue: asyncio.Queue, message: dict) -> None:
+        try:
+            queue.put_nowait(message)
+        except asyncio.QueueFull:
+            try:
+                _ = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                pass
+            try:
+                queue.put_nowait(message)
+            except asyncio.QueueFull:
+                pass
+
+
+stream_manager = LiveStreamManager()
 
 # ============================================================================
 # Pydantic Models (Request/Response schemas)
@@ -635,12 +706,14 @@ async def save_bet(request: SaveBetRequest):
     )
 
     # Broadcast to WebSocket clients
-    await manager.broadcast({
+    event = {
         "type": "bet_placed",
         "bet_id": bet_id,
         "matchup": request.matchup,
         "amount": request.amount
-    })
+    }
+    await manager.broadcast(event)
+    await stream_manager.publish(event)
 
     return {"bet_id": bet_id, "status": "saved"}
 
@@ -650,11 +723,13 @@ async def update_bet_result(bet_id: int, request: BetResultRequest):
     db.save_result(request.bet_id, request.won, request.actual_odds)
 
     # Broadcast result
-    await manager.broadcast({
+    event = {
         "type": "bet_result",
         "bet_id": bet_id,
         "won": request.won
-    })
+    }
+    await manager.broadcast(event)
+    await stream_manager.publish(event)
 
     return {"status": "updated"}
 
@@ -696,6 +771,17 @@ async def save_prediction(request: PredictionRequest):
         confidence=request.confidence,
         features=request.features
     )
+
+    event = {
+        "type": "prediction_saved",
+        "prediction_id": pred_id,
+        "matchup": request.matchup,
+        "sport": request.sport,
+        "prediction_type": request.prediction_type,
+        "model_used": request.model_used,
+        "confidence": request.confidence
+    }
+    await stream_manager.publish(event)
 
     return {"prediction_id": pred_id, "status": "saved"}
 
@@ -742,11 +828,13 @@ async def update_bankroll(amount: float, change: Optional[float] = None, reason:
     db.update_bankroll(amount, change, reason)
 
     # Broadcast update
-    await manager.broadcast({
+    event = {
         "type": "bankroll_update",
         "amount": amount,
         "change": change
-    })
+    }
+    await manager.broadcast(event)
+    await stream_manager.publish(event)
 
     return {"status": "updated", "bankroll": amount}
 
@@ -757,8 +845,61 @@ async def get_bankroll_history(limit: Optional[int] = 50):
     return {"history": history, "count": len(history)}
 
 # ============================================================================
-# WebSocket for Real-time Updates
+# Streaming & WebSocket for Real-time Updates
 # ============================================================================
+
+@app.get("/stream/live")
+async def stream_live_data(
+    types: Optional[str] = None,
+    keepalive: int = 15,
+    last_event_id: Optional[str] = Header(None, alias="Last-Event-ID")
+):
+    """
+    Stream live updates via Server-Sent Events (SSE).
+
+    Optional query params:
+    - types: comma-separated event types to filter (e.g. bet_placed,bankroll_update)
+    - keepalive: seconds between keepalive events
+    """
+    allowed_types = {value.strip() for value in (types or "").split(",") if value.strip()}
+    try:
+        parsed_last_event_id = int(last_event_id) if last_event_id else 0
+    except ValueError:
+        parsed_last_event_id = 0
+
+    subscriber = await stream_manager.connect(
+        allowed_types=allowed_types or None,
+        last_event_id=parsed_last_event_id
+    )
+
+    async def event_generator():
+        try:
+            connected_payload = {
+                "type": "connected",
+                "timestamp": datetime.utcnow().isoformat() + "Z"
+            }
+            yield f"event: connected\ndata: {json.dumps(connected_payload)}\n\n"
+
+            replay_events = await stream_manager.replay(parsed_last_event_id, allowed_types or None)
+            for event in replay_events:
+                message_type = event.get("type", "message")
+                message_id = event.get("id")
+                yield f"id: {message_id}\nevent: {message_type}\ndata: {json.dumps(event)}\n\n"
+
+            while True:
+                try:
+                    message = await asyncio.wait_for(subscriber.queue.get(), timeout=keepalive)
+                except asyncio.TimeoutError:
+                    yield "event: keepalive\ndata: {}\n\n"
+                    continue
+
+                message_type = message.get("type", "message")
+                message_id = message.get("id")
+                yield f"id: {message_id}\nevent: {message_type}\ndata: {json.dumps(message)}\n\n"
+        finally:
+            await stream_manager.disconnect(subscriber)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
