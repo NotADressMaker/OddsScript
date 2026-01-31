@@ -621,9 +621,6 @@ stream.addEventListener('bankroll_update', (event) => {
 });
 ```
 
-To resume a dropped connection, the stream includes event IDs. Your client can reconnect with the
-`Last-Event-ID` header (or let `EventSource` handle it automatically).
-
 **Docker Deployment:**
 
 ```bash
