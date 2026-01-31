@@ -94,7 +94,6 @@ model = NBAModels.spread_model()
 9. `opponent_defensive_rating` - Opponent defensive rating
 10. `four_factors_differential` - Team vs opponent four factors score
 11. `recent_net_rating_differential` - Recent net rating differential
-12. `matchup_history_differential` - Weighted head-to-head point margin
 
 **Configuration:**
 - Random Forest: 200 trees, depth 15

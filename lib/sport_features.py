@@ -76,33 +76,6 @@ class NBAFeatures:
         )
         return team_score - opp_score
 
-    @staticmethod
-    def create_matchup_history_differential(head_to_head_margins: List[float],
-                                            decay: float = 0.85) -> float:
-        """
-        Calculate matchup history differential using recent head-to-head margins.
-
-        Args:
-            head_to_head_margins: List of point differentials (team - opponent),
-                ordered from most recent to oldest.
-            decay: Recency decay factor applied to older games.
-
-        Returns:
-            Weighted average margin; 0.0 if no history is provided.
-        """
-        if not head_to_head_margins:
-            return 0.0
-
-        weighted_total = 0.0
-        weight_sum = 0.0
-        weight = 1.0
-        for margin in head_to_head_margins:
-            weighted_total += margin * weight
-            weight_sum += weight
-            weight *= decay
-
-        return weighted_total / weight_sum
-
 
 class NFLFeatures:
     """NFL-specific feature engineering"""
