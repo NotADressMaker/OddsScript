@@ -265,6 +265,24 @@ The `examples/` directory contains comprehensive examples:
 python3 sportsbetlang.py examples/02_kelly_criterion.odds
 ```
 
+### Generate Python, R, or Julia Code
+
+SportsBetLang can emit source code for integration in quantitative pipelines:
+
+```python
+from sportsbetlang import generate_code
+
+source = \"\"\"
+let odds = -110
+let stake = 100
+calculate_ev(0.55, odds, stake)
+\"\"\"
+
+python_code = generate_code(source, language=\"python\")
+r_code = generate_code(source, language=\"r\")
+julia_code = generate_code(source, language=\"julia\")
+```
+
 ## Language Reference
 
 ### Data Types

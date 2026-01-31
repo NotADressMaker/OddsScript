@@ -21,7 +21,7 @@ Example usage:
 from sportsbetlang.__version__ import __version__, __author__, __description__
 
 # Core language
-from sportsbetlang.core import Lexer, Parser, Interpreter
+from sportsbetlang.core import Lexer, Parser, Interpreter, CodeGenerator, GeneratedCode, generate_code
 
 # Common utilities
 from sportsbetlang.common import (
@@ -48,6 +48,9 @@ __all__ = [
     'Lexer',
     'Parser',
     'Interpreter',
+    'CodeGenerator',
+    'GeneratedCode',
+    'generate_code',
 
     # Common utilities
     'american_to_decimal',
