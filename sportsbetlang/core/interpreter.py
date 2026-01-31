@@ -4,8 +4,8 @@ SportsBetLang Interpreter - Executes the AST with built-in betting functions
 
 import math
 from typing import Any, Dict, List, Optional
-from parser import *
-from lexer import TokenType
+from sportsbetlang.core.parser import *
+from sportsbetlang.core.lexer import TokenType
 
 
 class ReturnValue(Exception):

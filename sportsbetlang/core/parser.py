@@ -4,7 +4,7 @@ SportsBetLang Parser - Builds Abstract Syntax Tree from tokens
 
 from dataclasses import dataclass
 from typing import List, Optional, Any
-from lexer import Token, TokenType, Lexer
+from sportsbetlang.core.lexer import Token, TokenType, Lexer
 
 
 # AST Node Types
