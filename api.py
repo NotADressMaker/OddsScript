@@ -31,6 +31,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from contextlib import nullcontext, redirect_stdout
+import io
 import json
 from datetime import datetime
 from pathlib import Path
@@ -43,6 +45,9 @@ from lib import (
     train_and_predict
 )
 from sportsbetlang.data.dataset_storage import DatasetStorage
+from lexer import Lexer
+from parser import Parser
+from interpreter import Interpreter
 
 # Create FastAPI app
 app = FastAPI(
@@ -208,6 +213,12 @@ class BetRecommendationRequest(BaseModel):
     min_edge: float = Field(0.02, ge=0, le=1)
     games: List[Dict] = Field(..., description='List of games with predictions')
 
+class ScriptExecutionRequest(BaseModel):
+    source: str = Field(..., description="SportsBetLang source code")
+    filename: Optional[str] = Field(None, description="Optional filename for error context")
+    capture_output: bool = Field(True, description="Capture print output from script")
+    include_result: bool = Field(True, description="Include last evaluated result in response")
+
 # ============================================================================
 # Health & Info Endpoints
 # ============================================================================
@@ -226,6 +237,46 @@ async def root():
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.post("/language/execute")
+async def execute_sportsbetlang(request: ScriptExecutionRequest):
+    """Execute SportsBetLang source code for LLM-driven workflows."""
+    stdout_buffer = io.StringIO()
+    context = redirect_stdout(stdout_buffer) if request.capture_output else nullcontext()
+
+    try:
+        lexer = Lexer(request.source)
+        tokens = lexer.tokenize()
+        parser = Parser(tokens)
+        ast = parser.parse()
+        interpreter = Interpreter()
+
+        with context:
+            result = interpreter.interpret(ast)
+
+        output = stdout_buffer.getvalue()
+        response = {
+            "stdout": output,
+            "output_lines": output.splitlines(),
+        }
+        if request.include_result:
+            response["result"] = result
+        return response
+    except SyntaxError as err:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(err), "type": "syntax_error", "filename": request.filename}
+        )
+    except RuntimeError as err:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": str(err), "type": "runtime_error", "filename": request.filename}
+        )
+    except Exception as err:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(err), "type": "unexpected_error", "filename": request.filename}
+        )
 
 # ============================================================================
 # Betting Calculations
