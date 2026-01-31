@@ -57,6 +57,52 @@ class NBAFeatures:
         """
         return (efg_pct * 0.40) - (tov_pct * 0.25) + (orb_pct * 0.20) + (ftr * 0.15)
 
+    @staticmethod
+    def create_four_factors_differential(team_efg_pct: float, team_tov_pct: float,
+                                         team_orb_pct: float, team_ftr: float,
+                                         opp_efg_pct: float, opp_tov_pct: float,
+                                         opp_orb_pct: float, opp_ftr: float) -> float:
+        """
+        Calculate four factors differential between team and opponent
+
+        Returns:
+            Team four factors score minus opponent four factors score
+        """
+        team_score = NBAFeatures.create_four_factors_score(
+            team_efg_pct, team_tov_pct, team_orb_pct, team_ftr
+        )
+        opp_score = NBAFeatures.create_four_factors_score(
+            opp_efg_pct, opp_tov_pct, opp_orb_pct, opp_ftr
+        )
+        return team_score - opp_score
+
+    @staticmethod
+    def create_matchup_history_differential(head_to_head_margins: List[float],
+                                            decay: float = 0.85) -> float:
+        """
+        Calculate matchup history differential using recent head-to-head margins.
+
+        Args:
+            head_to_head_margins: List of point differentials (team - opponent),
+                ordered from most recent to oldest.
+            decay: Recency decay factor applied to older games.
+
+        Returns:
+            Weighted average margin; 0.0 if no history is provided.
+        """
+        if not head_to_head_margins:
+            return 0.0
+
+        weighted_total = 0.0
+        weight_sum = 0.0
+        weight = 1.0
+        for margin in head_to_head_margins:
+            weighted_total += margin * weight
+            weight_sum += weight
+            weight *= decay
+
+        return weighted_total / weight_sum
+
 
 class NFLFeatures:
     """NFL-specific feature engineering"""
