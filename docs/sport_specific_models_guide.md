@@ -88,6 +88,12 @@ model = NBAModels.spread_model()
 3. `home_court` - 1/0
 4. `rest_advantage` - (team_rest - opp_rest)
 5. `pace_differential` - Difference in preferred pace
+6. `team_offensive_rating` - Team offensive rating
+7. `team_defensive_rating` - Team defensive rating
+8. `opponent_offensive_rating` - Opponent offensive rating
+9. `opponent_defensive_rating` - Opponent defensive rating
+10. `four_factors_differential` - Team vs opponent four factors score
+11. `recent_net_rating_differential` - Recent net rating differential
 
 **Configuration:**
 - Random Forest: 200 trees, depth 15
