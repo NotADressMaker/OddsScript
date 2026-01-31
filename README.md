@@ -63,13 +63,14 @@ prob = quick_nba_prediction(115, 108, 110, 109, home=True)
 # Clone and install
 git clone <repository-url>
 cd programminglangauage
-pip install -e .
+pip install -e ".[dev]"
 
 # Use the domain-specific language REPL
-./sportsbetlang.py
+sportsbetlang
+# (or python -m sportsbetlang)
 
 # Or run a script
-./sportsbetlang.py examples/01_basic_bet.odds
+sportsbetlang examples/01_basic_bet.odds
 ```
 
 ### 🌐 Replit.com (Easiest - Start in 60 Seconds!)
@@ -201,6 +202,31 @@ from betting import kelly_criterion as kelly
 let kelly_size = betting.kelly_criterion(0.60, -110)
 let sim = s.poisson_simulate_match(1.4, 1.1)
 let direct = kelly(0.60, -110)
+```
+
+## CLI Usage
+
+Run the REPL:
+```bash
+sportsbetlang
+```
+
+Run a program:
+```bash
+sportsbetlang examples/01_basic_bet.odds
+```
+
+Limit execution steps for untrusted scripts:
+```bash
+sportsbetlang --max-steps 100000 examples/01_basic_bet.odds
+```
+
+## Development + Tests
+
+Install dev dependencies and run tests:
+```bash
+pip install -e ".[dev]"
+pytest
 ```
 
 ## Built-in Functions

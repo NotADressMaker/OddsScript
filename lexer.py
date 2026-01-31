@@ -202,7 +202,7 @@ class Lexer:
                 self.advance()
 
         if self.current_char() != quote_char:
-            raise SyntaxError(f"Unterminated string at {start_line}:{start_col}")
+            raise SyntaxError(f"Unterminated string at line {start_line}, column {start_col}")
 
         self.advance()  # Skip closing quote
         return Token(TokenType.STRING, string_val, start_line, start_col)
@@ -316,7 +316,7 @@ class Lexer:
                 self.advance()
                 continue
 
-            raise SyntaxError(f"Unexpected character '{current}' at {self.line}:{self.column}")
+            raise SyntaxError(f"Unexpected character '{current}' at line {self.line}, column {self.column}")
 
         self.tokens.append(Token(TokenType.EOF, None, self.line, self.column))
         return self.tokens

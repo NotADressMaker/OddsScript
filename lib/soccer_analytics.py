@@ -167,7 +167,8 @@ class SoccerAnalytics:
         three_way = SoccerAnalytics.calculate_3way_moneyline(
             home_goals_avg,
             away_goals_avg,
-            league
+            league,
+            home_advantage=0.0
         )
 
         return {

@@ -211,6 +211,24 @@ class TestLexer(unittest.TestCase):
         self.assertEqual(tokens[1].type, TokenType.STRING)
         self.assertEqual(tokens[1].value, "world")
 
+    def test_tokenize_string_escape(self):
+        """Test string escape sequences"""
+        lexer = Lexer('"line1\\nline2"')
+        tokens = lexer.tokenize()
+
+        from lexer import TokenType
+        self.assertEqual(tokens[0].type, TokenType.STRING)
+        self.assertEqual(tokens[0].value, "line1\nline2")
+
+    def test_tokenize_comments(self):
+        """Test comment skipping"""
+        lexer = Lexer("# comment line\nlet x = 1")
+        tokens = lexer.tokenize()
+
+        from lexer import TokenType
+        non_newlines = [token for token in tokens if token.type != TokenType.NEWLINE]
+        self.assertEqual(non_newlines[0].type, TokenType.LET)
+
     def test_tokenize_keywords(self):
         """Test keyword tokenization"""
         lexer = Lexer("let const if else while for")
@@ -266,6 +284,17 @@ class TestParser(unittest.TestCase):
         from parser import Program, IfStatement
         self.assertIsInstance(ast, Program)
         self.assertIsInstance(ast.statements[0], IfStatement)
+
+    def test_parse_operator_precedence(self):
+        """Test operator precedence handling"""
+        ast = self.parse("1 + 2 * 3")
+        from parser import Program, BinaryOp
+        from lexer import TokenType
+        expr = ast.statements[0]
+        self.assertIsInstance(expr, BinaryOp)
+        self.assertEqual(expr.operator, TokenType.PLUS)
+        self.assertIsInstance(expr.right, BinaryOp)
+        self.assertEqual(expr.right.operator, TokenType.MULTIPLY)
 
 
 def run_tests():

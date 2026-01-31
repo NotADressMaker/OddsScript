@@ -284,6 +284,11 @@ class PoissonCalculator:
             return max(0, int(random.gauss(lambda_param, math.sqrt(lambda_param)) + 0.5))
 
     @staticmethod
+    def simulate_poisson(lambda_param: float, seed: Optional[int] = None) -> int:
+        """Backward-compatible alias for simulate_poisson_event."""
+        return PoissonCalculator.simulate_poisson_event(lambda_param, seed=seed)
+
+    @staticmethod
     def simulate_match(
         home_lambda: float,
         away_lambda: float,
