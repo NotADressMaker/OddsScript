@@ -79,8 +79,15 @@ class NBAModels:
         - team_ppg
         - opponent_ppg
         - pace
+        - pace_differential
         - defensive_efficiency_combined
         - offensive_efficiency_combined
+        - team_offensive_rating
+        - opponent_offensive_rating
+        - team_defensive_rating
+        - opponent_defensive_rating
+        - home_court
+        - rest_advantage
         """
         return (Model()
                 .named("NBA Total Points")
@@ -90,8 +97,15 @@ class NBAModels:
                     'team_ppg',
                     'opponent_ppg',
                     'pace',
+                    'pace_differential',
                     'defensive_efficiency_combined',
-                    'offensive_efficiency_combined'
+                    'offensive_efficiency_combined',
+                    'team_offensive_rating',
+                    'opponent_offensive_rating',
+                    'team_defensive_rating',
+                    'opponent_defensive_rating',
+                    'home_court',
+                    'rest_advantage'
                 ])
                 .with_normalization('standard'))
 
