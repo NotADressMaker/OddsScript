@@ -632,6 +632,23 @@ docker run -p 8000:8000 sportsbetlang-api
 docker-compose up -d
 ```
 
+**Serverless Deployment (AWS Lambda / Google Cloud Functions):**
+
+```bash
+# Install serverless adapters
+pip install -r requirements-api.txt
+```
+
+```bash
+# AWS Lambda (API Gateway)
+# handler: serverless.lambda_handler
+```
+
+```bash
+# Google Cloud Functions (HTTP)
+# entrypoint: serverless.gcf_app
+```
+
 **Features:**
 - REST API with all betting calculations
 - WebSocket support for real-time updates

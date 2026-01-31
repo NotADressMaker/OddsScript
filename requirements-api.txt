@@ -14,3 +14,8 @@ python-multipart==0.0.6
 
 # Optional: Production server
 gunicorn==21.2.0
+
+# Serverless adapters
+mangum==0.17.0
+functions-framework==3.5.0
+asgiref==3.7.2
