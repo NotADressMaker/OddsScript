@@ -26,11 +26,11 @@ This document formalizes SportsBetLang syntax and semantics so the language can 
 - Assignment: `=`
 
 **Delimiters**
-- `(`, `)`, `{`, `}`, `[`, `]`, `,`, `.`, `:`
+- `(`, `)`, `{`, `}`, `[`, `]`, `,`, `.`, `:`, `;`
 
 ### 1.2 Comments and Whitespace
 - Line comments begin with `#` and continue to the end of the line.
-- Newlines separate statements; extra whitespace is ignored.
+- Newlines or semicolons separate statements; extra whitespace is ignored.
 
 ## 2) Grammar (EBNF)
 
@@ -56,18 +56,18 @@ statement          = variable_declaration
 variable_declaration = ("let" | "const") identifier "=" expression ;
 assignment           = identifier "=" expression ;
 return_statement     = "return" [ expression ] ;
-print_statement      = "print" "(" [ expression { "," expression } ] ")" ;
+print_statement      = "print" "(" [ expression { "," expression } [ "," ] ] ")" ;
 expression_statement = expression ;
 
 if_statement       = "if" expression block [ "else" block ] ;
 while_loop         = "while" expression block ;
 for_loop           = "for" identifier "in" expression block ;
-function_def       = "func" identifier "(" [ identifier { "," identifier } ] ")" block ;
+function_def       = "func" identifier "(" [ identifier { "," identifier } [ "," ] ] ")" block ;
 block              = "{" { statement } "}" ;
 
 import_statement    = "import" module_path [ "as" identifier ] ;
 from_import_statement = "from" module_path "import" import_list ;
-import_list         = import_item { "," import_item } ;
+import_list         = import_item { "," import_item } [ "," ] ;
 import_item         = identifier [ "as" identifier ] ;
 module_path         = string | identifier { "." identifier } ;
 
@@ -78,7 +78,7 @@ bet_statement      = "bet" [ bet_type ] expression
 bet_type           = "spread" | "moneyline" | "total" ;
 bet_param          = "spread" expression ;
 
-parlay_statement   = "parlay" expression [ "stake" expression ] ;
+parlay_statement   = "parlay" "[" [ expression { "," expression } [ "," ] ] "]" [ "stake" expression ] ;
 
 expression         = or_expression ;
 or_expression      = and_expression { "or" and_expression } ;
@@ -89,7 +89,7 @@ additive_expression    = multiplicative_expression { ("+" | "-") multiplicative_
 multiplicative_expression = unary_expression { ("*" | "/" | "%") unary_expression } ;
 unary_expression   = [ "-" | "not" ] postfix_expression ;
 postfix_expression = primary_expression { call | index | member } ;
-call               = "(" [ expression { "," expression } ] ")" ;
+call               = "(" [ expression { "," expression } [ "," ] ] ")" ;
 index              = "[" expression "]" ;
 member             = "." identifier ;
 
@@ -102,8 +102,8 @@ primary_expression = number
                    | array_literal
                    | dict_literal ;
 
-array_literal      = "[" [ expression { "," expression } ] "]" ;
-dict_literal       = "{" [ dict_pair { "," dict_pair } ] "}" ;
+array_literal      = "[" [ expression { "," expression } [ "," ] ] "]" ;
+dict_literal       = "{" [ dict_pair { "," dict_pair } [ "," ] ] "}" ;
 dict_pair          = expression ":" expression ;
 
 identifier         = IDENTIFIER ;
@@ -155,9 +155,10 @@ These conventions make generated SportsBetLang easier to parse, review, and run 
 
 ### 4.1 Canonical Formatting
 - Use **one statement per line** (even inside blocks).
+- You may use `;` as a **statement separator** when emitting compact code.
 - Prefer **explicit parentheses** for complex expressions to make precedence unambiguous.
 - Keep **keywords explicit** (e.g., always include `odds` and `stake` fields when relevant).
-- Use **trailing commas** only in multi-line arrays/dictionaries.
+- Trailing commas are **allowed** in arrays, dictionaries, argument lists, and imports (especially in multi-line layouts).
 
 ### 4.2 Naming and Structure
 - Use **descriptive, stable identifiers** (e.g., `home_team`, `implied_prob`).
