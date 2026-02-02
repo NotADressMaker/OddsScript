@@ -106,6 +106,7 @@ from lib.nhl_advanced_models import (
 
 # Expert opinion consensus model
 from lib.expert_opinion_model import ExpertConsensusModel, ExpertSource, ExpertOpinion
+from lib.over_under_trend_model import OverUnderTrendModel, TeamTrendStats
 
 __all__ = [
     # Simplified API (recommended for beginners)
@@ -191,4 +192,6 @@ __all__ = [
     'ExpertConsensusModel',
     'ExpertSource',
     'ExpertOpinion',
+    'OverUnderTrendModel',
+    'TeamTrendStats',
 ]
