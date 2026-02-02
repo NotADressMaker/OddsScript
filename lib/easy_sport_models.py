@@ -204,12 +204,29 @@ def quick_nba_prediction(team_off_rtg: float, team_def_rtg: float,
         >>> print(f"Win probability: {prob:.1%}")
     """
     if historical_games is None:
-        # Use simple calculation without ML
-        team_net = team_off_rtg - team_def_rtg
-        opp_net = opp_off_rtg - opp_def_rtg
-        diff = team_net - opp_net + (3 if home else 0)
-        # Logistic function
-        return 1 / (1 + 10 ** (-diff / 15))
+        # Use analytic calculation without ML
+        from lib.nba_analytics import NBAAnalytics
+
+        pace_value = pace if pace else NBAAnalytics.AVG_PACE
+        expected = NBAAnalytics.calculate_pace_adjusted_total(
+            team1_pace=pace_value,
+            team2_pace=pace_value,
+            team1_off_rating=team_off_rtg,
+            team2_off_rating=opp_off_rtg,
+            team1_def_rating=team_def_rtg,
+            team2_def_rating=opp_def_rtg,
+        )
+        schedule_adjustment = NBAAnalytics.calculate_schedule_adjustment(
+            team_rest_days=rest_team,
+            opponent_rest_days=rest_opp,
+        )
+        result = NBAAnalytics.calculate_moneyline_probability(
+            team_rating=expected["team1_expected"],
+            opponent_rating=expected["team2_expected"],
+            is_home=home,
+            schedule_adjustment=schedule_adjustment,
+        )
+        return float(result["home_win_probability"])
     else:
         # Train model on historical data
         model = EasySportModel('nba', 'game_winner')
