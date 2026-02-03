@@ -212,18 +212,6 @@ class Interpreter:
                 raise RuntimeError(f"Expected {label} to be a string")
             return value
 
-        def ensure_list(value: Any, label: str = "value") -> List[Any]:
-            value = self.unwrap_tagged(value)
-            if not isinstance(value, list):
-                raise RuntimeError(f"Expected {label} to be a list")
-            return value
-
-        def ensure_dict(value: Any, label: str = "value") -> Dict[str, Any]:
-            value = self.unwrap_tagged(value)
-            if not isinstance(value, dict):
-                raise RuntimeError(f"Expected {label} to be a dictionary")
-            return value
-
         def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
             odds_value = self.unwrap_number(odds, expected_tag="odds", label="odds")
@@ -432,77 +420,6 @@ class Interpreter:
             except json.JSONDecodeError as err:
                 raise RuntimeError(f"Failed to parse JSON from {url}: {err}")
 
-        def best_offer(
-            offers: Any,
-            odds_key: Any = "odds",
-            book_key: Any = "book",
-            format: Any = "american",
-        ) -> Dict[str, Any]:
-            """Select the best bookmaker offer from a list of odds."""
-            offers_list = ensure_list(offers, label="offers")
-            odds_key_value = ensure_string(odds_key, label="odds_key")
-            book_key_value = ensure_string(book_key, label="book_key")
-            format_value = ensure_string(format, label="format")
-
-            best: Optional[Dict[str, Any]] = None
-            best_decimal = None
-            for offer in offers_list:
-                offer_value = ensure_dict(offer, label="offer")
-                if odds_key_value not in offer_value:
-                    raise RuntimeError(f"Offer missing '{odds_key_value}' field")
-                odds_value = self.unwrap_number(offer_value[odds_key_value], label="odds")
-                if format_value == "american":
-                    decimal_odds = american_to_decimal(odds_value)
-                elif format_value == "decimal":
-                    if odds_value <= 1:
-                        raise RuntimeError("Decimal odds must be greater than 1")
-                    decimal_odds = odds_value
-                else:
-                    raise RuntimeError("format must be 'american' or 'decimal'")
-
-                if best_decimal is None or decimal_odds > best_decimal:
-                    best_decimal = decimal_odds
-                    best = offer_value
-
-            if best is None:
-                raise RuntimeError("No offers provided")
-
-            return {
-                "book": best.get(book_key_value),
-                "odds": best.get(odds_key_value),
-                "decimal_odds": best_decimal,
-            }
-
-        def consensus_implied_probability(
-            offers: Any,
-            odds_key: Any = "odds",
-            format: Any = "american",
-        ) -> TaggedNumber:
-            """Average implied probability across bookmaker offers."""
-            offers_list = ensure_list(offers, label="offers")
-            odds_key_value = ensure_string(odds_key, label="odds_key")
-            format_value = ensure_string(format, label="format")
-
-            probabilities = []
-            for offer in offers_list:
-                offer_value = ensure_dict(offer, label="offer")
-                if odds_key_value not in offer_value:
-                    raise RuntimeError(f"Offer missing '{odds_key_value}' field")
-                odds_value = self.unwrap_number(offer_value[odds_key_value], label="odds")
-                if format_value == "american":
-                    probabilities.append(ensure_probability(implied_probability(odds_value), label="odds"))
-                elif format_value == "decimal":
-                    if odds_value <= 1:
-                        raise RuntimeError("Decimal odds must be greater than 1")
-                    probabilities.append(1 / odds_value)
-                else:
-                    raise RuntimeError("format must be 'american' or 'decimal'")
-
-            if not probabilities:
-                raise RuntimeError("No offers provided")
-
-            return TaggedNumber(sum(probabilities) / len(probabilities), "probability")
-
         # Register built-in functions
         register_builtin('american_to_decimal', american_to_decimal, module='betting')
         register_builtin('decimal_to_american', decimal_to_american, module='betting')
@@ -536,8 +453,6 @@ class Interpreter:
         register_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
         register_builtin('get', web_get, module='web')
         register_builtin('get_json', web_get_json, module='web')
-        register_builtin('best_offer', best_offer, module='bookmakers')
-        register_builtin('consensus_implied_probability', consensus_implied_probability, module='bookmakers')
 
         for name, exports in modules.items():
             self.modules[name] = Module(name, exports)

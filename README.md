@@ -196,7 +196,6 @@ let bet_size = analyze_bet(0.60, -110, 100)
 import betting
 import stats as s
 import web as http
-import bookmakers as books
 
 # Or import specific functions
 from betting import kelly_criterion as kelly
@@ -206,14 +205,6 @@ let sim = s.poisson_simulate_match(1.4, 1.1)
 let direct = kelly(0.60, -110)
 let homepage = http.get("https://example.com")
 let data = http.get_json("https://example.com/data.json")
-let best = books.best_offer([
-    {"book": "BookA", "odds": -110},
-    {"book": "BookB", "odds": -105},
-])
-let consensus = books.consensus_implied_probability([
-    {"book": "BookA", "odds": -110},
-    {"book": "BookB", "odds": -105},
-])
 ```
 
 ## CLI Usage
@@ -243,7 +234,7 @@ pytest
 
 ## Built-in Functions
 
-Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting, stats, web, and bookmaker helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`, `import web as http`, `import bookmakers as books`).
+Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting, stats, and web helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`, `import web as http`).
 
 ### Odds Conversion
 
@@ -279,11 +270,6 @@ Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are a
 
 - `web.get(url, timeout=10, headers=null)` - Fetch a URL and return response text
 - `web.get_json(url, timeout=10, headers=null)` - Fetch a URL and parse JSON
-
-### Bookmaker Odds Utilities
-
-- `bookmakers.best_offer(offers, odds_key="odds", book_key="book", format="american")` - Select the best odds from a list of bookmaker offers
-- `bookmakers.consensus_implied_probability(offers, odds_key="odds", format="american")` - Average implied probability across offers
 
 ## Examples
 
