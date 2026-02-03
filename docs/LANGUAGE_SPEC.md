@@ -138,13 +138,20 @@ string             = STRING ;
 - `import module as alias` binds the module namespace to `alias`.
   - Example: `import stats as s` binds `s`.
 - `from module import name [as alias]` binds one or more module exports directly into scope.
+  - Example: `import web as http` binds `http`.
 
-### 3.6 Betting Statements
+### 3.6 Built-in Modules
+
+- `betting`: odds conversion and wager analysis helpers.
+- `stats`: poisson simulation helpers.
+- `web`: HTTP helpers for retrieving text or JSON (`get`, `get_json`).
+
+### 3.7 Betting Statements
 - `bet` creates a bet object and returns it.
 - `parlay` creates a parlay object composed of bet expressions.
 - Additional betting parameters (like `spread`) are passed to the bet object.
 
-### 3.7 Errors
+### 3.8 Errors
 - Accessing an undefined variable or member raises a runtime error.
 - Reassigning a `const` raises a runtime error.
 - Importing an unknown module raises a runtime error.
