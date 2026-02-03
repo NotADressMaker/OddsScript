@@ -195,6 +195,7 @@ let bet_size = analyze_bet(0.60, -110, 100)
 # Import a module namespace
 import betting
 import stats as s
+import web as http
 
 # Or import specific functions
 from betting import kelly_criterion as kelly
@@ -202,6 +203,8 @@ from betting import kelly_criterion as kelly
 let kelly_size = betting.kelly_criterion(0.60, -110)
 let sim = s.poisson_simulate_match(1.4, 1.1)
 let direct = kelly(0.60, -110)
+let homepage = http.get("https://example.com")
+let data = http.get_json("https://example.com/data.json")
 ```
 
 ## CLI Usage
@@ -231,7 +234,7 @@ pytest
 
 ## Built-in Functions
 
-Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting and stats helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`).
+Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting, stats, and web helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`, `import web as http`).
 
 ### Odds Conversion
 
@@ -262,6 +265,11 @@ Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are a
 - `roi_calculator(wins, losses, avg_odds)` - Calculate ROI from betting record
 - Standard math: `abs()`, `min()`, `max()`, `sqrt()`, `pow()`
 - Array functions: `len()`, `sum()`, `range()`
+
+### Web Utilities
+
+- `web.get(url, timeout=10, headers=null)` - Fetch a URL and return response text
+- `web.get_json(url, timeout=10, headers=null)` - Fetch a URL and parse JSON
 
 ## Examples
 
