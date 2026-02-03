@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OddsSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "book",
+    "market",
+    "selection",
+    "price",
+    "observed_at",
+    "source"
+  ],
+  "properties": {
+    "event_id": {"type": "string"},
+    "book": {"type": "string"},
+    "market": {"type": "string"},
+    "selection": {"type": "string"},
+    "line": {"type": ["number", "null"]},
+    "price": {"type": "number"},
+    "observed_at": {"type": "string"},
+    "source": {"type": "string"},
+    "raw": {"type": ["object", "null"]}
+  }
+}

@@ -34,6 +34,18 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 - 📉 **Regression Analysis** - Build custom betting models
 - 🎲 **Multi-Outcome Kelly** - Kelly criterion for 3+ outcomes (horse racing, golf, etc.)
 
+### Data Ingestion & Feature Pipeline
+- **Modular pipeline** in `sportsbetlang/ingestion` with sources, extractors, normalizers, db, features, and pipelines modules.
+- **Schema-first** odds snapshots and injury reports with validation utilities.
+- **Entity resolution** helpers for stable team/player IDs.
+- **CLI workflows** for backfill and live ingestion runs.
+
+Run the CLI (tools must be injected by the host environment):
+```bash
+python -m sportsbetlang.ingestion.pipelines.cli backfill --sport nba --start 2025-10-01 --end 2025-10-31
+python -m sportsbetlang.ingestion.pipelines.cli live --sport nba --start 2025-10-01 --end 2025-10-01 --markets spread,total,moneyline
+```
+
 ## Installation
 
 SportsBetLang works on **desktop, laptop, Jupyter notebooks, Google Colab, and online Python environments**. Requires Python 3.7 or higher.
