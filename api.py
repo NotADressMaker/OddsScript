@@ -45,6 +45,7 @@ from lib import (
     BettingDatabase, create_database,
     train_and_predict
 )
+from lib.soccer_analytics import SoccerAnalytics, League
 from sportsbetlang.data.dataset_storage import DatasetStorage
 from lexer import Lexer
 from parser import Parser
@@ -118,6 +119,16 @@ class LiveStreamManager:
                 pass
 
 
+def _parse_soccer_league(league: Optional[str]) -> League:
+    if not league:
+        return League.PREMIER_LEAGUE
+    normalized = league.strip().lower()
+    for member in League:
+        if normalized in {member.name.lower(), member.value.lower()}:
+            return member
+    return League.OTHER
+
+
 stream_manager = LiveStreamManager()
 
 # ============================================================================
@@ -179,6 +190,16 @@ class QuickNFLPredictionRequest(BaseModel):
     home: bool = True
     temperature: float = 70
     wind_speed: float = 5
+
+
+class SoccerMatchRequest(BaseModel):
+    home_goals_avg: float
+    away_goals_avg: float
+    home_goals_against_avg: float
+    away_goals_against_avg: float
+    total_line: float = Field(2.5, ge=0.5)
+    league: Optional[str] = None
+
 
 class QuickNHLPredictionRequest(BaseModel):
     team_xg_for: float
@@ -439,6 +460,60 @@ async def predict_soccer_btts(
         "btts_probability": prob,
         "btts_percentage": f"{prob:.1%}",
         "recommended": prob > 0.5
+    }
+
+
+@app.post("/predict/soccer/match")
+async def predict_soccer_match(request: SoccerMatchRequest):
+    """Soccer match preview with 3-way, totals, and BTTS."""
+    league = _parse_soccer_league(request.league)
+    three_way = SoccerAnalytics.calculate_3way_moneyline(
+        request.home_goals_avg,
+        request.away_goals_avg,
+        league=league
+    )
+    totals = SoccerAnalytics.calculate_total_goals(
+        request.home_goals_avg,
+        request.away_goals_avg,
+        total_line=request.total_line,
+        league=league
+    )
+    btts = SoccerAnalytics.calculate_both_teams_to_score(
+        request.home_goals_avg,
+        request.away_goals_avg,
+        request.home_goals_against_avg,
+        request.away_goals_against_avg,
+        league=league
+    )
+
+    return {
+        "league": league.value,
+        "three_way": {
+            "home_win_probability": three_way["home_win_probability"],
+            "draw_probability": three_way["draw_probability"],
+            "away_win_probability": three_way["away_win_probability"],
+            "home_win_percentage": f"{three_way['home_win_probability']:.1%}",
+            "draw_percentage": f"{three_way['draw_probability']:.1%}",
+            "away_win_percentage": f"{three_way['away_win_probability']:.1%}",
+            "home_expected_goals": three_way["home_expected_goals"],
+            "away_expected_goals": three_way["away_expected_goals"]
+        },
+        "totals": {
+            "line": totals["line"],
+            "expected_total": totals["expected_total"],
+            "over_probability": totals["over_probability"],
+            "under_probability": totals["under_probability"],
+            "over_percentage": f"{totals['over_probability']:.1%}",
+            "under_percentage": f"{totals['under_probability']:.1%}"
+        },
+        "btts": {
+            "btts_yes_probability": btts["btts_yes_probability"],
+            "btts_no_probability": btts["btts_no_probability"],
+            "btts_yes_percentage": f"{btts['btts_yes_probability']:.1%}",
+            "btts_no_percentage": f"{btts['btts_no_probability']:.1%}",
+            "home_clean_sheet_probability": btts["home_clean_sheet_probability"],
+            "away_clean_sheet_probability": btts["away_clean_sheet_probability"]
+        }
     }
 
 @app.post("/predict/nhl/quick")

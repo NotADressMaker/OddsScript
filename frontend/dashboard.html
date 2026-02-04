@@ -449,24 +449,42 @@
                 </div>
 
                 <div class="card">
-                    <h2>⚽ Soccer BTTS Prediction</h2>
+                    <h2>⚽ Soccer Match Preview</h2>
                     <div class="form-group">
-                        <label>Team Goals Per Game</label>
-                        <input type="number" id="soccer-team-goals" value="1.8" step="0.1">
+                        <label>League</label>
+                        <select id="soccer-league">
+                            <option value="PREMIER_LEAGUE">Premier League</option>
+                            <option value="LA_LIGA">La Liga</option>
+                            <option value="BUNDESLIGA">Bundesliga</option>
+                            <option value="SERIE_A">Serie A</option>
+                            <option value="LIGUE_1">Ligue 1</option>
+                            <option value="MLS">MLS</option>
+                            <option value="CHAMPIONS_LEAGUE">Champions League</option>
+                            <option value="WORLD_CUP">World Cup</option>
+                            <option value="OTHER">Other</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Team Conceded Per Game</label>
-                        <input type="number" id="soccer-team-conceded" value="1.2" step="0.1">
+                        <label>Home Goals Per Game</label>
+                        <input type="number" id="soccer-home-goals" value="1.8" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label>Opponent Goals Per Game</label>
-                        <input type="number" id="soccer-opp-goals" value="1.5" step="0.1">
+                        <label>Home Goals Conceded Per Game</label>
+                        <input type="number" id="soccer-home-conceded" value="1.1" step="0.1">
                     </div>
                     <div class="form-group">
-                        <label>Opponent Conceded Per Game</label>
-                        <input type="number" id="soccer-opp-conceded" value="1.1" step="0.1">
+                        <label>Away Goals Per Game</label>
+                        <input type="number" id="soccer-away-goals" value="1.5" step="0.1">
                     </div>
-                    <button onclick="predictSoccer()">Predict BTTS</button>
+                    <div class="form-group">
+                        <label>Away Goals Conceded Per Game</label>
+                        <input type="number" id="soccer-away-conceded" value="1.3" step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label>Total Line (O/U)</label>
+                        <input type="number" id="soccer-total-line" value="2.5" step="0.25">
+                    </div>
+                    <button onclick="predictSoccer()">Analyze Match</button>
                     <div id="soccer-results"></div>
                 </div>
 
@@ -905,9 +923,17 @@
             resultsDiv.innerHTML = '<p class="loading">Predicting...</p>';
 
             try {
-                const response = await fetch(`${API_URL}/predict/soccer/btts?team_goals_avg=${document.getElementById('soccer-team-goals').value}&opp_goals_avg=${document.getElementById('soccer-opp-goals').value}&team_clean_sheets=0.35&opp_clean_sheets=0.35`, {
+                const response = await fetch(`${API_URL}/predict/soccer/match`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        home_goals_avg: parseFloat(document.getElementById('soccer-home-goals').value),
+                        away_goals_avg: parseFloat(document.getElementById('soccer-away-goals').value),
+                        home_goals_against_avg: parseFloat(document.getElementById('soccer-home-conceded').value),
+                        away_goals_against_avg: parseFloat(document.getElementById('soccer-away-conceded').value),
+                        total_line: parseFloat(document.getElementById('soccer-total-line').value),
+                        league: document.getElementById('soccer-league').value
+                    })
                 });
 
                 const data = await response.json();
@@ -915,12 +941,40 @@
                 resultsDiv.innerHTML = `
                     <div class="results">
                         <div class="result-item">
-                            <span class="result-label">BTTS Probability:</span>
-                            <span class="result-value positive">${data.btts_percentage}</span>
+                            <span class="result-label">Home Win:</span>
+                            <span class="result-value positive">${data.three_way.home_win_percentage}</span>
                         </div>
                         <div class="result-item">
-                            <span class="result-label">Recommended:</span>
-                            <span class="result-value">${data.recommended ? 'Yes' : 'No'}</span>
+                            <span class="result-label">Draw:</span>
+                            <span class="result-value">${data.three_way.draw_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Away Win:</span>
+                            <span class="result-value">${data.three_way.away_win_percentage}</span>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">Over ${data.totals.line}:</span>
+                            <span class="result-value positive">${data.totals.over_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Under ${data.totals.line}:</span>
+                            <span class="result-value">${data.totals.under_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Expected Goals:</span>
+                            <span class="result-value">${data.totals.expected_total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-item">
+                            <span class="result-label">BTTS Yes:</span>
+                            <span class="result-value positive">${data.btts.btts_yes_percentage}</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">BTTS No:</span>
+                            <span class="result-value">${data.btts.btts_no_percentage}</span>
                         </div>
                     </div>
                 `;
