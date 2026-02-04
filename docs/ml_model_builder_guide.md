@@ -342,6 +342,28 @@ model.print_performance(X_test, y_test)
 predictions = model.predict(X_new)
 ```
 
+### Add-On Models (Residual Boosting)
+
+Add-on models are a simple, predictable way to improve an existing model by
+learning the leftover error (residuals). They stack on top of your base model:
+
+```python
+from lib.model_builder import ModelBuilder
+
+# Train a base model first
+base_model = ModelBuilder.game_prediction_model()
+base_model.train(X_train, y_train)
+
+# Train a small add-on model on residuals
+add_on = base_model.add_on(X_train, y_train)
+
+# Combined prediction = base + add-on
+improved_predictions = add_on.predict(X_test)
+```
+
+**Why it helps:** the base model captures the main signal, and the add-on model
+captures the remaining edge from new or more relevant data.
+
 ## ModelBuilder Templates
 
 Pre-configured models for common betting scenarios.
