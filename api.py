@@ -1181,10 +1181,17 @@ async def download_dataset(dataset_id: str):
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Dataset file missing")
 
+    download_filename = dataset["original_filename"]
+    media_type = dataset.get("content_type") or "application/octet-stream"
+    if dataset.get("compressed"):
+        if not download_filename.endswith(".gz"):
+            download_filename = f"{download_filename}.gz"
+        media_type = "application/gzip"
+
     return FileResponse(
         path=file_path,
-        filename=dataset["original_filename"],
-        media_type=dataset.get("content_type") or "application/octet-stream"
+        filename=download_filename,
+        media_type=media_type
     )
 
 @app.get("/statistics/summary")
