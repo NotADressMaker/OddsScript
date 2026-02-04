@@ -50,7 +50,7 @@ from lib.ml_models import (
 from lib.simple_api import SBL, Bet, Compare
 
 # Import model builder
-from lib.model_builder import Model, ModelBuilder, DataHelper
+from lib.model_builder import Model, ModelBuilder, DataHelper, AdditiveModel, add_on_model
 
 # Import sport-specific models and features
 from lib.sport_models import (
@@ -118,6 +118,8 @@ __all__ = [
     'Model',
     'ModelBuilder',
     'DataHelper',
+    'AdditiveModel',
+    'add_on_model',
 
     # Sport-Specific Models
     'NBAModels',

@@ -350,6 +350,114 @@ class Model:
 
         return self
 
+    def add_on(self, X: List[List[float]], y: List[float],
+               name: Optional[str] = None, n_trees: int = 50,
+               max_depth: int = 6, normalize: Optional[str] = 'standard'):
+        """
+        Train an add-on model that learns the residuals from this model.
+
+        This creates a simple "addition model" that improves the base model
+        by fitting a second model to the leftover error.
+
+        Args:
+            X: Training features
+            y: Training labels
+            name: Optional name for the add-on model
+            n_trees: Number of trees for the add-on Random Forest
+            max_depth: Max depth for the add-on Random Forest
+            normalize: Feature normalization method ('standard', 'minmax', or None)
+
+        Returns:
+            AdditiveModel that combines base + add-on predictions
+        """
+        if not self.is_trained:
+            raise ValueError("Base model not trained. Call .train() first")
+
+        base_predictions = self.predict(X)
+        residuals = [
+            y[i] - base_predictions[i]
+            for i in range(len(y))
+        ]
+
+        add_on_model = (Model()
+                        .named(name or f"{self._name} Add-On")
+                        .for_regression()
+                        .using_random_forest(n_trees=n_trees, max_depth=max_depth))
+
+        if normalize:
+            add_on_model.with_normalization(normalize)
+
+        add_on_model.train(X, residuals)
+
+        return AdditiveModel(self, add_on_model)
+
+
+class AdditiveModel:
+    """
+    Combines a base model with an add-on residual model.
+
+    The final prediction is base_prediction + residual_prediction.
+    """
+
+    def __init__(self, base_model: Model, residual_model: Model):
+        self.base_model = base_model
+        self.residual_model = residual_model
+        self.task = base_model.task
+        self._name = f"{base_model._name} + {residual_model._name}"
+
+    def _combined_predictions(self, X: List[List[float]]) -> List[float]:
+        base_predictions = self.base_model.predict(X)
+        residual_predictions = self.residual_model.predict(X)
+        return [
+            base_predictions[i] + residual_predictions[i]
+            for i in range(len(base_predictions))
+        ]
+
+    def predict(self, X: List[List[float]]) -> List[float]:
+        """
+        Return predictions for the combined model.
+
+        For classification, returns class labels (0/1).
+        For regression, returns numeric predictions.
+        """
+        combined = self._combined_predictions(X)
+
+        if self.task == 'classification':
+            return [1 if value >= 0.5 else 0 for value in combined]
+
+        return combined
+
+    def predict_proba(self, X: List[List[float]]) -> List[float]:
+        """
+        Return probabilities for classification, or numeric predictions for regression.
+        """
+        combined = self._combined_predictions(X)
+
+        if self.task == 'classification':
+            return [min(1.0, max(0.0, value)) for value in combined]
+
+        return combined
+
+    def evaluate(self, X_test: List[List[float]], y_test: List[float]) -> Dict:
+        """
+        Evaluate combined model performance.
+        """
+        predictions = self.predict(X_test)
+
+        if self.task == 'classification':
+            metrics = ModelValidation.calculate_classification_metrics(
+                y_test, predictions, n_classes=2
+            )
+            return {
+                'accuracy': metrics.accuracy,
+                'precision': metrics.precision,
+                'recall': metrics.recall,
+                'f1_score': metrics.f1_score,
+                'confusion_matrix': metrics.confusion_matrix
+            }
+
+        return ModelValidation.calculate_regression_metrics(y_test, predictions)
+
 
 class ModelBuilder:
     """
@@ -590,6 +698,31 @@ def build_model() -> Model:
 def quick_model(X_train, y_train, task='classification') -> Model:
     """Quick model with defaults"""
     return ModelBuilder.quick_model(X_train, y_train, task)
+
+def add_on_model(base_model: Model, X, y,
+                 name: Optional[str] = None,
+                 n_trees: int = 50,
+                 max_depth: int = 6,
+                 normalize: Optional[str] = 'standard') -> AdditiveModel:
+    """
+    Build an add-on (residual) model on top of a trained base model.
+
+    Args:
+        base_model: Trained Model instance
+        X: Training features
+        y: Training labels
+        name: Optional name for the add-on model
+        n_trees: Number of trees for the add-on Random Forest
+        max_depth: Max depth for the add-on Random Forest
+        normalize: Feature normalization method ('standard', 'minmax', or None)
+    """
+    return base_model.add_on(
+        X, y,
+        name=name,
+        n_trees=n_trees,
+        max_depth=max_depth,
+        normalize=normalize
+    )
 
 
 def split_data(X, y, test_size=0.2):

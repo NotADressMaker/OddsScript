@@ -757,6 +757,20 @@ model = ModelBuilder.game_prediction_model()
 model.train(X_train, y_train)
 ```
 
+**Add-On Models (Simple, Predictable Boost)**
+
+Train a small add-on model that learns the leftover error from an existing model:
+
+```python
+# Train a base model first
+base_model = ModelBuilder.game_prediction_model()
+base_model.train(X_train, y_train)
+
+# Add-on model learns residuals and combines predictions
+add_on = base_model.add_on(X_train, y_train)
+improved_predictions = add_on.predict(X_test)
+```
+
 📚 **[ML Model Builder Guide](docs/ml_model_builder_guide.md)** - Build your own models
 
 ### Easy Sport Models (Simplified Interface)
