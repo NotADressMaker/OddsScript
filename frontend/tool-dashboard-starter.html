@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SportsBetLang Tool Dashboard Starter</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #0f172a;
+            --surface: #f8fafc;
+            --card: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, rgba(59, 130, 246, 0.15), transparent 55%),
+                        linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+            padding: 32px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 32px;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
+        header p {
+            color: rgba(248, 250, 252, 0.78);
+            font-size: 1.05rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-top: 24px;
+        }
+
+        .stat-card {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            border-radius: 16px;
+            padding: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        .stat-card span {
+            display: block;
+            font-size: 0.85rem;
+            color: rgba(248, 250, 252, 0.7);
+        }
+
+        .stat-card strong {
+            font-size: 1.35rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 20px;
+            padding: 24px;
+            color: var(--text);
+            box-shadow: 0 24px 50px rgba(15, 23, 42, 0.25);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .card h2 {
+            font-size: 1.3rem;
+        }
+
+        .card p {
+            color: var(--muted);
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        input {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            background: #f8fafc;
+        }
+
+        button {
+            border: none;
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            background: var(--primary-dark);
+        }
+
+        .result {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 12px 14px;
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        .note {
+            margin-top: 40px;
+            color: rgba(248, 250, 252, 0.7);
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="title">Loading dashboard…</h1>
+            <p id="subtitle">Pulling manifest data.</p>
+            <div class="stats" id="stats"></div>
+        </header>
+        <section class="grid" id="tool-grid"></section>
+        <p class="note">Tip: edit <code>frontend/tool-manifest.json</code> to add cards or wire them to the FastAPI endpoints.</p>
+    </div>
+
+    <script>
+        const defaultManifest = {
+            title: "SportsBetLang Tool Dashboard",
+            subtitle: "Starter dashboard rendering from a JSON manifest.",
+            stats: [
+                { label: "Active Tools", value: "3" },
+                { label: "APIs Ready", value: "FastAPI" },
+                { label: "Outputs", value: "JSON" }
+            ],
+            tools: []
+        };
+
+        const TOOL_HANDLERS = {
+            kelly: (data) => {
+                const p = Number(data.win_probability);
+                const odds = Number(data.odds);
+                const edge = (p * (odds - 1) - (1 - p)) / (odds - 1);
+                const pct = Math.max(0, edge) * 100;
+                return `Kelly fraction: ${pct.toFixed(1)}% of bankroll`;
+            },
+            ev: (data) => {
+                const p = Number(data.win_probability);
+                const odds = Number(data.odds);
+                const stake = Number(data.stake);
+                const expected = p * (odds - 1) * stake - (1 - p) * stake;
+                return `Expected value: ${expected.toFixed(2)}`;
+            },
+            quick_nba: (data) => {
+                const off = Number(data.team_off_rtg) - Number(data.opp_def_rtg);
+                const def = Number(data.opp_off_rtg) - Number(data.team_def_rtg);
+                const raw = 0.5 + (off - def) / 200;
+                const prob = Math.min(0.9, Math.max(0.1, raw));
+                return `Win probability estimate: ${(prob * 100).toFixed(1)}%`;
+            }
+        };
+
+        async function loadManifest() {
+            try {
+                const response = await fetch("tool-manifest.json");
+                if (!response.ok) {
+                    throw new Error("Manifest not found");
+                }
+                return await response.json();
+            } catch (error) {
+                return defaultManifest;
+            }
+        }
+
+        function renderStats(stats) {
+            const container = document.getElementById("stats");
+            container.innerHTML = "";
+            stats.forEach((stat) => {
+                const card = document.createElement("div");
+                card.className = "stat-card";
+                card.innerHTML = `<span>${stat.label}</span><strong>${stat.value}</strong>`;
+                container.appendChild(card);
+            });
+        }
+
+        function renderTools(tools) {
+            const grid = document.getElementById("tool-grid");
+            grid.innerHTML = "";
+
+            tools.forEach((tool) => {
+                const card = document.createElement("div");
+                card.className = "card";
+
+                const form = document.createElement("form");
+                form.dataset.toolId = tool.id;
+
+                const header = document.createElement("div");
+                header.innerHTML = `<h2>${tool.name}</h2><p>${tool.description}</p>`;
+                card.appendChild(header);
+
+                tool.fields.forEach((field) => {
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "field";
+                    wrapper.innerHTML = `
+                        <label for="${tool.id}-${field.id}">${field.label}</label>
+                        <input
+                            id="${tool.id}-${field.id}"
+                            name="${field.id}"
+                            type="${field.type}"
+                            step="${field.step ?? "any"}"
+                            min="${field.min ?? ""}"
+                            max="${field.max ?? ""}"
+                            value="${field.default ?? ""}"
+                        />
+                    `;
+                    form.appendChild(wrapper);
+                });
+
+                const button = document.createElement("button");
+                button.type = "submit";
+                button.textContent = tool.ctaLabel ?? "Run";
+                form.appendChild(button);
+
+                const result = document.createElement("div");
+                result.className = "result";
+                result.textContent = "Output will appear here.";
+
+                form.addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(form);
+                    const data = Object.fromEntries(formData.entries());
+                    const handler = TOOL_HANDLERS[tool.id];
+                    result.textContent = handler ? handler(data) : "Connect this card to an API endpoint.";
+                });
+
+                card.appendChild(form);
+                card.appendChild(result);
+                grid.appendChild(card);
+            });
+        }
+
+        async function init() {
+            const manifest = await loadManifest();
+            document.getElementById("title").textContent = manifest.title ?? defaultManifest.title;
+            document.getElementById("subtitle").textContent = manifest.subtitle ?? defaultManifest.subtitle;
+            renderStats(manifest.stats ?? defaultManifest.stats);
+            renderTools(manifest.tools ?? []);
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -729,6 +729,8 @@ pip install -r requirements-api.txt
 📚 **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Deploy to Railway, Heroku, AWS, DigitalOcean, and more
 🎨 **[Frontend Examples](frontend/)** - Vanilla JS, React components, and advanced dashboard
 🚀 **[Enhanced Dashboard](frontend/dashboard.html)** - Professional multi-tab interface with 6 tools
+🧰 **[Dashboard Builder Guide](docs/DASHBOARD_BUILDER_GUIDE.md)** - Manifest-driven starter for LLMs and developers
+🧩 **[Tool Dashboard Starter](frontend/tool-dashboard-starter.html)** - JSON manifest → runnable dashboard
 
 ### ML Model Builder
 
