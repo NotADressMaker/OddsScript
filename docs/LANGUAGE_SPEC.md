@@ -182,3 +182,44 @@ When generating code with an AI system:
 - Ensure all referenced identifiers are declared before use.
 - Use `const` for configuration values to prevent accidental mutation.
 - Include `return` at the end of functions that are expected to return a value.
+
+### 4.5 LLM-Optimized Subset (SBL-LLM)
+Use this subset when generating code for LLM-driven workflows that need maximum determinism.
+
+- **One statement per line** and **no semicolons**.
+- **No implicit bet fields**: always include `odds` and `stake`.
+- **Prefer explicit bet types**: `bet moneyline`, `bet spread`, `bet total`.
+- **Avoid dynamic imports**: use `import betting`, `import stats`, `import web` only when needed.
+- **Avoid implicit truthiness checks**: compare explicitly (`if ev > 0` instead of `if ev`).
+- **Avoid mutation in analysis steps**: compute into new variables rather than reassign.
+- **Use `const` for config** and `let` for computed values.
+
+### 4.6 Deterministic Output Contract
+When the caller expects a machine-readable result, emit a single top-level dictionary and print it.
+
+- Assign the final output to a variable named `result`.
+- Only print `result` as the final statement.
+- Use stable keys and numeric values without formatting for downstream parsing.
+
+Example:
+
+```sportsbetlang
+import betting
+
+const true_prob = 0.57
+const odds = -110
+const stake = 100
+
+let ev = betting.calculate_ev(true_prob, odds, stake)
+let kelly = betting.kelly_criterion(true_prob, odds)
+
+let result = {
+    "true_prob": true_prob,
+    "odds": odds,
+    "stake": stake,
+    "expected_value": ev,
+    "kelly_fraction": kelly,
+}
+
+print(result)
+```
