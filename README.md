@@ -282,6 +282,9 @@ Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are a
 
 - `web.get(url, timeout=10, headers=null)` - Fetch a URL and return response text
 - `web.get_json(url, timeout=10, headers=null)` - Fetch a URL and parse JSON
+- `web.get_table(url, table_index=0, timeout=10, headers=null)` - Fetch a URL and extract an HTML table
+- `web.get_tables(url, timeout=10, headers=null)` - Fetch a URL and extract all HTML tables
+- `web.get_csv(url, timeout=10, headers=null)` - Fetch a URL and parse CSV into dictionaries
 
 ## Examples
 

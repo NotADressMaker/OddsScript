@@ -144,7 +144,7 @@ string             = STRING ;
 
 - `betting`: odds conversion and wager analysis helpers.
 - `stats`: poisson simulation helpers.
-- `web`: HTTP helpers for retrieving text or JSON (`get`, `get_json`).
+- `web`: HTTP helpers for retrieving text, JSON, HTML tables, or CSV (`get`, `get_json`, `get_table`, `get_tables`, `get_csv`).
 
 ### 3.7 Betting Statements
 - `bet` creates a bet object and returns it.
