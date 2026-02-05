@@ -2,11 +2,14 @@
 SportsBetLang Interpreter - Executes the AST with built-in betting functions
 """
 
+import csv
 import json
 import math
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from html.parser import HTMLParser
+from io import StringIO
 from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
@@ -412,6 +415,55 @@ class Interpreter:
             except urllib.error.URLError as err:
                 raise RuntimeError(f"Failed to fetch {url_value}: {err.reason}")
 
+        class HTMLTableParser(HTMLParser):
+            def __init__(self) -> None:
+                super().__init__()
+                self.tables: List[List[List[str]]] = []
+                self._current_table: List[List[str]] = []
+                self._current_row: List[str] = []
+                self._cell_chunks: List[str] = []
+                self._in_table = False
+                self._in_row = False
+                self._in_cell = False
+
+            def handle_starttag(self, tag: str, attrs: List[tuple]) -> None:
+                if tag == "table":
+                    self._in_table = True
+                    self._current_table = []
+                elif self._in_table and tag == "tr":
+                    self._in_row = True
+                    self._current_row = []
+                elif self._in_row and tag in ("td", "th"):
+                    self._in_cell = True
+                    self._cell_chunks = []
+
+            def handle_endtag(self, tag: str) -> None:
+                if tag in ("td", "th") and self._in_cell:
+                    cell_text = "".join(self._cell_chunks).strip()
+                    self._current_row.append(cell_text)
+                    self._in_cell = False
+                elif tag == "tr" and self._in_row:
+                    if self._current_row:
+                        self._current_table.append(self._current_row)
+                    self._in_row = False
+                elif tag == "table" and self._in_table:
+                    if self._current_table:
+                        self.tables.append(self._current_table)
+                    self._in_table = False
+
+            def handle_data(self, data: str) -> None:
+                if self._in_cell:
+                    self._cell_chunks.append(data)
+
+        def parse_html_tables(html_text: str) -> List[List[List[str]]]:
+            parser = HTMLTableParser()
+            parser.feed(html_text)
+            return parser.tables
+
+        def parse_csv_text(csv_text: str) -> List[Dict[str, str]]:
+            reader = csv.DictReader(StringIO(csv_text))
+            return [dict(row) for row in reader]
+
         def web_get_json(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
             """Fetch a URL and parse the response as JSON."""
             text = web_get(url, timeout=timeout, headers=headers)
@@ -419,6 +471,27 @@ class Interpreter:
                 return json.loads(text)
             except json.JSONDecodeError as err:
                 raise RuntimeError(f"Failed to parse JSON from {url}: {err}")
+
+        def web_get_table(url: Any, table_index: Any = 0, timeout: Any = 10, headers: Any = None) -> Any:
+            """Fetch a URL and extract a table by index."""
+            index_value = int(self.unwrap_number(table_index, label="table_index"))
+            html_text = web_get(url, timeout=timeout, headers=headers)
+            tables = parse_html_tables(html_text)
+            if not tables:
+                raise RuntimeError(f"No HTML tables found at {ensure_string(url, label='url')}")
+            if index_value < 0 or index_value >= len(tables):
+                raise RuntimeError(f"Table index {index_value} out of range (found {len(tables)} tables)")
+            return tables[index_value]
+
+        def web_get_tables(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
+            """Fetch a URL and extract all HTML tables."""
+            html_text = web_get(url, timeout=timeout, headers=headers)
+            return parse_html_tables(html_text)
+
+        def web_get_csv(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
+            """Fetch a URL and parse CSV into a list of dictionaries."""
+            csv_text = web_get(url, timeout=timeout, headers=headers)
+            return parse_csv_text(csv_text)
 
         # Register built-in functions
         register_builtin('american_to_decimal', american_to_decimal, module='betting')
@@ -453,6 +526,9 @@ class Interpreter:
         register_builtin('poisson_simulate_matches', poisson_simulate_matches, module='stats')
         register_builtin('get', web_get, module='web')
         register_builtin('get_json', web_get_json, module='web')
+        register_builtin('get_table', web_get_table, module='web')
+        register_builtin('get_tables', web_get_tables, module='web')
+        register_builtin('get_csv', web_get_csv, module='web')
 
         for name, exports in modules.items():
             self.modules[name] = Module(name, exports)
