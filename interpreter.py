@@ -460,19 +460,6 @@ class Interpreter:
             parser.feed(html_text)
             return parser.tables
 
-        def table_rows_to_dicts(table_rows: List[List[str]]) -> List[Dict[str, str]]:
-            if not table_rows:
-                return []
-            headers = table_rows[0]
-            data_rows = table_rows[1:]
-            result = []
-            for row in data_rows:
-                if not row:
-                    continue
-                padded_row = row + [""] * max(0, len(headers) - len(row))
-                result.append({header: padded_row[idx] for idx, header in enumerate(headers)})
-            return result
-
         def parse_csv_text(csv_text: str) -> List[Dict[str, str]]:
             reader = csv.DictReader(StringIO(csv_text))
             return [dict(row) for row in reader]
@@ -496,20 +483,10 @@ class Interpreter:
                 raise RuntimeError(f"Table index {index_value} out of range (found {len(tables)} tables)")
             return tables[index_value]
 
-        def web_get_table_dicts(url: Any, table_index: Any = 0, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract a table as a list of dictionaries."""
-            table_rows = web_get_table(url, table_index=table_index, timeout=timeout, headers=headers)
-            return table_rows_to_dicts(table_rows)
-
         def web_get_tables(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
             """Fetch a URL and extract all HTML tables."""
             html_text = web_get(url, timeout=timeout, headers=headers)
             return parse_html_tables(html_text)
-
-        def web_get_tables_dicts(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract all HTML tables as lists of dictionaries."""
-            tables = web_get_tables(url, timeout=timeout, headers=headers)
-            return [table_rows_to_dicts(table_rows) for table_rows in tables]
 
         def web_get_csv(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
             """Fetch a URL and parse CSV into a list of dictionaries."""
@@ -550,9 +527,7 @@ class Interpreter:
         register_builtin('get', web_get, module='web')
         register_builtin('get_json', web_get_json, module='web')
         register_builtin('get_table', web_get_table, module='web')
-        register_builtin('get_table_dicts', web_get_table_dicts, module='web')
         register_builtin('get_tables', web_get_tables, module='web')
-        register_builtin('get_tables_dicts', web_get_tables_dicts, module='web')
         register_builtin('get_csv', web_get_csv, module='web')
 
         for name, exports in modules.items():
