@@ -80,23 +80,23 @@ class DatasetStorage:
             storage_path = storage_path.with_suffix(storage_path.suffix + ".gz")
             compressed_flag = 1
 
-        size_bytes = 0
+        buffer = bytearray(chunk_size)
+        view = memoryview(buffer)
         if should_compress:
             with gzip.open(storage_path, "wb") as output:
                 while True:
-                    chunk = upload_file.file.read(chunk_size)
-                    if not chunk:
+                    bytes_read = upload_file.file.readinto(view)
+                    if not bytes_read:
                         break
-                    output.write(chunk)
-            size_bytes = storage_path.stat().st_size
+                    output.write(view[:bytes_read])
         else:
             with open(storage_path, "wb") as output:
                 while True:
-                    chunk = upload_file.file.read(chunk_size)
-                    if not chunk:
+                    bytes_read = upload_file.file.readinto(view)
+                    if not bytes_read:
                         break
-                    output.write(chunk)
-            size_bytes = storage_path.stat().st_size
+                    output.write(view[:bytes_read])
+        size_bytes = storage_path.stat().st_size
 
         record = {
             "id": dataset_id,
