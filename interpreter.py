@@ -455,83 +455,10 @@ class Interpreter:
                 if self._in_cell:
                     self._cell_chunks.append(data)
 
-        class HTMLTextParser(HTMLParser):
-            def __init__(self) -> None:
-                super().__init__()
-                self._chunks: List[str] = []
-                self._skip_depth = 0
-                self._skip_tags = {"script", "style", "noscript"}
-
-            def handle_starttag(self, tag: str, attrs: List[tuple]) -> None:
-                if tag in self._skip_tags:
-                    self._skip_depth += 1
-
-            def handle_endtag(self, tag: str) -> None:
-                if tag in self._skip_tags and self._skip_depth > 0:
-                    self._skip_depth -= 1
-
-            def handle_data(self, data: str) -> None:
-                if self._skip_depth == 0:
-                    text = " ".join(data.split())
-                    if text:
-                        self._chunks.append(text)
-
-            def get_text(self) -> str:
-                return " ".join(self._chunks).strip()
-
-        class HTMLLinkParser(HTMLParser):
-            def __init__(self) -> None:
-                super().__init__()
-                self.links: List[Dict[str, str]] = []
-                self._current_href: Optional[str] = None
-                self._current_text: List[str] = []
-
-            def handle_starttag(self, tag: str, attrs: List[tuple]) -> None:
-                if tag == "a":
-                    for key, value in attrs:
-                        if key == "href":
-                            self._current_href = value
-                            self._current_text = []
-                            break
-
-            def handle_endtag(self, tag: str) -> None:
-                if tag == "a" and self._current_href is not None:
-                    text = " ".join("".join(self._current_text).split())
-                    self.links.append({"href": self._current_href, "text": text})
-                    self._current_href = None
-                    self._current_text = []
-
-            def handle_data(self, data: str) -> None:
-                if self._current_href is not None:
-                    self._current_text.append(data)
-
         def parse_html_tables(html_text: str) -> List[List[List[str]]]:
             parser = HTMLTableParser()
             parser.feed(html_text)
             return parser.tables
-
-        def parse_html_text(html_text: str) -> str:
-            parser = HTMLTextParser()
-            parser.feed(html_text)
-            return parser.get_text()
-
-        def parse_html_links(html_text: str) -> List[Dict[str, str]]:
-            parser = HTMLLinkParser()
-            parser.feed(html_text)
-            return parser.links
-
-        def table_rows_to_dicts(table_rows: List[List[str]]) -> List[Dict[str, str]]:
-            if not table_rows:
-                return []
-            headers = table_rows[0]
-            data_rows = table_rows[1:]
-            result = []
-            for row in data_rows:
-                if not row:
-                    continue
-                padded_row = row + [""] * max(0, len(headers) - len(row))
-                result.append({header: padded_row[idx] for idx, header in enumerate(headers)})
-            return result
 
         def parse_csv_text(csv_text: str) -> List[Dict[str, str]]:
             reader = csv.DictReader(StringIO(csv_text))
@@ -556,30 +483,10 @@ class Interpreter:
                 raise RuntimeError(f"Table index {index_value} out of range (found {len(tables)} tables)")
             return tables[index_value]
 
-        def web_get_table_dicts(url: Any, table_index: Any = 0, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract a table as a list of dictionaries."""
-            table_rows = web_get_table(url, table_index=table_index, timeout=timeout, headers=headers)
-            return table_rows_to_dicts(table_rows)
-
-        def web_get_text(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract visible text."""
-            html_text = web_get(url, timeout=timeout, headers=headers)
-            return parse_html_text(html_text)
-
-        def web_get_links(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract links with href and text."""
-            html_text = web_get(url, timeout=timeout, headers=headers)
-            return parse_html_links(html_text)
-
         def web_get_tables(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
             """Fetch a URL and extract all HTML tables."""
             html_text = web_get(url, timeout=timeout, headers=headers)
             return parse_html_tables(html_text)
-
-        def web_get_tables_dicts(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
-            """Fetch a URL and extract all HTML tables as lists of dictionaries."""
-            tables = web_get_tables(url, timeout=timeout, headers=headers)
-            return [table_rows_to_dicts(table_rows) for table_rows in tables]
 
         def web_get_csv(url: Any, timeout: Any = 10, headers: Any = None) -> Any:
             """Fetch a URL and parse CSV into a list of dictionaries."""
@@ -620,11 +527,7 @@ class Interpreter:
         register_builtin('get', web_get, module='web')
         register_builtin('get_json', web_get_json, module='web')
         register_builtin('get_table', web_get_table, module='web')
-        register_builtin('get_table_dicts', web_get_table_dicts, module='web')
-        register_builtin('get_text', web_get_text, module='web')
-        register_builtin('get_links', web_get_links, module='web')
         register_builtin('get_tables', web_get_tables, module='web')
-        register_builtin('get_tables_dicts', web_get_tables_dicts, module='web')
         register_builtin('get_csv', web_get_csv, module='web')
 
         for name, exports in modules.items():
