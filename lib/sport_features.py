@@ -76,6 +76,27 @@ class NBAFeatures:
         )
         return team_score - opp_score
 
+    @staticmethod
+    def create_spread_rating_interaction(rating_differential: float, spread: float) -> float:
+        """Interaction between team strength and market expectation."""
+        return rating_differential * spread
+
+    @staticmethod
+    def create_rest_home_interaction(rest_advantage: float, home_court: float) -> float:
+        """Interaction between rest advantage and home court."""
+        return rest_advantage * home_court
+
+    @staticmethod
+    def create_pace_rating_interaction(pace_differential: float, rating_differential: float) -> float:
+        """Interaction between pace and rating differential."""
+        return pace_differential * rating_differential
+
+    @staticmethod
+    def create_four_factors_recent_interaction(four_factors_differential: float,
+                                              recent_net_rating_differential: float) -> float:
+        """Interaction between four factors and recent net rating differential."""
+        return four_factors_differential * recent_net_rating_differential
+
 
 class NFLFeatures:
     """NFL-specific feature engineering"""

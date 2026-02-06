@@ -62,6 +62,10 @@ class NBAModels:
         - opponent_defensive_rating
         - four_factors_differential
         - recent_net_rating_differential
+        - spread_rating_interaction
+        - rest_home_interaction
+        - pace_rating_interaction
+        - four_factors_recent_interaction
         """
         return (Model()
                 .named("NBA Spread Coverage")
@@ -78,7 +82,11 @@ class NBAModels:
                     'opponent_offensive_rating',
                     'opponent_defensive_rating',
                     'four_factors_differential',
-                    'recent_net_rating_differential'
+                    'recent_net_rating_differential',
+                    'spread_rating_interaction',
+                    'rest_home_interaction',
+                    'pace_rating_interaction',
+                    'four_factors_recent_interaction'
                 ])
                 .with_normalization('standard'))
 
