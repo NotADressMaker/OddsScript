@@ -97,6 +97,31 @@ class NBAFeatures:
         """Interaction between four factors and recent net rating differential."""
         return four_factors_differential * recent_net_rating_differential
 
+    @staticmethod
+    def create_ppg_interaction(team_ppg: float, opponent_ppg: float) -> float:
+        """Interaction between team and opponent scoring averages."""
+        return team_ppg * opponent_ppg
+
+    @staticmethod
+    def create_pace_offense_interaction(pace: float, offensive_efficiency_combined: float) -> float:
+        """Interaction between game pace and combined offensive efficiency."""
+        return pace * offensive_efficiency_combined
+
+    @staticmethod
+    def create_pace_defense_interaction(pace: float, defensive_efficiency_combined: float) -> float:
+        """Interaction between game pace and combined defensive efficiency."""
+        return pace * defensive_efficiency_combined
+
+    @staticmethod
+    def create_rest_pace_interaction(rest_advantage: float, pace_differential: float) -> float:
+        """Interaction between rest advantage and pace differential."""
+        return rest_advantage * pace_differential
+
+    @staticmethod
+    def create_home_offense_interaction(home_court: float, offensive_efficiency_combined: float) -> float:
+        """Interaction between home court and combined offensive efficiency."""
+        return home_court * offensive_efficiency_combined
+
 
 class NFLFeatures:
     """NFL-specific feature engineering"""
