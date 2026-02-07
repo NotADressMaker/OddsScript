@@ -2,6 +2,8 @@
 
 SportsBetLang is a domain-specific programming language designed specifically for sports betting analysis, bankroll management, and betting strategy development. It provides built-in functions for common betting calculations and a simple, intuitive syntax for betting operations.
 
+> **Disclaimer:** SportsBetLang is a research and educational tool. It is **not** financial advice, investment advice, or a recommendation to wager real money. Use at your own risk.
+
 ## Features
 
 ### Core Language
@@ -9,6 +11,7 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 - **Built-in betting functions**: Kelly criterion, expected value, odds conversions, vig calculator, and more
 - **Odds format support**: American, decimal, and fractional odds
 - **Bankroll management**: Tools for position sizing and risk management
+- **Safety guardrails**: Default max stake and daily exposure limits, full Kelly opt-in, warnings on tiny samples or uncalibrated confidence
 - **Full programming language**: Variables, functions, loops, conditionals, arrays, dictionaries
 - **Interactive REPL**: Test calculations and strategies interactively
 
