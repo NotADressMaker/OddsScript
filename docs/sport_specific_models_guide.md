@@ -154,6 +154,49 @@ ou_zero = poisson.total_probabilities_zero_inflated(
 )
 ```
 
+**Option: Regression-Based Models**
+
+**Best for:** NBA, NFL, college sports
+
+**Idea:** Total points are a function of explanatory variables.
+
+**Typical predictors:**
+- Pace / possessions
+- Offensive and defensive ratings
+- Injuries, rest days, travel
+- Weather (outdoor sports)
+
+**Common forms:**
+- Linear regression
+- Ridge / Lasso (to fight overfitting)
+- Generalized linear models (GLMs)
+
+**Strengths:**
+- Interpretable
+- Easy to customize by sport or league
+
+**Weaknesses:**
+- Linear assumptions can underplay volatility
+
+**Code:**
+```python
+from lib.advanced_stats import AdvancedStats
+
+# Example features: [pace, off_rating, def_rating, rest_days, travel_miles]
+X = [
+    [98.5, 112.3, 109.8, 2, 0],
+    [101.2, 114.1, 108.5, 1, 450],
+    [96.7, 110.9, 111.2, 3, 1200],
+]
+
+# Target: total points
+y = [214.5, 221.0, 209.0]
+
+model = AdvancedStats.multiple_regression(X, y)
+print(f"Intercept: {model.intercept:.2f}")
+print(f"Coefficients: {[f'{c:.3f}' for c in model.coefficients]}")
+```
+
 ### Player Points Model
 
 Predict individual player points.

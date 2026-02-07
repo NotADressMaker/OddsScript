@@ -1,0 +1,5 @@
+league: MLB
+rolling_window: 15
+test_size: 100
+quantile_low: 0.1
+quantile_high: 0.9

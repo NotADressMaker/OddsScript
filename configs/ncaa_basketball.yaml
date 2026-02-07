@@ -1,0 +1,5 @@
+league: NCAA_BASKETBALL
+rolling_window: 10
+test_size: 80
+quantile_low: 0.1
+quantile_high: 0.9
