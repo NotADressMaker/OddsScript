@@ -122,6 +122,38 @@ model = NBAModels.total_points_model()
 - Random Forest: 150 trees, depth 18
 - Regression task
 
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=15)
+ou = poisson.total_probabilities(home_lambda=2.6, away_lambda=2.1, total_line=4.5)
+# Variants:
+ou_bivariate = poisson.total_probabilities_bivariate(
+    home_lambda=2.6, away_lambda=2.1, shared_lambda=0.2, total_line=4.5
+)
+ou_zero = poisson.total_probabilities_zero_inflated(
+    home_lambda=2.6, away_lambda=2.1, zero_prob_home=0.08, zero_prob_away=0.1, total_line=4.5
+)
+```
+
 ### Player Points Model
 
 Predict individual player points.
@@ -195,6 +227,31 @@ model = NFLModels.total_points_model()
 5. `weather_factor`
 6. `pace`
 
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=15)
+ou = poisson.total_probabilities(home_lambda=2.4, away_lambda=2.0, total_line=44.5)
+```
+
 ## NHL Models
 
 ### Game Winner Model
@@ -251,6 +308,31 @@ model = NHLModels.total_goals_model()
 5. `team_save_pct`
 6. `opponent_save_pct`
 
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=10)
+ou = poisson.total_probabilities(home_lambda=3.1, away_lambda=2.7, total_line=5.5)
+```
+
 ## MLB Models
 
 ### Game Winner Model
@@ -305,6 +387,31 @@ model = MLBModels.total_runs_model()
 5. `park_factor`
 6. `weather_factor`
 
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=15)
+ou = poisson.total_probabilities(home_lambda=4.2, away_lambda=3.8, total_line=8.0)
+```
+
 ## College Football Models
 
 ### Game Winner Model
@@ -350,6 +457,31 @@ model = CollegeFootballModels.total_points_model()
 2. `opponent_ppg`
 3. `pace_factor`
 4. `defensive_efficiency_combined`
+
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=14)
+ou = poisson.total_probabilities(home_lambda=27.2, away_lambda=24.8, total_line=52.5)
+```
 
 ## College Basketball Models
 
@@ -461,6 +593,31 @@ model = SoccerModels.total_goals_model()
 3. `team_expected_goals_avg`
 4. `opponent_expected_goals_avg`
 5. `league_avg_goals` - League average total goals
+
+**Option: Poisson Models (and friends)**
+
+**Best for:** Soccer, hockey, baseball
+
+**Idea:** Scores are rare events occurring at a certain rate.
+- Each team has an expected scoring rate λ
+- Total score = Poisson(λ₁ + λ₂)
+- Easy to compute probabilities for over/under lines
+
+**Variants:**
+- Bivariate Poisson: Allows correlation between teams
+- Zero-inflated Poisson: Handles scoreless games better
+
+**Strengths:**
+- Transparent, mathematically elegant
+- Strong baseline for low-scoring sports
+
+**Code:**
+```python
+from lib.poisson_totals_model import PoissonTotalsModel
+
+poisson = PoissonTotalsModel(max_goals=12)
+ou = poisson.total_probabilities(home_lambda=1.4, away_lambda=1.1, total_line=2.5)
+```
 
 ## Horse Racing Models
 
