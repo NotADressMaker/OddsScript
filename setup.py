@@ -3,17 +3,29 @@
 Setup script for SportsBetLang
 """
 
-from setuptools import setup, find_packages
 import os
 
-# Read README for long description
-readme_path = os.path.join(os.path.dirname(__file__), 'README.md')
-with open(readme_path, 'r', encoding='utf-8') as f:
-    long_description = f.read()
+from setuptools import find_packages, setup
+
+ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
+
+
+def read_text(*path_parts: str) -> str:
+    with open(os.path.join(ROOT_DIR, *path_parts), "r", encoding="utf-8") as handle:
+        return handle.read()
+
+
+def read_version() -> str:
+    version_globals: dict[str, str] = {}
+    exec(read_text("sportsbetlang", "__version__.py"), version_globals)
+    return version_globals["__version__"]
+
+
+long_description = read_text("README.md")
 
 setup(
     name="sportsbetlang",
-    version="0.1.0",
+    version=read_version(),
     author="NotADressMaker",
     description="Advanced sports betting analytics library with ML and statistical analysis",
     long_description=long_description,
@@ -40,9 +52,11 @@ setup(
         # No external dependencies - uses only Python standard library
     ],
     extras_require={
-        'dev': [
-            'pytest>=6.0',
-            'pytest-cov>=2.0',
+        "dev": [
+            "mypy>=1.8,<2.0",
+            "pytest>=7.4,<9.0",
+            "pytest-cov>=4.1,<6.0",
+            "ruff>=0.6.0,<1.0.0",
         ],
     },
     entry_points={

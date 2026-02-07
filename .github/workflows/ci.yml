@@ -19,3 +19,12 @@ jobs:
       - name: Run tests
         run: |
           pytest
+      - name: Ruff format check
+        run: |
+          ruff format --check .
+      - name: Ruff lint
+        run: |
+          ruff check .
+      - name: Mypy
+        run: |
+          mypy sportsbetlang/cli.py linting.py formatting.py

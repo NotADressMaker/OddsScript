@@ -4,7 +4,7 @@ Simple formatter for SportsBetLang source code.
 
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import Optional
 
 
 OPERATORS = {
@@ -23,7 +23,8 @@ OPERATORS = {
 }
 KEYWORD_OPERATORS = {"and", "or", "not"}
 
-def _split_comment(line: str) -> Tuple[str, Optional[str]]:
+
+def _split_comment(line: str) -> tuple[str, Optional[str]]:
     in_string = False
     quote_char = ""
     escaped = False
@@ -47,8 +48,8 @@ def _split_comment(line: str) -> Tuple[str, Optional[str]]:
     return line.rstrip(), None
 
 
-def _tokenize_line(code: str) -> List[str]:
-    tokens: List[str] = []
+def _tokenize_line(code: str) -> list[str]:
+    tokens: list[str] = []
     i = 0
     length = len(code)
     while i < length:
@@ -126,7 +127,22 @@ def _is_unary_minus(prev: Optional[str], next_token: Optional[str]) -> bool:
         return True
     if prev in OPERATORS or prev in KEYWORD_OPERATORS:
         return True
-    if prev in {"(", "[", "{", ",", ":", "=", "return", "let", "const", "bet", "parlay", "odds", "stake", "spread"}:
+    if prev in {
+        "(",
+        "[",
+        "{",
+        ",",
+        ":",
+        "=",
+        "return",
+        "let",
+        "const",
+        "bet",
+        "parlay",
+        "odds",
+        "stake",
+        "spread",
+    }:
         return True
     if prev in {"if", "while", "for", "in"}:
         return True
@@ -175,7 +191,7 @@ def _format_code_line(code: str) -> str:
     return "".join(output).strip()
 
 
-def _count_braces(code: str) -> Tuple[int, int]:
+def _count_braces(code: str) -> tuple[int, int]:
     open_count = 0
     close_count = 0
     in_string = False
@@ -206,7 +222,7 @@ def _count_braces(code: str) -> Tuple[int, int]:
 
 def format_source(source: str, indent_width: int = 4) -> str:
     lines = source.splitlines()
-    formatted_lines: List[str] = []
+    formatted_lines: list[str] = []
     indent = 0
     trailing_newline = source.endswith("\n")
 
