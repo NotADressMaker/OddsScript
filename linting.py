@@ -5,7 +5,7 @@ Simple linter for SportsBetLang source code.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Any, Optional
 
 from lexer import Lexer
 from parser import (
@@ -15,10 +15,10 @@ from parser import (
     FunctionDef,
     IfStatement,
     ParlayStatement,
+    Parser,
     Program,
     ReturnStatement,
     WhileLoop,
-    Parser,
 )
 
 
@@ -38,11 +38,11 @@ class LintIssue:
 
 class Linter:
     def __init__(self) -> None:
-        self.issues: List[LintIssue] = []
-        self._const_scopes: List[set[str]] = []
+        self.issues: list[LintIssue] = []
+        self._const_scopes: list[set[str]] = []
         self._in_function = 0
 
-    def lint(self, program: Program) -> List[LintIssue]:
+    def lint(self, program: Program) -> list[LintIssue]:
         self._push_scope()
         self._visit(program)
         self._pop_scope()
@@ -60,7 +60,7 @@ class Linter:
     def _is_const(self, name: str) -> bool:
         return any(name in scope for scope in reversed(self._const_scopes))
 
-    def _visit(self, node) -> None:
+    def _visit(self, node: Any) -> None:
         if isinstance(node, Program):
             for stmt in node.statements:
                 self._visit(stmt)
@@ -75,9 +75,6 @@ class Linter:
         elif isinstance(node, FunctionDef):
             self._in_function += 1
             self._push_scope()
-            for param in node.parameters:
-                # Parameters are mutable bindings by default
-                pass
             for stmt in node.body:
                 self._visit(stmt)
             self._pop_scope()
@@ -108,7 +105,7 @@ class Linter:
             if not node.bets:
                 self._warn("Parlay statement has no bets", node)
 
-    def _warn(self, message: str, node) -> None:
+    def _warn(self, message: str, node: Any) -> None:
         self.issues.append(
             LintIssue(
                 message=message,
@@ -118,7 +115,7 @@ class Linter:
         )
 
 
-def lint_source(source: str) -> List[LintIssue]:
+def lint_source(source: str) -> list[LintIssue]:
     lexer = Lexer(source)
     tokens = lexer.tokenize()
     parser = Parser(tokens, source)
