@@ -1,0 +1,30 @@
+=== Bet Slip Exports ===
+=== CSV Bet Slip ===
+market,book,odds,stake
+NBA total over 228.5,Circa,-105,50
+NFL spread -3.5,DraftKings,-110,40
+Player points over 27.5,FanDuel,125,30
+=== JSON Bet Slip ===
+{
+  "bets": [
+    {
+      "market": "NBA total over 228.5",
+      "book": "Circa",
+      "odds": -105,
+      "stake": 50
+    },
+    {
+      "market": "NFL spread -3.5",
+      "book": "DraftKings",
+      "odds": -110,
+      "stake": 40
+    },
+    {
+      "market": "Player points over 27.5",
+      "book": "FanDuel",
+      "odds": 125,
+      "stake": 30
+    }
+  ],
+  "total_stake": 120
+}

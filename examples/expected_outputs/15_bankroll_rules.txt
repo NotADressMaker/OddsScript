@@ -1,0 +1,18 @@
+=== Bankroll Rules (Daily Cap + Max Exposure + Fractional Kelly) ===
+Daily cap:
+125.0
+Max exposure per bet:
+50.0
+Recommended stake for:
+NBA total over 228.5
+50.0
+Recommended stake for:
+NFL spread -3.5
+50.0
+Recommended stake for:
+Player points over 27.5
+20.00000000000005
+Total staked today:
+120.00000000000006
+Daily cap remaining:
+4.99999999999995

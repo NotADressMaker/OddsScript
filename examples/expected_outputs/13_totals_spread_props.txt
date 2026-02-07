@@ -1,0 +1,14 @@
+=== Totals + Spread + Player Props ===
+Bankroll:
+1000
+Created: Bet(total: Warriors vs Suns over 228.5 (+228.5) @ -110.00, $110.00)
+Created: Bet(spread: Chiefs -3.5 (-3.5) @ -120.00, $120.00)
+Created: Bet(total: J. Tatum over 27.5 points (+27.5) @ +125.00, $80.00)
+Potential payout per bet:
+100.0
+100.0
+100.0
+Total risk:
+310
+Total potential payout:
+300.0

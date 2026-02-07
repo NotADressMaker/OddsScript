@@ -85,6 +85,13 @@ sportsbetlang
 sportsbetlang examples/01_basic_bet.odds
 ```
 
+**One-command quickstart (pipx + betlang):**
+```bash
+pipx install git+https://github.com/NotADressMaker/SportsBetLang.git
+betlang run examples/13_totals_spread_props.odds
+```
+Run the `betlang` command from a repo checkout so the `examples/` directory is available.
+
 ### 🌐 Replit.com (Easiest - Start in 60 Seconds!)
 
 **Perfect for beginners - code in your browser:**
@@ -277,6 +284,7 @@ Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are a
 - `roi_calculator(wins, losses, avg_odds)` - Calculate ROI from betting record
 - Standard math: `abs()`, `min()`, `max()`, `sqrt()`, `pow()`
 - Array functions: `len()`, `sum()`, `range()`
+- Output helpers: `to_json(value)`, `to_csv(rows)`
 
 ### Web Utilities
 
@@ -304,14 +312,32 @@ The `examples/` directory contains comprehensive examples:
 9. **09_monte_carlo_simulation.odds** - Monte Carlo bankroll simulation
 10. **10_hedging_calculator.odds** - Hedging strategies and middle opportunities
 
+### Workflow Examples
+11. **13_totals_spread_props.odds** - Totals + spread + player props flow
+12. **14_line_shopping.odds** - Line shopping across books
+13. **15_bankroll_rules.odds** - Daily cap, max exposure, fractional Kelly sizing
+14. **16_bet_slip_exports.odds** - Output CSV/JSON bet slips
+
 ### Running Examples
 
 ```bash
 # Run an example
 ./sportsbetlang.py examples/02_kelly_criterion.odds
 
+# Or via pipx-installed CLI
+betlang run examples/02_kelly_criterion.odds
+
 # Or using Python directly
 python3 sportsbetlang.py examples/02_kelly_criterion.odds
+```
+
+### Golden Outputs (Expected Results)
+
+Each workflow example has a committed expected output in `examples/expected_outputs/`.
+
+```bash
+betlang run examples/13_totals_spread_props.odds > /tmp/13_totals_spread_props.txt
+diff -u examples/expected_outputs/13_totals_spread_props.txt /tmp/13_totals_spread_props.txt
 ```
 
 ### Generate Python, R, or Julia Code

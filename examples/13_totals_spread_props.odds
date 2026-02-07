@@ -1,0 +1,43 @@
+# Totals + spread + player props workflow
+
+print("=== Totals + Spread + Player Props ===")
+
+let bankroll = 1000
+print("Bankroll:")
+print(bankroll)
+
+let totals_odds = -110
+let totals_stake = 110
+let spread_odds = -120
+let spread_stake = 120
+let props_odds = 125
+let props_stake = 80
+
+bet total "Warriors vs Suns over 228.5" odds totals_odds stake totals_stake spread 228.5
+bet spread "Chiefs -3.5" odds spread_odds stake spread_stake spread -3.5
+bet total "J. Tatum over 27.5 points" odds props_odds stake props_stake spread 27.5
+
+func payout(odds_value, stake_value) {
+    if odds_value > 0 {
+        return stake_value * (odds_value / 100)
+    } else {
+        return stake_value * (100 / abs(odds_value))
+    }
+}
+
+let totals_payout = payout(totals_odds, totals_stake)
+let spread_payout = payout(spread_odds, spread_stake)
+let props_payout = payout(props_odds, props_stake)
+
+print("Potential payout per bet:")
+print(totals_payout)
+print(spread_payout)
+print(props_payout)
+
+let total_risk = totals_stake + spread_stake + props_stake
+let total_payout = totals_payout + spread_payout + props_payout
+
+print("Total risk:")
+print(total_risk)
+print("Total potential payout:")
+print(total_payout)
