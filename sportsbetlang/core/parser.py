@@ -4,6 +4,8 @@ SportsBetLang Parser - Builds Abstract Syntax Tree from tokens
 
 from dataclasses import dataclass
 from typing import List, Optional, Any
+
+from sportsbetlang.core.diagnostics import DiagnosticError
 from sportsbetlang.core.lexer import Token, TokenType, Lexer
 
 
@@ -134,9 +136,10 @@ class ParlayStatement(ASTNode):
 
 
 class Parser:
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: List[Token], source: str = ""):
         self.tokens = tokens
         self.pos = 0
+        self.source = source
 
     def current_token(self) -> Token:
         if self.pos >= len(self.tokens):
@@ -156,9 +159,17 @@ class Parser:
     def expect(self, token_type: TokenType) -> Token:
         token = self.current_token()
         if token.type != token_type:
-            raise SyntaxError(f"Expected {token_type.name}, got {token.type.name} at {token.line}:{token.column}")
+            raise DiagnosticError(
+                f"Expected {token_type.name}, got {token.type.name}",
+                token.line,
+                token.column,
+                self.source,
+            )
         self.advance()
         return token
+
+    def error(self, message: str, token: Token) -> None:
+        raise DiagnosticError(message, token.line, token.column, self.source)
 
     def skip_newlines(self):
         while self.current_token().type == TokenType.NEWLINE:
@@ -490,7 +501,7 @@ class Parser:
                 if isinstance(left, Identifier):
                     left = FunctionCall(left.name, args)
                 else:
-                    raise SyntaxError("Invalid function call")
+                    self.error("Invalid function call target", self.current_token())
 
             elif self.current_token().type == TokenType.LBRACKET:
                 # Index access
@@ -542,7 +553,7 @@ class Parser:
             return self.parse_dict_literal()
 
         else:
-            raise SyntaxError(f"Unexpected token {token.type.name} at {token.line}:{token.column}")
+            self.error(f"Unexpected token {token.type.name}", token)
 
     def parse_array_literal(self) -> ArrayLiteral:
         self.expect(TokenType.LBRACKET)

@@ -111,16 +111,34 @@ number             = NUMBER ;
 string             = STRING ;
 ```
 
+### 2.1 Operator Precedence
+
+Highest precedence first:
+
+1. **Postfix**: function calls `()`, indexing `[]`, member access `.`
+2. **Unary**: negation `-x`, logical `not x`
+3. **Multiplicative**: `*`, `/`, `%`
+4. **Additive**: `+`, `-`
+5. **Comparison**: `<`, `<=`, `>`, `>=`
+6. **Equality**: `==`, `!=`
+7. **Logical AND**: `and`
+8. **Logical OR**: `or`
+
+Assignment (`=`) is **statement-only** and does not participate in expression precedence.
+
 ## 3) Semantics
 
 ### 3.1 Values and Types
-- Values are dynamically typed: numbers, strings, booleans, arrays, dictionaries, bets, and modules.
+- Values are dynamically typed: numbers, strings, booleans, arrays, dictionaries, bets, modules, and functions.
+- Numbers are stored as Python `int` or `float` values and are used for odds, stakes, and probabilities.
 - Arrays support indexing with `[]`. Dictionaries use string or value keys and allow `dict.key` access.
+- Truthiness follows common scripting rules: `false`, `0`, empty strings/arrays/dicts are falsy; everything else is truthy.
 
 ### 3.2 Variables and Scope
 - `let` defines mutable variables; `const` defines immutable variables.
 - Each function call introduces a new lexical scope.
-- Loops create a nested scope for loop variables.
+- `for` loops create a nested scope for the loop variable on each iteration.
+- `if` and `while` blocks execute within the current scope (no implicit block scope).
 
 ### 3.3 Control Flow
 - `if` evaluates its condition; non-zero, non-empty, non-null values are truthy.
@@ -152,6 +170,9 @@ string             = STRING ;
 - Additional betting parameters (like `spread`) are passed to the bet object.
 
 ### 3.8 Errors
+- **Syntax errors** include a line and column, plus a short snippet with a caret.
+  - Example: `Expected RBRACE, got EOF (line 4, column 1)`
+- **Runtime errors** include the line/column when available (for example, undefined variables or invalid member access).
 - Accessing an undefined variable or member raises a runtime error.
 - Reassigning a `const` raises a runtime error.
 - Importing an unknown module raises a runtime error.
@@ -222,4 +243,21 @@ let result = {
 }
 
 print(result)
+```
+
+## 5) Tooling
+
+### 5.1 Formatter
+Use the formatter to normalize whitespace and indentation:
+
+```bash
+python sportsbetlang.py --format path/to/script.odds
+python sportsbetlang.py --format --write path/to/script.odds
+```
+
+### 5.2 Linter
+The linter flags common issues like missing bet fields or `return` outside a function:
+
+```bash
+python sportsbetlang.py --lint path/to/script.odds
 ```

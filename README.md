@@ -379,6 +379,16 @@ Type 'exit' or 'quit' to exit, 'help' for help
 2.7272727272727266
 ```
 
+## Formatting & Linting
+
+SportsBetLang includes basic formatting and linting helpers:
+
+```bash
+python sportsbetlang.py --format path/to/script.odds
+python sportsbetlang.py --format --write path/to/script.odds
+python sportsbetlang.py --lint path/to/script.odds
+```
+
 ## Use Cases
 
 ### Bankroll Management

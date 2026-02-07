@@ -21,7 +21,7 @@ class TestInterpreter(unittest.TestCase):
         """Helper to run SportsBetLang code"""
         lexer = Lexer(code)
         tokens = lexer.tokenize()
-        parser = Parser(tokens)
+        parser = Parser(tokens, code)
         ast = parser.parse()
         interpreter = Interpreter()
         return interpreter.interpret(ast)
@@ -259,7 +259,7 @@ class TestParser(unittest.TestCase):
         """Helper to parse code"""
         lexer = Lexer(code)
         tokens = lexer.tokenize()
-        parser = Parser(tokens)
+        parser = Parser(tokens, code)
         return parser.parse()
 
     def test_parse_assignment(self):
