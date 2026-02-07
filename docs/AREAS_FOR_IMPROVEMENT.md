@@ -9,3 +9,9 @@ This document captures concrete improvement opportunities based on the current r
 ## Packaging and Installation
 - **Add an installable `api` extra in `setup.py`.** Since API dependencies are already listed in `requirements-api.txt`, exposing them as an optional extra (e.g., `pip install .[api]`) would make setup easier and keep packaging in sync with the API stack.
 
+## Modeling + Betting Realism
+- **Introduce first-class Market objects (totals/spread/moneyline/props) with consistent fields.** Standardize how market metadata (type, selection, line, odds, book, timestamps) is represented across the DSL, Python utilities, and storage layers.
+- **Normalize line & odds formats (American/decimal/implied probability).** Provide canonical conversion utilities and enforce consistent normalization in analytics pipelines and bet records.
+- **Add vig-aware comparison utilities with optional devigging.** Enable fair pricing comparisons across books and model outputs with both raw and devigged calculations.
+- **Codify correlation/exposure rules.** Track same-game, same-team, and same-market dependencies to prevent correlated exposure in portfolio and parlay tools.
+- **Expand backtesting hooks for realism.** Support time-based splits, CLV benchmarking, and slippage assumptions for model evaluation and strategy testing.

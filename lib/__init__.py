@@ -110,6 +110,23 @@ from lib.nhl_advanced_models import (
 # Expert opinion consensus model
 from lib.expert_opinion_model import ExpertConsensusModel, ExpertSource, ExpertOpinion
 from lib.over_under_trend_model import OverUnderTrendModel, TeamTrendStats
+from lib.market import (
+    OddsFormat,
+    Odds,
+    MarketType,
+    Market,
+    vig_from_two_way,
+    devig_two_way,
+    devig_from_odds,
+    compare_markets,
+    ExposureRule,
+    default_exposure_rules,
+    check_exposure,
+    BacktestBet,
+    clv_decimal,
+    apply_slippage,
+    time_split_bets,
+)
 
 __all__ = [
     # Simplified API (recommended for beginners)
@@ -202,4 +219,21 @@ __all__ = [
     'ExpertOpinion',
     'OverUnderTrendModel',
     'TeamTrendStats',
+
+    # Market + odds normalization utilities
+    'OddsFormat',
+    'Odds',
+    'MarketType',
+    'Market',
+    'vig_from_two_way',
+    'devig_two_way',
+    'devig_from_odds',
+    'compare_markets',
+    'ExposureRule',
+    'default_exposure_rules',
+    'check_exposure',
+    'BacktestBet',
+    'clv_decimal',
+    'apply_slippage',
+    'time_split_bets',
 ]
