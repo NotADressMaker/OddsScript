@@ -111,9 +111,18 @@ class GoaltenderStats:
     save_percentage: float = 0.905
     goals_against_average: float = 2.8
     high_danger_save_pct: float = 0.820
+    low_danger_save_pct: float = 0.980
+    career_high_danger_save_pct: Optional[float] = None
+    career_low_danger_save_pct: Optional[float] = None
+    recent_high_danger_save_pct: Optional[float] = None
+    recent_low_danger_save_pct: Optional[float] = None
+    recent_save_percentage: Optional[float] = None
     games_started: int = 0
     quality_starts: int = 0
     games_saved_above_expected: float = 0.0  # total GSAx
+    starts_last_7: int = 0
+    back_to_back_starts: int = 0
+    is_starter: bool = True
 
 
 # ----------------------------
@@ -330,6 +339,107 @@ class NHLAdvancedAnalytics:
             "high_danger_save_pct": float(high_danger_save_pct),
             "goals_saved_above_expected": float(gsax),
             "performance_vs_expected": performance,
+        }
+
+    @staticmethod
+    def detect_goalie_regression(
+        goalie: GoaltenderStats,
+        high_danger_weight: float = 0.65,
+        low_danger_weight: float = 0.35,
+        heater_threshold: float = 0.02,
+        slump_threshold: float = -0.02,
+    ) -> Dict[str, float | str]:
+        """
+        Detect unsustainable heater/slump using high/low danger save% vs career norms.
+
+        High danger save % gets more weight, because it is less stable and more
+        impactful in single-game outcomes.
+        """
+        career_high = goalie.career_high_danger_save_pct
+        career_low = goalie.career_low_danger_save_pct
+        recent_high = goalie.recent_high_danger_save_pct
+        recent_low = goalie.recent_low_danger_save_pct
+
+        if career_high is None:
+            career_high = goalie.high_danger_save_pct
+        if career_low is None:
+            career_low = goalie.low_danger_save_pct
+        if recent_high is None:
+            recent_high = goalie.high_danger_save_pct
+        if recent_low is None:
+            recent_low = goalie.low_danger_save_pct
+
+        high_delta = float(recent_high - career_high)
+        low_delta = float(recent_low - career_low)
+        weighted_delta = (high_delta * high_danger_weight) + (low_delta * low_danger_weight)
+        volatility_score = abs(weighted_delta)
+
+        if not goalie.is_starter:
+            return {
+                "signal": "non_starter",
+                "weighted_delta": 0.0,
+                "volatility_score": float(volatility_score),
+                "high_danger_delta": float(high_delta),
+                "low_danger_delta": float(low_delta),
+                "confidence": 0.0,
+            }
+
+        if weighted_delta >= heater_threshold:
+            signal = "heater"
+        elif weighted_delta <= slump_threshold:
+            signal = "slump"
+        else:
+            signal = "stable"
+
+        sample_starts = max(1, goalie.starts_last_7)
+        sample_factor = min(1.0, 0.4 + (sample_starts / 7.0))
+        confidence = min(0.95, 0.5 + volatility_score * 10.0) * sample_factor
+
+        return {
+            "signal": signal,
+            "weighted_delta": float(weighted_delta),
+            "volatility_score": float(volatility_score),
+            "high_danger_delta": float(high_delta),
+            "low_danger_delta": float(low_delta),
+            "confidence": float(confidence),
+        }
+
+    @staticmethod
+    def adjust_team_strength_for_goalie(
+        base_strength: float,
+        goalie: GoaltenderStats,
+        back_to_back_penalty: float = 1.6,
+        volatility_multiplier: float = 28.0,
+    ) -> Dict[str, float | str]:
+        """
+        Adjust team strength based on goalie regression and back-to-back starts.
+
+        Heater -> expect regression (negative adjustment).
+        Slump -> expect rebound (positive adjustment).
+        Back-to-back starts add fatigue penalty, scaled by volatility.
+        """
+        regression = NHLAdvancedAnalytics.detect_goalie_regression(goalie)
+        adjustment = 0.0
+
+        if regression["signal"] == "heater":
+            adjustment -= min(4.0, regression["volatility_score"] * volatility_multiplier)
+        elif regression["signal"] == "slump":
+            adjustment += min(4.0, regression["volatility_score"] * volatility_multiplier)
+
+        fatigue_penalty = 0.0
+        if goalie.back_to_back_starts > 0:
+            fatigue_penalty = -1.0 * (back_to_back_penalty + (regression["volatility_score"] * 6.0))
+
+        adjusted_strength = float(base_strength + adjustment + fatigue_penalty)
+
+        return {
+            "base_strength": float(base_strength),
+            "adjusted_strength": adjusted_strength,
+            "goalie_adjustment": float(adjustment),
+            "fatigue_penalty": float(fatigue_penalty),
+            "goalie_signal": str(regression["signal"]),
+            "goalie_volatility": float(regression["volatility_score"]),
+            "confidence": float(regression["confidence"]),
         }
 
     @staticmethod
