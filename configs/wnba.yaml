@@ -1,0 +1,5 @@
+league: WNBA
+rolling_window: 8
+test_size: 30
+quantile_low: 0.1
+quantile_high: 0.9

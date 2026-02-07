@@ -1,8 +1,10 @@
-# SportsBetLang Requirements
-#
-# This library uses only Python standard library modules
-# No external dependencies required for core functionality
-#
-# Development dependencies (optional):
-# pytest>=6.0
-# pytest-cov>=2.0
+numpy>=1.24
+pandas>=2.0
+scikit-learn>=1.3
+joblib>=1.3
+fastapi>=0.110
+uvicorn>=0.29
+pydantic>=2.6
+pyyaml>=6.0
+pytest>=7.4
+httpx>=0.27

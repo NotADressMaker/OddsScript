@@ -995,6 +995,69 @@ rivalry_adjustment = CFBAnalytics.calculate_rivalry_factor(
 
 📚 See `lib/` directory for all sport-specific packages and detailed documentation
 
+## Totals Regression Service (O/U Models)
+
+This repository also includes a production-ready Python project for training and serving totals (O/U) regression models for NBA, WNBA, NFL, NHL, MLB, EPL soccer, and NCAA basketball.
+
+### Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+### Data Format
+
+Historical CSV files should be normalized across sports with the following columns (missing columns are handled gracefully):
+
+```
+date,league,home_team,away_team,home_score,away_score,total,neutral_site,home_rest_days,away_rest_days,injuries_home,injuries_away,pace_proxy,weather,closing_total,home_travel_distance,away_travel_distance,xg_home,xg_away
+```
+
+### Training
+
+```bash
+python -m src.cli train --league NBA --data data/nba_historical.csv --config configs/nba.yaml
+```
+
+Artifacts are saved under `artifacts/<LEAGUE>/<timestamp>/` with model weights, feature schema, metrics, and training configuration.
+If a prediction includes unseen teams or insufficient history, the system falls back to league-average baselines and returns a warning string in the output.
+
+### Prediction (CLI)
+
+```bash
+python -m src.cli predict \\
+  --league NBA \\
+  --historical data/nba_historical.csv \\
+  --games data/nba_upcoming.csv \\
+  --artifacts artifacts/NBA/<timestamp> \\
+  --config configs/nba.yaml \\
+  --line 228.5
+```
+
+### FastAPI Service
+
+1. Train a model and copy the artifact directory to `artifacts/<LEAGUE>/latest/`.
+2. Place a historical CSV at `data/<league>_historical.csv` (e.g., `data/nba_historical.csv`).
+3. Run the API:
+
+```bash
+uvicorn src.api.main:app --reload
+```
+
+Request example:
+
+```bash
+curl -X POST http://localhost:8000/predict \\
+  -H \"Content-Type: application/json\" \\
+  -d '{\"league\":\"NBA\",\"home_team\":\"Celtics\",\"away_team\":\"Lakers\",\"date\":\"2024-02-01\",\"line\":228.5}'
+```
+
+### Adding a New Sport
+
+1. Create a new config in `configs/` with league name, rolling window, and test size.
+2. Ensure historical CSV conforms to the normalized schema.
+3. Train with the CLI to generate artifacts.
+
 ### Installation
 
 ```bash

@@ -1,0 +1,5 @@
+league: NFL
+rolling_window: 8
+test_size: 32
+quantile_low: 0.1
+quantile_high: 0.9

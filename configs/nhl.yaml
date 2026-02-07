@@ -1,0 +1,5 @@
+league: NHL
+rolling_window: 12
+test_size: 60
+quantile_low: 0.1
+quantile_high: 0.9
