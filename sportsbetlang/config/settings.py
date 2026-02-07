@@ -19,6 +19,9 @@ class SportsBetLangConfig:
     # ===== Kelly Criterion Settings =====
     kelly_fraction: float = 0.25  # Quarter Kelly (recommended for safety)
     max_kelly_pct: float = 0.10   # Never bet more than 10% of bankroll
+    allow_full_kelly: bool = False  # Require explicit opt-in for full Kelly
+    min_sample_size_warning: int = 30  # Warn when sample size is tiny
+    require_confidence_calibration: bool = True  # Warn if model confidence is uncalibrated
 
     # ===== Elo Rating Settings =====
     elo_k_factor: float = 32
@@ -125,6 +128,15 @@ class SportsBetLangConfig:
         # Kelly settings
         config.kelly_fraction = get_env_float('SPORTSBETLANG_KELLY_FRACTION', config.kelly_fraction)
         config.max_kelly_pct = get_env_float('SPORTSBETLANG_MAX_KELLY_PCT', config.max_kelly_pct)
+        config.allow_full_kelly = get_env_bool('SPORTSBETLANG_ALLOW_FULL_KELLY', config.allow_full_kelly)
+        config.min_sample_size_warning = get_env_int(
+            'SPORTSBETLANG_MIN_SAMPLE_SIZE_WARNING',
+            config.min_sample_size_warning
+        )
+        config.require_confidence_calibration = get_env_bool(
+            'SPORTSBETLANG_REQUIRE_CONFIDENCE_CALIBRATION',
+            config.require_confidence_calibration
+        )
 
         # Elo settings
         config.elo_k_factor = get_env_float('SPORTSBETLANG_ELO_K_FACTOR', config.elo_k_factor)

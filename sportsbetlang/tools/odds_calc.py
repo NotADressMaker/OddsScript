@@ -189,6 +189,11 @@ class OddsCalculatorTool(BaseTool):
                 print(f"Recommended Stake:   {self.format_currency(result['stake'])}")
                 print(f"Expected Profit:     {self.format_currency(result['expected_profit'])}")
 
+            if result.get('warnings'):
+                print("\nWarnings:")
+                for warning in result['warnings']:
+                    print(f"  - {warning}")
+
             print(f"\n{result['recommended']}")
 
         return 0

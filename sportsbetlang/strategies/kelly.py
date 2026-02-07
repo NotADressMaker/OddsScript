@@ -37,10 +37,15 @@ class KellyStrategy(BettingStrategy):
 
     @property
     def parameters(self) -> Dict[str, Any]:
+        from sportsbetlang.config import get_config
+
+        config = get_config()
         return {
-            'kelly_fraction': 0.25,  # Quarter Kelly (recommended)
-            'min_edge': 0.01,        # Minimum 1% edge to bet
-            'max_stake_pct': 0.10    # Never bet more than 10% of bankroll
+            'kelly_fraction': config.kelly_fraction,
+            'min_edge': config.min_edge_threshold,
+            'max_stake_pct': config.max_kelly_pct,
+            'max_daily_risk': config.max_daily_risk,
+            'allow_full_kelly': config.allow_full_kelly
         }
 
     def validate_parameters(self, **kwargs):
@@ -63,9 +68,14 @@ class KellyStrategy(BettingStrategy):
         bankroll: float,
         odds: float,
         edge: float,
-        kelly_fraction: float = 0.25,
-        min_edge: float = 0.01,
-        max_stake_pct: float = 0.10,
+        kelly_fraction: float = None,
+        min_edge: float = None,
+        max_stake_pct: float = None,
+        max_daily_risk: float = None,
+        current_daily_exposure: float = 0.0,
+        allow_full_kelly: bool = None,
+        sample_size: int = None,
+        confidence_calibrated: bool = None,
         **kwargs
     ) -> BetRecommendation:
         """
@@ -82,6 +92,20 @@ class KellyStrategy(BettingStrategy):
         Returns:
             BetRecommendation
         """
+        from sportsbetlang.config import get_config
+
+        config = get_config()
+        if kelly_fraction is None:
+            kelly_fraction = config.kelly_fraction
+        if min_edge is None:
+            min_edge = config.min_edge_threshold
+        if max_stake_pct is None:
+            max_stake_pct = config.max_kelly_pct
+        if max_daily_risk is None:
+            max_daily_risk = config.max_daily_risk
+        if allow_full_kelly is None:
+            allow_full_kelly = config.allow_full_kelly
+
         # Validate inputs
         validate_bankroll(bankroll)
         validate_odds(odds)
@@ -125,20 +149,42 @@ class KellyStrategy(BettingStrategy):
             odds=odds,
             true_prob=true_prob,
             kelly_fraction=kelly_fraction,
-            bankroll=bankroll
+            bankroll=bankroll,
+            max_stake_pct=max_stake_pct,
+            allow_full_kelly=allow_full_kelly,
+            sample_size=sample_size,
+            confidence_calibrated=confidence_calibrated
         )
 
         stake = result['stake']
         kelly_pct = result['fractional_kelly']
+        warnings = list(result.get('warnings', []))
 
-        # Apply maximum stake limit
-        max_stake = bankroll * max_stake_pct
-        if stake > max_stake:
-            stake = max_stake
-            kelly_pct = max_stake_pct
-            capped = True
-        else:
-            capped = False
+        # Apply daily max exposure limit
+        max_daily_exposure = bankroll * max_daily_risk
+        remaining_daily_exposure = max_daily_exposure - current_daily_exposure
+        daily_capped = False
+        if remaining_daily_exposure <= 0:
+            return BetRecommendation(
+                should_bet=False,
+                stake=0.0,
+                confidence=0.0,
+                reasoning="Daily exposure limit reached",
+                action=BetAction.NO_BET,
+                metadata={
+                    'edge': edge,
+                    'daily_exposure_limit': max_daily_exposure,
+                    'current_daily_exposure': current_daily_exposure
+                }
+            )
+
+        if stake > remaining_daily_exposure:
+            stake = remaining_daily_exposure
+            kelly_pct = stake / bankroll
+            daily_capped = True
+            warnings.append(
+                f"Stake reduced to remaining daily exposure ({remaining_daily_exposure:.2f})."
+            )
 
         # Determine if we should bet
         should_bet = stake >= 1.0  # Minimum $1 bet
@@ -152,10 +198,12 @@ class KellyStrategy(BettingStrategy):
         reasoning_parts.append(f"Edge: {edge*100:+.2f}%")
         reasoning_parts.append(f"Kelly: {kelly_pct*100:.2f}% of bankroll")
 
-        if capped:
-            reasoning_parts.append(f"(capped at {max_stake_pct*100:.0f}%)")
+        if daily_capped:
+            reasoning_parts.append(" (daily cap applied)")
 
         reasoning_parts.append(f"EV: ${result['expected_profit']:.2f}")
+        if warnings:
+            reasoning_parts.append(f"Warnings: {'; '.join(warnings)}")
 
         reasoning = ", ".join(reasoning_parts)
 
@@ -171,9 +219,13 @@ class KellyStrategy(BettingStrategy):
                 'kelly_fraction': kelly_fraction,
                 'ev': result['ev'],
                 'expected_profit': result['expected_profit'],
-                'capped': capped,
+                'capped': kelly_pct >= max_stake_pct,
+                'daily_capped': daily_capped,
                 'true_prob': true_prob,
-                'market_prob': market_prob
+                'market_prob': market_prob,
+                'warnings': warnings,
+                'daily_exposure_limit': max_daily_exposure,
+                'current_daily_exposure': current_daily_exposure
             }
         )
 
@@ -195,8 +247,14 @@ class FullKellyStrategy(KellyStrategy):
         return {
             'kelly_fraction': 1.0,   # Full Kelly
             'min_edge': 0.02,        # Higher minimum edge for safety
-            'max_stake_pct': 0.20    # Higher max for aggressive strategy
+            'max_stake_pct': 0.20,   # Higher max for aggressive strategy
+            'allow_full_kelly': True
         }
+
+    def calculate_stake(self, bankroll: float, odds: float, edge: float, **kwargs) -> BetRecommendation:
+        if 'allow_full_kelly' not in kwargs:
+            kwargs['allow_full_kelly'] = True
+        return super().calculate_stake(bankroll=bankroll, odds=odds, edge=edge, **kwargs)
 
 
 @register_strategy

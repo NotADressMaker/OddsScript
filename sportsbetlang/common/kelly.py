@@ -18,7 +18,13 @@ class KellyCriterion:
         odds: float,
         true_prob: float,
         kelly_fraction: float = 1.0,
-        bankroll: Optional[float] = None
+        bankroll: Optional[float] = None,
+        max_stake_pct: Optional[float] = None,
+        allow_full_kelly: Optional[bool] = None,
+        sample_size: Optional[int] = None,
+        confidence_calibrated: Optional[bool] = None,
+        min_sample_size_warning: Optional[int] = None,
+        require_confidence_calibration: Optional[bool] = None
     ) -> Dict:
         """
         Calculate Kelly stake
@@ -44,6 +50,37 @@ class KellyCriterion:
             {'kelly_pct': 0.047..., 'fractional_kelly': 0.011..., 'stake': 11.9...}
         """
         from sportsbetlang.common.odds import american_to_decimal
+        from sportsbetlang.config import get_config
+
+        config = get_config()
+        warnings: List[str] = []
+
+        if allow_full_kelly is None:
+            allow_full_kelly = config.allow_full_kelly
+        if max_stake_pct is None:
+            max_stake_pct = config.max_kelly_pct
+        if min_sample_size_warning is None:
+            min_sample_size_warning = config.min_sample_size_warning
+        if require_confidence_calibration is None:
+            require_confidence_calibration = config.require_confidence_calibration
+
+        if kelly_fraction >= 1.0 and not allow_full_kelly:
+            warnings.append(
+                "Full Kelly sizing is disabled by default. "
+                f"Using fractional Kelly ({config.kelly_fraction:.2f}) instead."
+            )
+            kelly_fraction = config.kelly_fraction
+
+        if sample_size is not None and sample_size < min_sample_size_warning:
+            warnings.append(
+                f"Sample size ({sample_size}) is below the recommended minimum "
+                f"({min_sample_size_warning}). Treat sizing as exploratory."
+            )
+
+        if require_confidence_calibration and confidence_calibrated is False:
+            warnings.append(
+                "Model confidence is uncalibrated. Use smaller stakes or calibrate first."
+            )
 
         # Convert to decimal odds
         decimal_odds = american_to_decimal(odds)
@@ -63,6 +100,13 @@ class KellyCriterion:
         # Ensure non-negative (no bet if negative Kelly)
         fractional_kelly = max(0, fractional_kelly)
 
+        # Cap maximum stake percentage
+        if max_stake_pct is not None and fractional_kelly > max_stake_pct:
+            warnings.append(
+                f"Stake capped at {max_stake_pct:.2%} of bankroll (max_stake_pct)."
+            )
+            fractional_kelly = max_stake_pct
+
         # Calculate expected value (per unit staked)
         ev = p * b - q
 
@@ -80,7 +124,8 @@ class KellyCriterion:
             'edge': edge,
             'true_prob': true_prob,
             'market_prob': market_prob,
-            'recommended': 'BET' if fractional_kelly > 0.001 else 'NO BET'  # Min 0.1% of bankroll
+            'recommended': 'BET' if fractional_kelly > 0.001 else 'NO BET',  # Min 0.1% of bankroll
+            'warnings': warnings
         }
 
         # Calculate absolute stake if bankroll provided
@@ -340,7 +385,24 @@ def calculate_kelly(
     odds: float,
     true_prob: float,
     kelly_fraction: float = 0.25,
-    bankroll: Optional[float] = None
+    bankroll: Optional[float] = None,
+    max_stake_pct: Optional[float] = None,
+    allow_full_kelly: Optional[bool] = None,
+    sample_size: Optional[int] = None,
+    confidence_calibrated: Optional[bool] = None,
+    min_sample_size_warning: Optional[int] = None,
+    require_confidence_calibration: Optional[bool] = None
 ) -> Dict:
     """Calculate Kelly stake (convenience function)"""
-    return KellyCriterion.calculate(odds, true_prob, kelly_fraction, bankroll)
+    return KellyCriterion.calculate(
+        odds=odds,
+        true_prob=true_prob,
+        kelly_fraction=kelly_fraction,
+        bankroll=bankroll,
+        max_stake_pct=max_stake_pct,
+        allow_full_kelly=allow_full_kelly,
+        sample_size=sample_size,
+        confidence_calibrated=confidence_calibrated,
+        min_sample_size_warning=min_sample_size_warning,
+        require_confidence_calibration=require_confidence_calibration
+    )
