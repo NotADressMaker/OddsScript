@@ -293,7 +293,7 @@ async def execute_sportsbetlang(request: ScriptExecutionRequest):
     try:
         lexer = Lexer(request.source)
         tokens = lexer.tokenize()
-        parser = Parser(tokens)
+        parser = Parser(tokens, request.source)
         ast = parser.parse()
         interpreter = Interpreter()
 

@@ -4,10 +4,13 @@ SportsBetLang - A programming language for sports betting
 Main entry point for running SportsBetLang programs
 """
 
+import argparse
 import sys
 from lexer import Lexer
 from parser import Parser
 from interpreter import Interpreter, LanguageRuntimeError
+from formatting import format_source
+from linting import lint_source
 
 
 def run_file(filename: str):
@@ -33,7 +36,7 @@ def run(source: str, filename: str = "<stdin>"):
         tokens = lexer.tokenize()
 
         # Parsing
-        parser = Parser(tokens)
+        parser = Parser(tokens, source)
         ast = parser.parse()
 
         # Interpretation
@@ -81,7 +84,7 @@ def repl():
             lexer = Lexer(line)
             tokens = lexer.tokenize()
 
-            parser = Parser(tokens)
+            parser = Parser(tokens, line)
             ast = parser.parse()
 
             result = interpreter.interpret(ast)
@@ -139,20 +142,77 @@ EXAMPLES:
     print(help_text)
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="sportsbetlang",
+        description="Run, format, or lint SportsBetLang programs.",
+    )
+    parser.add_argument(
+        "source",
+        nargs="?",
+        help="Path to a .odds SportsBetLang program.",
+    )
+    parser.add_argument(
+        "--format",
+        action="store_true",
+        help="Format a .odds SportsBetLang program.",
+    )
+    parser.add_argument(
+        "--lint",
+        action="store_true",
+        help="Lint a .odds SportsBetLang program.",
+    )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write formatted output back to the source file (with --format).",
+    )
+    return parser
+
+
+def main() -> int:
     """Main entry point"""
-    if len(sys.argv) == 1:
-        repl()
-    elif len(sys.argv) == 2:
-        if sys.argv[1] in ['-h', '--help']:
-            print_help()
+    parser = build_parser()
+    args = parser.parse_args()
+
+    try:
+        if args.format or args.lint:
+            if not args.source:
+                raise FileNotFoundError("No source file provided")
+            with open(args.source, "r", encoding="utf-8") as handle:
+                source = handle.read()
+            if args.format:
+                formatted = format_source(source)
+                if args.write:
+                    with open(args.source, "w", encoding="utf-8") as handle:
+                        handle.write(formatted)
+                else:
+                    print(formatted, end="")
+            if args.lint:
+                issues = lint_source(source)
+                if issues:
+                    for issue in issues:
+                        print(issue.format())
+                    return 1
+            return 0
+        if args.source:
+            run_file(args.source)
         else:
-            run_file(sys.argv[1])
-    else:
-        print("Usage: sportsbetlang.py [filename]")
-        print("       sportsbetlang.py          (start REPL)")
-        sys.exit(1)
+            repl()
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}")
+        return 1
+    except LanguageRuntimeError as exc:
+        print(f"Runtime Error: {exc.format()}")
+        return 1
+    except SyntaxError as exc:
+        print(f"Syntax Error: {exc}")
+        return 1
+    except Exception as exc:
+        print(f"Unexpected Error: {exc}")
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

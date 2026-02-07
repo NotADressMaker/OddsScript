@@ -12,7 +12,7 @@ class TestRuntimeSafety(unittest.TestCase):
     def run_code(self, code: str, max_steps: int):
         lexer = Lexer(code)
         tokens = lexer.tokenize()
-        parser = Parser(tokens)
+        parser = Parser(tokens, code)
         ast = parser.parse()
         interpreter = Interpreter(max_steps=max_steps)
         return interpreter.interpret(ast)

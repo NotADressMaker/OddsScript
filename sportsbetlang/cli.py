@@ -8,8 +8,10 @@ import argparse
 import sys
 from pathlib import Path
 
+from formatting import format_source
 from interpreter import Interpreter, LanguageRuntimeError
 from lexer import Lexer
+from linting import lint_source
 from parser import Parser
 
 
@@ -29,13 +31,28 @@ def build_parser() -> argparse.ArgumentParser:
         default=1_000_000,
         help="Maximum interpreter steps before aborting (default: 1,000,000).",
     )
+    parser.add_argument(
+        "--format",
+        action="store_true",
+        help="Format a .odds SportsBetLang program.",
+    )
+    parser.add_argument(
+        "--lint",
+        action="store_true",
+        help="Lint a .odds SportsBetLang program.",
+    )
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write formatted output back to the source file (with --format).",
+    )
     return parser
 
 
 def run_source(source: str, filename: str, max_steps: int) -> None:
     lexer = Lexer(source)
     tokens = lexer.tokenize()
-    parser = Parser(tokens)
+    parser = Parser(tokens, source)
     ast = parser.parse()
     interpreter = Interpreter(max_steps=max_steps)
     interpreter.interpret(ast)
@@ -73,7 +90,7 @@ def repl(max_steps: int) -> None:
             lexer = Lexer(line)
             tokens = lexer.tokenize()
 
-            parser = Parser(tokens)
+            parser = Parser(tokens, line)
             ast = parser.parse()
 
             result = interpreter.interpret(ast)
@@ -135,6 +152,26 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        if args.format or args.lint:
+            if not args.source:
+                raise FileNotFoundError("No source file provided")
+            file_path = Path(args.source)
+            if not file_path.exists():
+                raise FileNotFoundError(f"File '{args.source}' not found")
+            source = file_path.read_text(encoding="utf-8")
+            if args.format:
+                formatted = format_source(source)
+                if args.write:
+                    file_path.write_text(formatted, encoding="utf-8")
+                else:
+                    print(formatted, end="")
+            if args.lint:
+                issues = lint_source(source)
+                if issues:
+                    for issue in issues:
+                        print(issue.format())
+                    return 1
+            return 0
         if args.source:
             run_file(args.source, max_steps=args.max_steps)
         else:

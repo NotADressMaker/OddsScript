@@ -4,6 +4,7 @@ SportsBetLang Parser - Builds Abstract Syntax Tree from tokens
 
 from dataclasses import dataclass
 from typing import List, Optional, Any
+from diagnostics import DiagnosticError
 from lexer import Token, TokenType, Lexer
 
 
@@ -153,9 +154,10 @@ class FromImportStatement(ASTNode):
 
 
 class Parser:
-    def __init__(self, tokens: List[Token]):
+    def __init__(self, tokens: List[Token], source: str = ""):
         self.tokens = tokens
         self.pos = 0
+        self.source = source
 
     def current_token(self) -> Token:
         if self.pos >= len(self.tokens):
@@ -175,11 +177,17 @@ class Parser:
     def expect(self, token_type: TokenType) -> Token:
         token = self.current_token()
         if token.type != token_type:
-            raise SyntaxError(
-                f"Expected {token_type.name}, got {self.format_token(token)} at line {token.line}, column {token.column}"
+            raise DiagnosticError(
+                f"Expected {token_type.name}, got {self.format_token(token)}",
+                token.line,
+                token.column,
+                self.source,
             )
         self.advance()
         return token
+
+    def error(self, message: str, token: Token) -> None:
+        raise DiagnosticError(message, token.line, token.column, self.source)
 
     def skip_newlines(self):
         while self.current_token().type in (TokenType.NEWLINE, TokenType.SEMICOLON):
@@ -598,9 +606,7 @@ class Parser:
             return self.parse_dict_literal()
 
         else:
-            raise SyntaxError(
-                f"Unexpected token {self.format_token(token)} at line {token.line}, column {token.column}"
-            )
+            self.error(f"Unexpected token {self.format_token(token)}", token)
 
     def parse_array_literal(self) -> ArrayLiteral:
         lbracket_token = self.expect(TokenType.LBRACKET)

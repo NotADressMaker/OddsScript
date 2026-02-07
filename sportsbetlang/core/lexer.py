@@ -7,6 +7,7 @@ from enum import Enum, auto
 from dataclasses import dataclass
 from typing import List, Optional
 
+from sportsbetlang.core.diagnostics import DiagnosticError
 
 class TokenType(Enum):
     # Literals
@@ -195,6 +196,14 @@ class Lexer:
                 string_val += self.current_char()
                 self.advance()
 
+        if self.current_char() != quote_char:
+            raise DiagnosticError(
+                "Unterminated string literal",
+                start_line,
+                start_col,
+                self.source,
+            )
+
         self.advance()  # Skip closing quote
         return Token(TokenType.STRING, string_val, start_line, start_col)
 
@@ -307,7 +316,12 @@ class Lexer:
                 self.advance()
                 continue
 
-            raise SyntaxError(f"Unexpected character '{current}' at {self.line}:{self.column}")
+            raise DiagnosticError(
+                f"Unexpected character '{current}'",
+                self.line,
+                self.column,
+                self.source,
+            )
 
         self.tokens.append(Token(TokenType.EOF, None, self.line, self.column))
         return self.tokens

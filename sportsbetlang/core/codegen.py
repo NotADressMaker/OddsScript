@@ -70,7 +70,7 @@ class CodeGenerator:
     def generate_from_source(self, source: str) -> GeneratedCode:
         lexer = Lexer(source)
         tokens = lexer.tokenize()
-        program = Parser(tokens).parse()
+        program = Parser(tokens, source).parse()
         return self.generate(program)
 
     def _collect_helpers(self, node: ASTNode) -> None:
