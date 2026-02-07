@@ -504,6 +504,178 @@ class NeuralNetwork:
         return predictions
 
 
+@dataclass
+class TeamScoringPosterior:
+    """Posterior estimates for a team's scoring ability"""
+    mean: float
+    variance: float
+    n_games: int
+    total_points: float
+
+
+class BayesianHierarchicalTotalsModel:
+    """
+    Bayesian hierarchical model for totals predictions.
+
+    Treats each team's scoring ability as a latent variable drawn from a league-wide
+    distribution, then updates team beliefs game by game.
+
+    Args:
+        league_mean: Prior mean points per team per game
+        league_std: Prior standard deviation of team scoring ability
+        game_std: Observation standard deviation per game
+    """
+
+    def __init__(self, league_mean: float = 110.0, league_std: float = 12.0,
+                 game_std: float = 14.0):
+        self.league_mean = league_mean
+        self.league_std = league_std
+        self.game_std = game_std
+        self.team_stats = defaultdict(lambda: {"n": 0, "sum": 0.0})
+
+    def fit(self, games: List[Any]) -> "BayesianHierarchicalTotalsModel":
+        """
+        Fit model with historical game data.
+
+        Supports:
+            - {"team": "BOS", "points": 112}
+            - {"home_team": "BOS", "away_team": "NYK", "home_points": 112, "away_points": 105}
+            - ("BOS", 112)
+            - ("BOS", "NYK", 112, 105)
+        """
+        for game in games:
+            for team, points in self._parse_game(game):
+                self.update_game(team, points)
+        return self
+
+    def update_game(self, team: str, points: float) -> None:
+        """Update model with a single team score observation."""
+        stats = self.team_stats[team]
+        stats["n"] += 1
+        stats["sum"] += float(points)
+
+    def get_team_posterior(self, team: str) -> TeamScoringPosterior:
+        """Return posterior mean/variance for a team."""
+        stats = self.team_stats.get(team, {"n": 0, "sum": 0.0})
+        mean, variance = self._posterior_params(stats["n"], stats["sum"])
+        return TeamScoringPosterior(
+            mean=mean,
+            variance=variance,
+            n_games=stats["n"],
+            total_points=stats["sum"]
+        )
+
+    def predict_total(self, team_a: str, team_b: str, total_line: Optional[float] = None,
+                      ci: float = 0.8) -> Dict[str, float]:
+        """
+        Predict total points distribution for a matchup.
+
+        Returns mean, standard deviation, and a symmetric confidence interval.
+        """
+        posterior_a = self.get_team_posterior(team_a)
+        posterior_b = self.get_team_posterior(team_b)
+
+        mean_total = posterior_a.mean + posterior_b.mean
+        total_variance = (
+            posterior_a.variance + self.game_std ** 2 +
+            posterior_b.variance + self.game_std ** 2
+        )
+        std_total = math.sqrt(total_variance)
+
+        z_score = self._z_for_ci(ci)
+        ci_lower = mean_total - z_score * std_total
+        ci_upper = mean_total + z_score * std_total
+
+        result = {
+            "mean_total": mean_total,
+            "std_total": std_total,
+            "ci_lower": ci_lower,
+            "ci_upper": ci_upper,
+            "team_a_mean": posterior_a.mean,
+            "team_b_mean": posterior_b.mean
+        }
+
+        if total_line is not None:
+            over_prob = self._probability_over(mean_total, std_total, total_line)
+            result["over_probability"] = over_prob
+            result["under_probability"] = 1 - over_prob
+
+        return result
+
+    def probability_over(self, team_a: str, team_b: str, total_line: float) -> float:
+        """Return probability that total points exceeds the line."""
+        prediction = self.predict_total(team_a, team_b, total_line=total_line)
+        return prediction["over_probability"]
+
+    def _posterior_params(self, n_games: int, total_points: float) -> Tuple[float, float]:
+        """Compute conjugate normal posterior for team scoring ability."""
+        tau2 = self.league_std ** 2
+        sigma2 = self.game_std ** 2
+
+        if n_games == 0:
+            return self.league_mean, tau2
+
+        sample_mean = total_points / n_games
+        posterior_variance = 1.0 / (1.0 / tau2 + n_games / sigma2)
+        posterior_mean = posterior_variance * (
+            self.league_mean / tau2 + n_games * sample_mean / sigma2
+        )
+
+        return posterior_mean, posterior_variance
+
+    def _parse_game(self, game: Any) -> List[Tuple[str, float]]:
+        """Normalize supported game formats into (team, points) pairs."""
+        if isinstance(game, dict):
+            if "team" in game:
+                points = game.get("points", game.get("score"))
+                if points is None:
+                    raise ValueError("Game dict with 'team' must include 'points' or 'score'.")
+                return [(game["team"], float(points))]
+
+            if "home_team" in game and "away_team" in game:
+                home_points = game.get("home_points", game.get("home_score"))
+                away_points = game.get("away_points", game.get("away_score"))
+                if home_points is None or away_points is None:
+                    raise ValueError("Home/away game dict must include points or score fields.")
+                return [
+                    (game["home_team"], float(home_points)),
+                    (game["away_team"], float(away_points))
+                ]
+
+        if isinstance(game, (list, tuple)):
+            if len(game) == 2:
+                team, points = game
+                return [(team, float(points))]
+            if len(game) == 4:
+                home_team, away_team, home_points, away_points = game
+                return [
+                    (home_team, float(home_points)),
+                    (away_team, float(away_points))
+                ]
+
+        raise ValueError("Unsupported game format for Bayesian hierarchical totals model.")
+
+    @staticmethod
+    def _z_for_ci(ci: float) -> float:
+        """Return z-score for common confidence intervals."""
+        z_map = {
+            0.8: 1.2816,
+            0.9: 1.6449,
+            0.95: 1.96,
+            0.99: 2.576
+        }
+        return z_map.get(ci, 1.96)
+
+    @staticmethod
+    def _probability_over(mean_total: float, std_total: float, total_line: float) -> float:
+        """Compute probability of total exceeding a line under a normal assumption."""
+        if std_total <= 0:
+            return 1.0 if mean_total > total_line else 0.0
+        z = (total_line - mean_total) / (std_total * math.sqrt(2))
+        cdf = 0.5 * (1 + math.erf(z))
+        return max(0.0, min(1.0, 1 - cdf))
+
+
 class FeatureEngineering:
     """Feature engineering utilities for sports betting"""
 

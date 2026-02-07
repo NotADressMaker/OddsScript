@@ -8,6 +8,7 @@ Complete guide to using machine learning models for sports betting predictions i
 - [Decision Trees](#decision-trees)
 - [Random Forests](#random-forests)
 - [Neural Networks](#neural-networks)
+- [Bayesian Hierarchical Models](#bayesian-hierarchical-models)
 - [Feature Engineering](#feature-engineering)
 - [Model Validation](#model-validation)
 - [Complete Examples](#complete-examples)
@@ -266,6 +267,47 @@ X_test_norm = [
 ]
 prediction = nn.predict(X_test_norm)
 print(f"Win probability: {prediction[0]:.3f}")
+```
+
+## Bayesian Hierarchical Models
+
+Bayesian hierarchical models treat team scoring as distributions rather than single-point estimates, which helps quantify uncertainty in totals markets.
+
+**Best for:** Analysts, researchers, patient bettors.
+
+**Idea: Totals are distributions, not numbers.**
+
+- Team scoring abilities as latent variables
+- Shrink extreme teams toward league average
+- Update beliefs game by game
+
+### Strengths
+
+- Handles uncertainty cleanly
+- Excellent early season
+
+### Weaknesses
+
+- Complex to implement
+- Slower to compute
+
+### Totals Distribution Example
+
+```python
+from lib.ml_models import BayesianHierarchicalTotalsModel
+
+games = [
+    {"home_team": "BOS", "away_team": "NYK", "home_points": 112, "away_points": 105},
+    {"home_team": "BOS", "away_team": "MIA", "home_points": 118, "away_points": 111}
+]
+
+model = BayesianHierarchicalTotalsModel(league_mean=110, league_std=12, game_std=14)
+model.fit(games)
+
+prediction = model.predict_total("BOS", "NYK", total_line=218.5, ci=0.9)
+print(f"Mean total: {prediction['mean_total']:.1f}")
+print(f"90% CI: {prediction['ci_lower']:.1f}-{prediction['ci_upper']:.1f}")
+print(f"Over prob: {prediction['over_probability']:.3f}")
 ```
 
 ## Feature Engineering

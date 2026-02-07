@@ -42,6 +42,7 @@ from lib.ml_models import (
     DecisionTree,
     RandomForest,
     NeuralNetwork,
+    BayesianHierarchicalTotalsModel,
     FeatureEngineering,
     ModelValidation
 )
@@ -167,6 +168,7 @@ __all__ = [
     'DecisionTree',
     'RandomForest',
     'NeuralNetwork',
+    'BayesianHierarchicalTotalsModel',
     'FeatureEngineering',
     'ModelValidation',
 
