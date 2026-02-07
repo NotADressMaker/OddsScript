@@ -1,0 +1,15 @@
+{
+  "sport": "NBA",
+  "games": [
+    {
+      "home": "BOS",
+      "away": "NYK",
+      "start_time": "2024-01-01T19:00:00Z"
+    },
+    {
+      "home": "LAL",
+      "away": "GSW",
+      "start_time": "2024-01-01T21:30:00Z"
+    }
+  ]
+}
