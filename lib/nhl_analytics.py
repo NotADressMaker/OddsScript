@@ -98,6 +98,11 @@ class TeamMetrics:
     power_play_pct: Optional[float] = None
     penalty_kill_pct: Optional[float] = None
     faceoff_win_pct: float = 0.5
+    # Pace & Tempo fields
+    shot_attempts_per_60: float = 60.0      # Corsi per 60 minutes
+    rush_chances_per_60: float = 5.0        # Rush scoring chances per 60
+    neutral_zone_transition_pct: float = 50.0  # NZ transition success %
+    pp_opportunities_per_game: float = 3.0  # Avg PP opportunities per game
 
     def __post_init__(self) -> None:
         if self.power_play_pct is None:
@@ -111,10 +116,14 @@ class GoaltenderStats:
     save_percentage: float = 0.905
     goals_against_average: float = 2.8
     high_danger_save_pct: float = 0.820
+    medium_danger_save_pct: float = 0.910
     low_danger_save_pct: float = 0.980
+    career_save_pct: Optional[float] = None
     career_high_danger_save_pct: Optional[float] = None
+    career_medium_danger_save_pct: Optional[float] = None
     career_low_danger_save_pct: Optional[float] = None
     recent_high_danger_save_pct: Optional[float] = None
+    recent_medium_danger_save_pct: Optional[float] = None
     recent_low_danger_save_pct: Optional[float] = None
     recent_save_percentage: Optional[float] = None
     games_started: int = 0
@@ -123,6 +132,7 @@ class GoaltenderStats:
     starts_last_7: int = 0
     back_to_back_starts: int = 0
     is_starter: bool = True
+    is_back_to_back: bool = False  # Is this a B2B start today?
 
 
 # ----------------------------
@@ -679,6 +689,450 @@ class NHLAdvancedAnalytics:
         }
 
     @staticmethod
+    def calculate_adjusted_goalie_save_pct(
+        goalie: GoaltenderStats,
+        league_avg_sv_pct: float = 0.905,
+    ) -> Dict[str, float | str]:
+        """
+        Calculate goalie adjusted save % weighted by shot quality zones.
+
+        Weights high-danger save % more heavily since it correlates
+        with true goalie skill more than low-danger save %.
+        """
+        hd_weight = 0.45
+        md_weight = 0.30
+        ld_weight = 0.25
+
+        hd = goalie.high_danger_save_pct
+        md = goalie.medium_danger_save_pct
+        ld = goalie.low_danger_save_pct
+
+        adjusted_sv_pct = (hd * hd_weight) + (md * md_weight) + (ld * ld_weight)
+
+        # Compare to career norms for regression signal
+        career = goalie.career_save_pct if goalie.career_save_pct is not None else league_avg_sv_pct
+        deviation_from_career = adjusted_sv_pct - career
+        deviation_from_league = adjusted_sv_pct - league_avg_sv_pct
+
+        if deviation_from_career > 0.015:
+            sustainability = "unsustainable_high"
+        elif deviation_from_career < -0.015:
+            sustainability = "unsustainable_low"
+        else:
+            sustainability = "sustainable"
+
+        return {
+            "adjusted_save_pct": float(adjusted_sv_pct),
+            "raw_save_pct": float(goalie.save_percentage),
+            "deviation_from_career": float(deviation_from_career),
+            "deviation_from_league": float(deviation_from_league),
+            "sustainability": sustainability,
+            "high_danger_sv": float(hd),
+            "medium_danger_sv": float(md),
+            "low_danger_sv": float(ld),
+        }
+
+    @staticmethod
+    def calculate_pp_pk_efficiency(
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+        league_avg_pp: float = 20.0,
+        league_avg_pk: float = 80.0,
+    ) -> Dict[str, float]:
+        """
+        Calculate PP/PK efficiency matchup and its impact on expected goals.
+
+        PP efficiency above average vs weak PK = goals added.
+        Strong PK vs average PP = goals suppressed.
+        """
+        home_pp = home_team.pp_pct
+        away_pk = away_team.pk_pct
+        away_pp = away_team.pp_pct
+        home_pk = home_team.pk_pct
+
+        # PP conversion: goals added per game from PP advantage
+        # Avg ~3 PP opportunities/game, each opportunity ~2 min
+        home_pp_opp = home_team.pp_opportunities_per_game
+        away_pp_opp = away_team.pp_opportunities_per_game
+
+        # Home PP vs Away PK: expected PP goals
+        home_pp_rate = home_pp / 100.0
+        away_pk_allow_rate = 1.0 - (away_pk / 100.0)
+        home_pp_xg = home_pp_opp * (home_pp_rate + away_pk_allow_rate) / 2.0
+
+        # Away PP vs Home PK: expected PP goals
+        away_pp_rate = away_pp / 100.0
+        home_pk_allow_rate = 1.0 - (home_pk / 100.0)
+        away_pp_xg = away_pp_opp * (away_pp_rate + home_pk_allow_rate) / 2.0
+
+        # Total PP goals expected in game
+        total_pp_xg = home_pp_xg + away_pp_xg
+
+        # Differential: positive = home special teams advantage
+        pp_pk_differential = home_pp_xg - away_pp_xg
+
+        # Relative to league average
+        league_pp_rate = league_avg_pp / 100.0
+        league_pk_rate = league_avg_pk / 100.0
+        league_avg_pp_xg = 3.0 * (league_pp_rate + (1.0 - league_pk_rate)) / 2.0
+        total_pp_xg_vs_avg = total_pp_xg - (2.0 * league_avg_pp_xg)
+
+        return {
+            "home_pp_expected_goals": float(home_pp_xg),
+            "away_pp_expected_goals": float(away_pp_xg),
+            "total_pp_expected_goals": float(total_pp_xg),
+            "pp_pk_differential": float(pp_pk_differential),
+            "total_pp_xg_vs_league_avg": float(total_pp_xg_vs_avg),
+            "home_pp_pct": float(home_pp),
+            "away_pk_pct": float(away_pk),
+            "away_pp_pct": float(away_pp),
+            "home_pk_pct": float(home_pk),
+        }
+
+    @staticmethod
+    def calculate_enhanced_total(
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+        home_goalie: GoaltenderStats,
+        away_goalie: GoaltenderStats,
+        total_line: float,
+        home_rest_days: int = 1,
+        away_rest_days: int = 1,
+        home_is_road: bool = False,
+        away_is_road: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Enhanced O/U model incorporating:
+        - xG (expected goals) for both teams
+        - Fenwick/Corsi adjusted metrics
+        - PP/PK efficiency matchup
+        - Goalie adjusted save %
+        - Rest/travel factors
+
+        Returns true probability, true odds, and EV vs sportsbook line.
+        """
+        # 1. Base xG total
+        base_home_xg = home_team.xg_for
+        base_away_xg = away_team.xg_for
+
+        # 2. Corsi/Fenwick pace adjustment
+        # Higher Corsi/Fenwick % = more shot generation = more offensive opportunity
+        home_corsi_factor = 1.0 + (home_team.corsi_pct - 50.0) * 0.005
+        away_corsi_factor = 1.0 + (away_team.corsi_pct - 50.0) * 0.005
+        home_fenwick_factor = 1.0 + (home_team.fenwick_for / max(1.0, home_team.fenwick_for + home_team.fenwick_against) - 0.5) * 0.3
+
+        corsi_fenwick_adj = (home_corsi_factor + away_corsi_factor) / 2.0
+
+        # 3. PP/PK efficiency
+        pp_pk = NHLAdvancedAnalytics.calculate_pp_pk_efficiency(home_team, away_team)
+        pp_xg_added = pp_pk["total_pp_xg_vs_league_avg"]
+
+        # 4. Goalie adjusted save %
+        home_goalie_adj = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(home_goalie)
+        away_goalie_adj = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(away_goalie)
+
+        # Goalie quality suppresses goals: better goalie = less goals against
+        # Scale: 0.905 is league average; each 0.01 above = ~0.3 fewer goals
+        home_goalie_impact = (0.905 - home_goalie_adj["adjusted_save_pct"]) * 30.0
+        away_goalie_impact = (0.905 - away_goalie_adj["adjusted_save_pct"]) * 30.0
+
+        # 5. Goalie regression check
+        home_goalie_regression = NHLAdvancedAnalytics.detect_goalie_regression(home_goalie)
+        away_goalie_regression = NHLAdvancedAnalytics.detect_goalie_regression(away_goalie)
+
+        # If goalie is on a heater, expect regression toward more goals
+        regression_adj = 0.0
+        if home_goalie_regression["signal"] == "heater":
+            regression_adj += 0.15
+        elif home_goalie_regression["signal"] == "slump":
+            regression_adj -= 0.10
+        if away_goalie_regression["signal"] == "heater":
+            regression_adj += 0.15
+        elif away_goalie_regression["signal"] == "slump":
+            regression_adj -= 0.10
+
+        # 6. Rest/B2B adjustment
+        rest_adj = 0.0
+        if home_rest_days == 0:
+            rest_adj -= 0.15  # Home B2B = tired, less offense
+            if home_is_road:
+                rest_adj -= 0.10  # B2B on road = even worse
+        if away_rest_days == 0:
+            rest_adj -= 0.15
+            if away_is_road:
+                rest_adj -= 0.10
+        if home_rest_days >= 3:
+            rest_adj += 0.08
+        if away_rest_days >= 3:
+            rest_adj += 0.08
+
+        # B2B goalie rotation penalty
+        if home_goalie.is_back_to_back:
+            away_goalie_impact -= 0.20  # Backup goalie allows more goals
+        if away_goalie.is_back_to_back:
+            home_goalie_impact -= 0.20
+
+        # 7. Home advantage
+        home_adv = NHLConstants.AVG_HOME_ADVANTAGE
+
+        # Assemble adjusted expected goals
+        adj_home_xg = base_home_xg * corsi_fenwick_adj + home_adv + away_goalie_impact
+        adj_away_xg = base_away_xg * corsi_fenwick_adj + home_goalie_impact
+
+        # Add PP, regression, rest
+        total_xg = adj_home_xg + adj_away_xg + pp_xg_added + regression_adj + rest_adj
+
+        # Clamp to reasonable range
+        total_xg = max(3.5, min(9.0, total_xg))
+        adj_home_xg = max(1.0, min(5.5, total_xg * 0.52))
+        adj_away_xg = max(1.0, min(5.5, total_xg - adj_home_xg))
+
+        # Poisson probabilities
+        p_over = _poisson_prob_over_line(total_xg, total_line)
+        p_under = _poisson_prob_under_line(total_xg, total_line)
+        p_push = _poisson_prob_push(total_xg, total_line)
+
+        # True odds (fair odds with no vig)
+        over_true_odds = prob_to_american(max(0.01, min(0.99, p_over))) if p_over > 0.01 else 10000
+        under_true_odds = prob_to_american(max(0.01, min(0.99, p_under))) if p_under > 0.01 else 10000
+
+        return {
+            "expected_total": float(total_xg),
+            "adjusted_home_xg": float(adj_home_xg),
+            "adjusted_away_xg": float(adj_away_xg),
+            "total_line": float(total_line),
+            "over_probability": float(p_over),
+            "under_probability": float(p_under),
+            "push_probability": float(p_push),
+            "over_true_odds": int(over_true_odds),
+            "under_true_odds": int(under_true_odds),
+            "components": {
+                "base_xg_total": float(base_home_xg + base_away_xg),
+                "corsi_fenwick_multiplier": float(corsi_fenwick_adj),
+                "pp_pk_xg_added": float(pp_xg_added),
+                "goalie_impact_home": float(home_goalie_impact),
+                "goalie_impact_away": float(away_goalie_impact),
+                "regression_adjustment": float(regression_adj),
+                "rest_adjustment": float(rest_adj),
+                "home_advantage": float(home_adv),
+            },
+            "goalie_sustainability": {
+                "home": home_goalie_adj["sustainability"],
+                "away": away_goalie_adj["sustainability"],
+            },
+            "goalie_regression": {
+                "home_signal": str(home_goalie_regression["signal"]),
+                "away_signal": str(away_goalie_regression["signal"]),
+            },
+        }
+
+    @staticmethod
+    def compare_vs_sportsbook(
+        true_probability: float,
+        sportsbook_odds: float,
+    ) -> Dict[str, float | str | bool]:
+        """
+        Convert true probability to true odds, then compare vs sportsbook line
+        to find +EV bets.
+
+        Args:
+            true_probability: Model's estimated probability (0-1)
+            sportsbook_odds: Sportsbook's offered American odds
+
+        Returns:
+            Dict with edge, EV, true odds, and whether bet is +EV
+        """
+        true_prob = max(0.01, min(0.99, true_probability))
+        true_odds = prob_to_american(true_prob)
+        implied_prob = american_to_implied_prob(sportsbook_odds)
+        edge = true_prob - implied_prob
+        ev = expected_value_per_1_risk(true_prob, sportsbook_odds)
+
+        is_positive_ev = ev > 0.0
+
+        if edge >= 0.05:
+            signal = "strong_bet"
+        elif edge >= 0.02:
+            signal = "value_bet"
+        elif edge >= 0.0:
+            signal = "marginal"
+        else:
+            signal = "no_edge"
+
+        return {
+            "true_probability": float(true_prob),
+            "true_odds": int(true_odds),
+            "sportsbook_odds": float(sportsbook_odds),
+            "implied_probability": float(implied_prob),
+            "edge": float(edge),
+            "edge_pct": float(edge * 100.0),
+            "ev_per_dollar": float(ev),
+            "is_positive_ev": bool(is_positive_ev),
+            "signal": signal,
+        }
+
+    @staticmethod
+    def calculate_pace_tempo(
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+    ) -> Dict[str, float | str]:
+        """
+        Factor in shot attempts per 60, rush chances, and neutral zone
+        transition speed to assess game pace.
+
+        Two high-tempo teams = Over lean.
+        Slow + defensive teams = Under or derivative markets.
+        """
+        # Shot attempts per 60 (Corsi/60)
+        home_sa60 = home_team.shot_attempts_per_60
+        away_sa60 = away_team.shot_attempts_per_60
+        avg_sa60 = (home_sa60 + away_sa60) / 2.0
+
+        # Rush chances per 60
+        home_rush = home_team.rush_chances_per_60
+        away_rush = away_team.rush_chances_per_60
+        avg_rush = (home_rush + away_rush) / 2.0
+
+        # Neutral zone transition %
+        home_nz = home_team.neutral_zone_transition_pct
+        away_nz = away_team.neutral_zone_transition_pct
+        avg_nz = (home_nz + away_nz) / 2.0
+
+        # Pace score: composite of shot rate, rush chances, and NZ transitions
+        # Normalized: 60 SA/60 is average, 5 rush/60 is average, 50% NZ is average
+        sa_score = (avg_sa60 - 60.0) / 10.0   # each 10 SA above avg = +1
+        rush_score = (avg_rush - 5.0) / 2.0    # each 2 rush above avg = +1
+        nz_score = (avg_nz - 50.0) / 10.0      # each 10% NZ above avg = +1
+
+        pace_score = sa_score * 0.45 + rush_score * 0.30 + nz_score * 0.25
+
+        # Goal adjustment from pace
+        # High pace adds ~0.3 goals per point of pace score
+        pace_goal_adjustment = pace_score * 0.30
+
+        # Classification
+        if pace_score >= 1.0:
+            tempo = "high"
+            lean = "over"
+        elif pace_score >= 0.3:
+            tempo = "above_average"
+            lean = "slight_over"
+        elif pace_score <= -1.0:
+            tempo = "low"
+            lean = "under"
+        elif pace_score <= -0.3:
+            tempo = "below_average"
+            lean = "slight_under"
+        else:
+            tempo = "average"
+            lean = "neutral"
+
+        # Derivative market signals
+        derivative_signal = "none"
+        if pace_score <= -0.8:
+            derivative_signal = "1p_under_team_total_under"
+        elif pace_score >= 1.2:
+            derivative_signal = "1p_over_team_total_over"
+
+        return {
+            "pace_score": float(pace_score),
+            "pace_goal_adjustment": float(pace_goal_adjustment),
+            "tempo": tempo,
+            "lean": lean,
+            "derivative_signal": derivative_signal,
+            "avg_shot_attempts_per_60": float(avg_sa60),
+            "avg_rush_chances_per_60": float(avg_rush),
+            "avg_nz_transition_pct": float(avg_nz),
+            "components": {
+                "sa_score": float(sa_score),
+                "rush_score": float(rush_score),
+                "nz_score": float(nz_score),
+            },
+        }
+
+    @staticmethod
+    def calculate_rest_travel_modifier(
+        rest_days: int,
+        is_road: bool,
+        is_back_to_back: bool,
+        goalie_is_backup: bool = False,
+        travel_zones: int = 0,
+        opponent_rest_days: int = 1,
+        opponent_is_road: bool = False,
+    ) -> Dict[str, float | str | bool]:
+        """
+        Rest vs Travel Modifier for NHL fatigue edge.
+
+        Back-to-back on the road with goalie rotation? Fade spot.
+        3+ days rest at home? Bet-on setup.
+        """
+        modifier = 0.0
+        flags: List[str] = []
+
+        # Rest advantage/disadvantage
+        if is_back_to_back:
+            modifier -= 0.20
+            flags.append("back_to_back")
+            if is_road:
+                modifier -= 0.15
+                flags.append("b2b_on_road")
+            if goalie_is_backup:
+                modifier -= 0.10
+                flags.append("goalie_rotation")
+        elif rest_days == 0:
+            modifier -= 0.15
+            flags.append("zero_rest")
+        elif rest_days >= 3:
+            modifier += 0.12
+            flags.append("well_rested")
+            if not is_road:
+                modifier += 0.08
+                flags.append("rested_at_home")
+
+        # Travel zone penalty
+        if travel_zones >= 3:
+            modifier -= 0.12
+            flags.append("cross_country_travel")
+        elif travel_zones >= 2:
+            modifier -= 0.06
+            flags.append("significant_travel")
+        elif travel_zones >= 1:
+            modifier -= 0.03
+
+        # Rest differential
+        rest_diff = rest_days - opponent_rest_days
+        if rest_diff >= 2:
+            modifier += 0.08
+        elif rest_diff <= -2:
+            modifier -= 0.08
+
+        # Classify the spot
+        if is_back_to_back and is_road and goalie_is_backup:
+            spot = "fade"
+        elif rest_days >= 3 and not is_road:
+            spot = "bet_on"
+        elif modifier >= 0.15:
+            spot = "positive"
+        elif modifier <= -0.25:
+            spot = "fade"
+        elif modifier <= -0.10:
+            spot = "caution"
+        else:
+            spot = "neutral"
+
+        return {
+            "modifier": float(modifier),
+            "spot": spot,
+            "is_back_to_back": bool(is_back_to_back),
+            "is_road": bool(is_road),
+            "goalie_is_backup": bool(goalie_is_backup),
+            "rest_days": int(rest_days),
+            "travel_zones": int(travel_zones),
+            "rest_differential": int(rest_diff),
+            "flags": flags,
+        }
+
+    @staticmethod
     def predict_game_ml(
         home_team: TeamMetrics,
         away_team: TeamMetrics,
@@ -772,6 +1226,199 @@ class NHLAdvancedAnalytics:
             "expected_total": float(home_xg + away_xg),
             "regulation_home_win": float(p_home_reg),
             "regulation_away_win": float(1.0 - p_home_reg),
+        }
+
+
+# ============================================================
+# RLM & Public Splits Tracker
+# ============================================================
+
+class ReverseLineMovement:
+    """
+    Track % of bets vs % of money on sides/totals to detect
+    reverse line movement and sharp action.
+
+    RLM = line moves AGAINST where the majority of bets are placed,
+    indicating sharp money on the other side.
+    """
+
+    @staticmethod
+    def detect_rlm(
+        bet_pct_side_a: float,
+        money_pct_side_a: float,
+        opening_odds_a: float,
+        current_odds_a: float,
+        opening_odds_b: float,
+        current_odds_b: float,
+        total_bets: int = 0,
+        side_a_label: str = "Side A",
+        side_b_label: str = "Side B",
+    ) -> Dict[str, Any]:
+        """
+        Detect reverse line movement and sharp action signals.
+
+        Args:
+            bet_pct_side_a: % of total bets on side A (0-100)
+            money_pct_side_a: % of total money on side A (0-100)
+            opening_odds_a: Opening American odds for side A
+            current_odds_a: Current American odds for side A
+            opening_odds_b: Opening American odds for side B
+            current_odds_b: Current American odds for side B
+            total_bets: Total number of bets (for volume assessment)
+            side_a_label: Label for side A
+            side_b_label: Label for side B
+
+        Returns:
+            Dict with RLM signals, sharp action indicators, and recommendation
+        """
+        bet_pct_b = 100.0 - bet_pct_side_a
+        money_pct_b = 100.0 - money_pct_side_a
+
+        # Bet vs money split
+        bet_money_divergence_a = money_pct_side_a - bet_pct_side_a
+        bet_money_divergence_b = money_pct_b - bet_pct_b
+
+        # Line movement direction
+        # For American odds: line moving from -110 to -130 means side got more expensive (sharp money)
+        # Simplify: convert to implied prob to detect movement direction
+        opening_implied_a = american_to_implied_prob(opening_odds_a)
+        current_implied_a = american_to_implied_prob(current_odds_a)
+        opening_implied_b = american_to_implied_prob(opening_odds_b)
+        current_implied_b = american_to_implied_prob(current_odds_b)
+
+        line_move_a = current_implied_a - opening_implied_a  # positive = line moved toward A
+        line_move_b = current_implied_b - opening_implied_b
+
+        # RLM Detection:
+        # Public is on A (bet_pct_a > 55%), but line moves toward B
+        rlm_detected = False
+        rlm_side = "none"
+
+        if bet_pct_side_a >= 55.0 and line_move_a < -0.005:
+            rlm_detected = True
+            rlm_side = side_b_label
+        elif bet_pct_b >= 55.0 and line_move_b < -0.005:
+            rlm_detected = True
+            rlm_side = side_a_label
+
+        # Sharp money indicator:
+        # Big $ divergence from bet count = sharp bettors on that side
+        sharp_side = "none"
+        if bet_money_divergence_a >= 10.0:
+            sharp_side = side_a_label
+        elif bet_money_divergence_b >= 10.0:
+            sharp_side = side_b_label
+
+        # Volume assessment
+        is_low_volume = total_bets > 0 and total_bets < 5000
+        sharp_flag = rlm_detected and is_low_volume
+
+        # Market inefficiency signal
+        if sharp_flag:
+            signal = "market_inefficiency"
+        elif rlm_detected:
+            signal = "rlm_detected"
+        elif sharp_side != "none":
+            signal = "sharp_money"
+        else:
+            signal = "no_signal"
+
+        # Public side
+        public_side = side_a_label if bet_pct_side_a >= 55.0 else side_b_label if bet_pct_b >= 55.0 else "split"
+
+        return {
+            "rlm_detected": bool(rlm_detected),
+            "rlm_side": rlm_side,
+            "sharp_side": sharp_side,
+            "public_side": public_side,
+            "signal": signal,
+            "sharp_low_volume_flag": bool(sharp_flag),
+            "bet_pct": {side_a_label: float(bet_pct_side_a), side_b_label: float(bet_pct_b)},
+            "money_pct": {side_a_label: float(money_pct_side_a), side_b_label: float(money_pct_b)},
+            "bet_money_divergence": {
+                side_a_label: float(bet_money_divergence_a),
+                side_b_label: float(bet_money_divergence_b),
+            },
+            "line_movement": {
+                side_a_label: float(line_move_a),
+                side_b_label: float(line_move_b),
+            },
+            "odds": {
+                side_a_label: {"opening": float(opening_odds_a), "current": float(current_odds_a)},
+                side_b_label: {"opening": float(opening_odds_b), "current": float(current_odds_b)},
+            },
+            "total_bets": int(total_bets),
+        }
+
+    @staticmethod
+    def detect_totals_rlm(
+        bet_pct_over: float,
+        money_pct_over: float,
+        opening_total: float,
+        current_total: float,
+        opening_over_odds: float = -110,
+        current_over_odds: float = -110,
+        opening_under_odds: float = -110,
+        current_under_odds: float = -110,
+        total_bets: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Detect RLM specifically for totals (O/U) markets.
+
+        Public hammering Over but line drops = sharp Under money.
+        """
+        bet_pct_under = 100.0 - bet_pct_over
+        money_pct_under = 100.0 - money_pct_over
+
+        line_move = current_total - opening_total  # positive = total went up
+
+        # RLM: public on Over but line drops, or public on Under but line rises
+        rlm_detected = False
+        rlm_lean = "none"
+
+        if bet_pct_over >= 55.0 and line_move < -0.25:
+            rlm_detected = True
+            rlm_lean = "under"
+        elif bet_pct_under >= 55.0 and line_move > 0.25:
+            rlm_detected = True
+            rlm_lean = "over"
+
+        # Money divergence
+        over_divergence = money_pct_over - bet_pct_over
+        under_divergence = money_pct_under - bet_pct_under
+
+        sharp_side = "none"
+        if over_divergence >= 10.0:
+            sharp_side = "over"
+        elif under_divergence >= 10.0:
+            sharp_side = "under"
+
+        is_low_volume = total_bets > 0 and total_bets < 5000
+        sharp_flag = rlm_detected and is_low_volume
+
+        if sharp_flag:
+            signal = "market_inefficiency"
+        elif rlm_detected:
+            signal = "rlm_detected"
+        elif sharp_side != "none":
+            signal = "sharp_money"
+        else:
+            signal = "no_signal"
+
+        return {
+            "rlm_detected": bool(rlm_detected),
+            "rlm_lean": rlm_lean,
+            "sharp_side": sharp_side,
+            "signal": signal,
+            "sharp_low_volume_flag": bool(sharp_flag),
+            "bet_pct": {"over": float(bet_pct_over), "under": float(bet_pct_under)},
+            "money_pct": {"over": float(money_pct_over), "under": float(money_pct_under)},
+            "line_movement": {
+                "opening_total": float(opening_total),
+                "current_total": float(current_total),
+                "move": float(line_move),
+            },
+            "total_bets": int(total_bets),
         }
 
 

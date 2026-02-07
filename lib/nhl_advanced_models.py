@@ -14,6 +14,12 @@ from typing import Dict, List, Tuple, Optional
 from collections import defaultdict
 
 from lib.poisson_calculator import PoissonCalculator
+from lib.nhl_analytics import (
+    NHLAdvancedAnalytics,
+    TeamMetrics,
+    GoaltenderStats,
+    ReverseLineMovement,
+)
 
 
 def _sigmoid(x: float) -> float:
@@ -189,6 +195,224 @@ class NHLDecisionTree:
                 'goalie_quality': 'Elite' if avg_sv_pct > 0.920 else 'Weak' if avg_sv_pct < 0.900 else 'Average',
                 'rest_impact': 'Negative' if team1_rest_days == 0 or team2_rest_days == 0 else 'Positive' if team1_rest_days >= 3 and team2_rest_days >= 3 else 'Neutral'
             }
+        }
+
+    def predict_over_under_advanced(
+        self,
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+        home_goalie: GoaltenderStats,
+        away_goalie: GoaltenderStats,
+        line: float,
+        home_rest_days: int = 1,
+        away_rest_days: int = 1,
+        home_is_road: bool = False,
+        away_is_road: bool = True,
+        home_travel_zones: int = 0,
+        away_travel_zones: int = 0,
+        sportsbook_over_odds: Optional[float] = None,
+        sportsbook_under_odds: Optional[float] = None,
+        bet_pct_over: Optional[float] = None,
+        money_pct_over: Optional[float] = None,
+        opening_total: Optional[float] = None,
+        total_bets: int = 0,
+    ) -> Dict:
+        """
+        Advanced O/U prediction integrating all five systems:
+        1. xG + Corsi/Fenwick adjusted metrics + PP/PK + Goalie adj save %
+        2. Goalie regression detection
+        3. Pace & Tempo adjustments
+        4. Rest vs Travel modifier
+        5. Reverse Line Movement & Public Splits
+
+        Converts to True Odds, compares vs sportsbook line to find +EV bets.
+        """
+        # 1. Enhanced total from core analytics
+        enhanced = NHLAdvancedAnalytics.calculate_enhanced_total(
+            home_team, away_team, home_goalie, away_goalie,
+            total_line=line,
+            home_rest_days=home_rest_days,
+            away_rest_days=away_rest_days,
+            home_is_road=home_is_road,
+            away_is_road=away_is_road,
+        )
+
+        # 2. Pace & Tempo
+        pace = NHLAdvancedAnalytics.calculate_pace_tempo(home_team, away_team)
+        pace_adj = pace["pace_goal_adjustment"]
+
+        # Apply pace adjustment to expected total
+        adjusted_total = enhanced["expected_total"] + pace_adj
+        adjusted_total = max(3.5, min(9.0, adjusted_total))
+
+        # 3. Rest & Travel modifiers for both teams
+        home_rest_mod = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=home_rest_days,
+            is_road=home_is_road,
+            is_back_to_back=home_goalie.is_back_to_back,
+            goalie_is_backup=not home_goalie.is_starter,
+            travel_zones=home_travel_zones,
+            opponent_rest_days=away_rest_days,
+            opponent_is_road=away_is_road,
+        )
+        away_rest_mod = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=away_rest_days,
+            is_road=away_is_road,
+            is_back_to_back=away_goalie.is_back_to_back,
+            goalie_is_backup=not away_goalie.is_starter,
+            travel_zones=away_travel_zones,
+            opponent_rest_days=home_rest_days,
+            opponent_is_road=home_is_road,
+        )
+
+        # Net rest modifier on total: both tired = less scoring
+        # One team rested = slightly more scoring (pace increase)
+        rest_total_adj = (home_rest_mod["modifier"] + away_rest_mod["modifier"]) * 0.5
+        adjusted_total += rest_total_adj
+        adjusted_total = max(3.5, min(9.0, adjusted_total))
+
+        # Recalculate Poisson with adjusted total
+        from lib.nhl_analytics import _poisson_prob_over_line, _poisson_prob_under_line, _poisson_prob_push
+        p_over = _poisson_prob_over_line(adjusted_total, line)
+        p_under = _poisson_prob_under_line(adjusted_total, line)
+        p_push = _poisson_prob_push(adjusted_total, line)
+
+        # 4. RLM Analysis (if data available)
+        rlm_result = None
+        if bet_pct_over is not None and money_pct_over is not None and opening_total is not None:
+            rlm_result = ReverseLineMovement.detect_totals_rlm(
+                bet_pct_over=bet_pct_over,
+                money_pct_over=money_pct_over,
+                opening_total=opening_total,
+                current_total=line,
+                total_bets=total_bets,
+            )
+
+        # Decision tree logic with all signals
+        confidence = 0.50
+        prediction = "PUSH"
+
+        diff = adjusted_total - line
+        if abs(diff) < 0.25:
+            prediction = "PUSH"
+            confidence = 0.50
+        elif diff > 0:
+            prediction = "OVER"
+            confidence = 0.58
+
+            # Boost for high pace
+            if pace["tempo"] == "high":
+                confidence = min(0.80, confidence + 0.08)
+            elif pace["tempo"] == "above_average":
+                confidence = min(0.78, confidence + 0.04)
+
+            # Boost for weak goalies (unsustainable high regresses)
+            if enhanced["goalie_sustainability"]["home"] == "unsustainable_high":
+                confidence = min(0.80, confidence + 0.03)
+            if enhanced["goalie_sustainability"]["away"] == "unsustainable_high":
+                confidence = min(0.80, confidence + 0.03)
+
+            # RLM confirmation
+            if rlm_result and rlm_result["rlm_lean"] == "over":
+                confidence = min(0.82, confidence + 0.05)
+
+            confidence = max(confidence, p_over)
+        else:
+            prediction = "UNDER"
+            confidence = 0.58
+
+            if pace["tempo"] == "low":
+                confidence = min(0.80, confidence + 0.08)
+            elif pace["tempo"] == "below_average":
+                confidence = min(0.78, confidence + 0.04)
+
+            if enhanced["goalie_sustainability"]["home"] == "unsustainable_low":
+                confidence = min(0.80, confidence + 0.03)
+            if enhanced["goalie_sustainability"]["away"] == "unsustainable_low":
+                confidence = min(0.80, confidence + 0.03)
+
+            if rlm_result and rlm_result["rlm_lean"] == "under":
+                confidence = min(0.82, confidence + 0.05)
+
+            confidence = max(confidence, p_under)
+
+        # 5. True Odds & EV comparison
+        from lib.nhl_analytics import prob_to_american, american_to_implied_prob, expected_value_per_1_risk
+        over_true_odds = prob_to_american(max(0.01, min(0.99, p_over)))
+        under_true_odds = prob_to_american(max(0.01, min(0.99, p_under)))
+
+        ev_analysis = {}
+        if sportsbook_over_odds is not None:
+            ev_analysis["over"] = NHLAdvancedAnalytics.compare_vs_sportsbook(p_over, sportsbook_over_odds)
+        if sportsbook_under_odds is not None:
+            ev_analysis["under"] = NHLAdvancedAnalytics.compare_vs_sportsbook(p_under, sportsbook_under_odds)
+
+        # Determine best bet
+        best_bet = "none"
+        if ev_analysis.get("over", {}).get("is_positive_ev") and prediction == "OVER":
+            best_bet = "over"
+        elif ev_analysis.get("under", {}).get("is_positive_ev") and prediction == "UNDER":
+            best_bet = "under"
+        elif ev_analysis.get("over", {}).get("is_positive_ev"):
+            best_bet = "over_ev_only"
+        elif ev_analysis.get("under", {}).get("is_positive_ev"):
+            best_bet = "under_ev_only"
+
+        # Spot classification
+        fade_spots = []
+        fire_spots = []
+        if home_rest_mod["spot"] == "fade":
+            fade_spots.append(f"home_{home_rest_mod['spot']}")
+        if away_rest_mod["spot"] == "fade":
+            fade_spots.append(f"away_{away_rest_mod['spot']}")
+        if home_rest_mod["spot"] == "bet_on":
+            fire_spots.append(f"home_{home_rest_mod['spot']}")
+        if away_rest_mod["spot"] == "bet_on":
+            fire_spots.append(f"away_{away_rest_mod['spot']}")
+
+        return {
+            "prediction": prediction,
+            "confidence": float(confidence),
+            "over_probability": float(p_over),
+            "under_probability": float(p_under),
+            "push_probability": float(p_push),
+            "expected_total": float(adjusted_total),
+            "line": float(line),
+            "difference": float(adjusted_total - line),
+            "over_true_odds": int(over_true_odds),
+            "under_true_odds": int(under_true_odds),
+            "best_bet": best_bet,
+            "ev_analysis": ev_analysis,
+            "pace": {
+                "tempo": pace["tempo"],
+                "lean": pace["lean"],
+                "pace_score": float(pace["pace_score"]),
+                "goal_adjustment": float(pace_adj),
+                "derivative_signal": pace["derivative_signal"],
+            },
+            "rest_travel": {
+                "home": {
+                    "spot": home_rest_mod["spot"],
+                    "modifier": float(home_rest_mod["modifier"]),
+                    "flags": home_rest_mod["flags"],
+                },
+                "away": {
+                    "spot": away_rest_mod["spot"],
+                    "modifier": float(away_rest_mod["modifier"]),
+                    "flags": away_rest_mod["flags"],
+                },
+                "net_total_adjustment": float(rest_total_adj),
+            },
+            "rlm": rlm_result,
+            "goalie_signals": {
+                "home_regression": str(enhanced["goalie_regression"]["home_signal"]),
+                "away_regression": str(enhanced["goalie_regression"]["away_signal"]),
+                "home_sustainability": str(enhanced["goalie_sustainability"]["home"]),
+                "away_sustainability": str(enhanced["goalie_sustainability"]["away"]),
+            },
+            "fade_spots": fade_spots,
+            "fire_spots": fire_spots,
+            "components": enhanced["components"],
         }
 
     def predict_ats(

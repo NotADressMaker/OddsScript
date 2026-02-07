@@ -33,6 +33,8 @@ class NHLFeatureEngineering:
 
         Args:
             home_data: Dict with home team stats (xgf, xga, corsi_pct, fenwick_pct, pp_pct, pk_pct, etc.)
+                New optional keys: shot_attempts_per_60, rush_chances_per_60, neutral_zone_transition_pct,
+                pp_opportunities_per_game, goalie_sv_pct, goalie_hd_sv_pct, goalie_md_sv_pct, goalie_ld_sv_pct
             away_data: Dict with away team stats
             home_rest_days, away_rest_days: Rest days (0 = B2B, 1 = normal, etc.)
             home_travel_zones, away_travel_zones: Time zones crossed
@@ -109,6 +111,42 @@ class NHLFeatureEngineering:
         # Matchup-style feature (keep, but name it clearly)
         f["st_matchup_pp_minus_pk"] = home_pp - away_pk
 
+        # PP/PK efficiency features
+        home_pp_opp = float(home_data.get("pp_opportunities_per_game", 3.0))
+        away_pp_opp = float(away_data.get("pp_opportunities_per_game", 3.0))
+        # Estimated PP goals: opportunities * (team PP% + opp PK allow %) / 2
+        home_pp_xg = home_pp_opp * ((home_pp / 100.0) + (1.0 - away_pk / 100.0)) / 2.0
+        away_pp_xg = away_pp_opp * ((away_pp / 100.0) + (1.0 - home_pk / 100.0)) / 2.0
+        f["pp_xg_total"] = home_pp_xg + away_pp_xg
+        f["pp_xg_diff"] = home_pp_xg - away_pp_xg
+
+        # ----------------------------
+        # Pace & Tempo features
+        # ----------------------------
+        home_sa60 = float(home_data.get("shot_attempts_per_60", 60.0))
+        away_sa60 = float(away_data.get("shot_attempts_per_60", 60.0))
+        home_rush60 = float(home_data.get("rush_chances_per_60", 5.0))
+        away_rush60 = float(away_data.get("rush_chances_per_60", 5.0))
+        home_nz = float(home_data.get("neutral_zone_transition_pct", 50.0))
+        away_nz = float(away_data.get("neutral_zone_transition_pct", 50.0))
+
+        avg_sa60 = (home_sa60 + away_sa60) / 2.0
+        avg_rush60 = (home_rush60 + away_rush60) / 2.0
+        avg_nz = (home_nz + away_nz) / 2.0
+
+        f["avg_shot_attempts_per_60"] = avg_sa60
+        f["avg_rush_chances_per_60"] = avg_rush60
+        f["avg_nz_transition_pct"] = avg_nz
+        f["sa60_diff"] = home_sa60 - away_sa60
+        f["rush60_diff"] = home_rush60 - away_rush60
+        f["nz_transition_diff"] = home_nz - away_nz
+
+        # Composite pace score
+        sa_score = (avg_sa60 - 60.0) / 10.0
+        rush_score = (avg_rush60 - 5.0) / 2.0
+        nz_score = (avg_nz - 50.0) / 10.0
+        f["pace_score"] = sa_score * 0.45 + rush_score * 0.30 + nz_score * 0.25
+
         # ----------------------------
         # Situational / rest / travel
         # ----------------------------
@@ -120,6 +158,32 @@ class NHLFeatureEngineering:
         f["travel_penalty_home"] = float(home_travel_zones) * travel_weight
         f["travel_penalty_away"] = float(away_travel_zones) * travel_weight
         f["travel_diff"] = float(home_travel_zones - away_travel_zones) * travel_weight
+
+        # B2B and rest flags (binary features for tree models)
+        f["home_is_b2b"] = 1.0 if home_rest_days == 0 else 0.0
+        f["away_is_b2b"] = 1.0 if away_rest_days == 0 else 0.0
+        f["home_well_rested"] = 1.0 if home_rest_days >= 3 else 0.0
+        f["away_well_rested"] = 1.0 if away_rest_days >= 3 else 0.0
+
+        # Combined rest-travel modifier
+        # B2B on road with travel = major penalty
+        home_rest_score = 0.0
+        if home_rest_days == 0:
+            home_rest_score -= 0.20
+            if home_travel_zones >= 2:
+                home_rest_score -= 0.15
+        elif home_rest_days >= 3:
+            home_rest_score += 0.12
+        away_rest_score = 0.0
+        if away_rest_days == 0:
+            away_rest_score -= 0.20
+            if away_travel_zones >= 2:
+                away_rest_score -= 0.15
+        elif away_rest_days >= 3:
+            away_rest_score += 0.12
+        f["rest_travel_score_home"] = home_rest_score
+        f["rest_travel_score_away"] = away_rest_score
+        f["rest_travel_diff"] = home_rest_score - away_rest_score
 
         # Home-ice: since this function is called with home/away already, default to on.
         # You can override by passing home_data={"is_home": False} for neutral sites if needed.
@@ -139,6 +203,26 @@ class NHLFeatureEngineering:
         f["pdo_diff"] = pdo_home - pdo_away
 
         # ----------------------------
+        # Goalie quality features
+        # ----------------------------
+        home_goalie_sv = float(home_data.get("goalie_sv_pct", 0.905))
+        away_goalie_sv = float(away_data.get("goalie_sv_pct", 0.905))
+        home_goalie_hd = float(home_data.get("goalie_hd_sv_pct", 0.820))
+        away_goalie_hd = float(away_data.get("goalie_hd_sv_pct", 0.820))
+
+        f["goalie_sv_diff"] = home_goalie_sv - away_goalie_sv
+        f["goalie_hd_sv_diff"] = home_goalie_hd - away_goalie_hd
+
+        # Adjusted goalie quality (weighted by zone)
+        home_goalie_md = float(home_data.get("goalie_md_sv_pct", 0.910))
+        away_goalie_md = float(away_data.get("goalie_md_sv_pct", 0.910))
+        home_goalie_ld = float(home_data.get("goalie_ld_sv_pct", 0.980))
+        away_goalie_ld = float(away_data.get("goalie_ld_sv_pct", 0.980))
+        home_adj_sv = home_goalie_hd * 0.45 + home_goalie_md * 0.30 + home_goalie_ld * 0.25
+        away_adj_sv = away_goalie_hd * 0.45 + away_goalie_md * 0.30 + away_goalie_ld * 0.25
+        f["goalie_adj_sv_diff"] = home_adj_sv - away_adj_sv
+
+        # ----------------------------
         # Optional raw features (useful for trees / interpretation)
         # ----------------------------
         if include_raw:
@@ -154,5 +238,11 @@ class NHLFeatureEngineering:
             f["away_fenwick"] = away_fenwick
             f["home_goalie_gsax"] = float(home_goalie_gsax)
             f["away_goalie_gsax"] = float(away_goalie_gsax)
+            f["home_sa60"] = home_sa60
+            f["away_sa60"] = away_sa60
+            f["home_rush60"] = home_rush60
+            f["away_rush60"] = away_rush60
+            f["home_nz_pct"] = home_nz
+            f["away_nz_pct"] = away_nz
 
         return f

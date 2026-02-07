@@ -8,7 +8,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import unittest
 from lib.nhl_analytics import (
     NHLAdvancedAnalytics, NHLAnalytics,
-    TeamMetrics, GoaltenderStats, ShotQuality, Situation
+    TeamMetrics, GoaltenderStats, ShotQuality, Situation,
+    ReverseLineMovement, prob_to_american, american_to_implied_prob,
 )
 
 
@@ -681,6 +682,471 @@ class TestNHLGamePrediction(unittest.TestCase):
         self.assertIn('away_win_probability', result)
         total = result['home_win_probability'] + result['away_win_probability']
         self.assertAlmostEqual(total, 1.0, places=2)
+
+
+class TestAdjustedGoalieSavePct(unittest.TestCase):
+    """Test goalie adjusted save % calculation"""
+
+    def test_basic_adjusted_save_pct(self):
+        """Should compute weighted save % from zone-based metrics"""
+        goalie = GoaltenderStats(
+            save_percentage=0.910,
+            high_danger_save_pct=0.830,
+            medium_danger_save_pct=0.920,
+            low_danger_save_pct=0.985,
+        )
+        result = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(goalie)
+        self.assertIn("adjusted_save_pct", result)
+        self.assertGreater(result["adjusted_save_pct"], 0.8)
+        self.assertLess(result["adjusted_save_pct"], 1.0)
+
+    def test_sustainability_high(self):
+        """Goalie way above career norms should be unsustainable_high"""
+        goalie = GoaltenderStats(
+            save_percentage=0.940,
+            high_danger_save_pct=0.870,
+            medium_danger_save_pct=0.950,
+            low_danger_save_pct=0.995,
+            career_save_pct=0.905,
+        )
+        result = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(goalie)
+        self.assertEqual(result["sustainability"], "unsustainable_high")
+
+    def test_sustainability_low(self):
+        """Goalie way below career norms should be unsustainable_low"""
+        goalie = GoaltenderStats(
+            save_percentage=0.880,
+            high_danger_save_pct=0.780,
+            medium_danger_save_pct=0.880,
+            low_danger_save_pct=0.960,
+            career_save_pct=0.915,
+        )
+        result = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(goalie)
+        self.assertEqual(result["sustainability"], "unsustainable_low")
+
+    def test_sustainability_stable(self):
+        """Goalie near career norms should be sustainable"""
+        goalie = GoaltenderStats(
+            save_percentage=0.910,
+            high_danger_save_pct=0.830,
+            medium_danger_save_pct=0.920,
+            low_danger_save_pct=0.985,
+            career_save_pct=0.900,
+        )
+        result = NHLAdvancedAnalytics.calculate_adjusted_goalie_save_pct(goalie)
+        self.assertEqual(result["sustainability"], "sustainable")
+
+
+class TestPPPKEfficiency(unittest.TestCase):
+    """Test PP/PK efficiency matchup calculations"""
+
+    def test_basic_pp_pk(self):
+        """Should calculate PP expected goals from matchup"""
+        home = TeamMetrics(goals_for=3.0, goals_against=2.5, pp_pct=25.0, pk_pct=82.0)
+        away = TeamMetrics(goals_for=2.8, goals_against=3.0, pp_pct=18.0, pk_pct=78.0)
+        result = NHLAdvancedAnalytics.calculate_pp_pk_efficiency(home, away)
+        self.assertIn("home_pp_expected_goals", result)
+        self.assertIn("away_pp_expected_goals", result)
+        self.assertIn("total_pp_expected_goals", result)
+        self.assertGreater(result["total_pp_expected_goals"], 0)
+
+    def test_strong_pp_vs_weak_pk(self):
+        """Strong PP vs weak PK should produce more PP goals"""
+        strong_home = TeamMetrics(goals_for=3.0, goals_against=2.5, pp_pct=30.0, pk_pct=85.0)
+        weak_away = TeamMetrics(goals_for=2.5, goals_against=3.0, pp_pct=15.0, pk_pct=72.0)
+        avg_home = TeamMetrics(goals_for=3.0, goals_against=3.0, pp_pct=20.0, pk_pct=80.0)
+        avg_away = TeamMetrics(goals_for=3.0, goals_against=3.0, pp_pct=20.0, pk_pct=80.0)
+
+        strong_result = NHLAdvancedAnalytics.calculate_pp_pk_efficiency(strong_home, weak_away)
+        avg_result = NHLAdvancedAnalytics.calculate_pp_pk_efficiency(avg_home, avg_away)
+
+        self.assertGreater(
+            strong_result["home_pp_expected_goals"],
+            avg_result["home_pp_expected_goals"]
+        )
+
+    def test_pp_pk_differential(self):
+        """Home with better special teams should have positive differential"""
+        home = TeamMetrics(goals_for=3.0, goals_against=2.5, pp_pct=28.0, pk_pct=84.0)
+        away = TeamMetrics(goals_for=2.8, goals_against=3.0, pp_pct=16.0, pk_pct=76.0)
+        result = NHLAdvancedAnalytics.calculate_pp_pk_efficiency(home, away)
+        self.assertGreater(result["pp_pk_differential"], 0)
+
+
+class TestEnhancedTotal(unittest.TestCase):
+    """Test the enhanced O/U total calculation"""
+
+    def _make_teams_and_goalies(self):
+        home = TeamMetrics(
+            goals_for=3.2, goals_against=2.5, xg_for=3.1, xg_against=2.4,
+            corsi_pct=54.0, fenwick_for=40.0, fenwick_against=35.0,
+            pp_pct=24.0, pk_pct=82.0, save_percentage=0.920,
+            shooting_percentage=0.10,
+        )
+        away = TeamMetrics(
+            goals_for=2.8, goals_against=3.0, xg_for=2.7, xg_against=2.9,
+            corsi_pct=48.0, fenwick_for=33.0, fenwick_against=37.0,
+            pp_pct=18.0, pk_pct=78.0, save_percentage=0.905,
+            shooting_percentage=0.09,
+        )
+        home_g = GoaltenderStats(
+            save_percentage=0.920, high_danger_save_pct=0.850,
+            medium_danger_save_pct=0.930, low_danger_save_pct=0.990,
+            games_saved_above_expected=5.0,
+        )
+        away_g = GoaltenderStats(
+            save_percentage=0.905, high_danger_save_pct=0.810,
+            medium_danger_save_pct=0.900, low_danger_save_pct=0.975,
+            games_saved_above_expected=-2.0,
+        )
+        return home, away, home_g, away_g
+
+    def test_returns_all_fields(self):
+        """Should return all expected fields"""
+        home, away, hg, ag = self._make_teams_and_goalies()
+        result = NHLAdvancedAnalytics.calculate_enhanced_total(home, away, hg, ag, 6.5)
+        self.assertIn("expected_total", result)
+        self.assertIn("over_probability", result)
+        self.assertIn("under_probability", result)
+        self.assertIn("over_true_odds", result)
+        self.assertIn("under_true_odds", result)
+        self.assertIn("components", result)
+        self.assertIn("goalie_sustainability", result)
+
+    def test_probabilities_sum_to_one(self):
+        """Over + under + push should approximate 1"""
+        home, away, hg, ag = self._make_teams_and_goalies()
+        result = NHLAdvancedAnalytics.calculate_enhanced_total(home, away, hg, ag, 6.5)
+        total = result["over_probability"] + result["under_probability"] + result["push_probability"]
+        self.assertAlmostEqual(total, 1.0, delta=0.02)
+
+    def test_expected_total_reasonable(self):
+        """Expected total should be in reasonable range"""
+        home, away, hg, ag = self._make_teams_and_goalies()
+        result = NHLAdvancedAnalytics.calculate_enhanced_total(home, away, hg, ag, 6.5)
+        self.assertGreater(result["expected_total"], 3.5)
+        self.assertLess(result["expected_total"], 9.0)
+
+    def test_b2b_goalie_affects_total(self):
+        """B2B goalie start should increase expected goals"""
+        home, away, hg, ag = self._make_teams_and_goalies()
+        normal = NHLAdvancedAnalytics.calculate_enhanced_total(home, away, hg, ag, 6.5)
+
+        ag_b2b = GoaltenderStats(
+            save_percentage=0.905, high_danger_save_pct=0.810,
+            medium_danger_save_pct=0.900, low_danger_save_pct=0.975,
+            games_saved_above_expected=-2.0, is_back_to_back=True,
+        )
+        b2b = NHLAdvancedAnalytics.calculate_enhanced_total(home, away, hg, ag_b2b, 6.5)
+        # B2B goalie should adjust total
+        self.assertNotEqual(normal["expected_total"], b2b["expected_total"])
+
+
+class TestCompareVsSportsbook(unittest.TestCase):
+    """Test true odds vs sportsbook comparison"""
+
+    def test_positive_ev_detection(self):
+        """Should detect +EV when model probability exceeds implied"""
+        result = NHLAdvancedAnalytics.compare_vs_sportsbook(0.60, 110)
+        self.assertTrue(result["is_positive_ev"])
+        self.assertGreater(result["ev_per_dollar"], 0)
+
+    def test_negative_ev_detection(self):
+        """Should detect -EV when model probability below implied"""
+        result = NHLAdvancedAnalytics.compare_vs_sportsbook(0.40, -150)
+        self.assertFalse(result["is_positive_ev"])
+        self.assertLess(result["ev_per_dollar"], 0)
+
+    def test_strong_bet_signal(self):
+        """Large edge should produce strong_bet signal"""
+        result = NHLAdvancedAnalytics.compare_vs_sportsbook(0.65, 110)
+        self.assertEqual(result["signal"], "strong_bet")
+
+    def test_no_edge_signal(self):
+        """When model probability is below sportsbook implied, should be no_edge"""
+        result = NHLAdvancedAnalytics.compare_vs_sportsbook(0.45, -110)
+        self.assertEqual(result["signal"], "no_edge")
+
+    def test_true_odds_returned(self):
+        """Should return valid true odds"""
+        result = NHLAdvancedAnalytics.compare_vs_sportsbook(0.55, -110)
+        self.assertIsInstance(result["true_odds"], int)
+        self.assertIsInstance(result["implied_probability"], float)
+
+
+class TestPaceTempo(unittest.TestCase):
+    """Test pace & tempo calculations"""
+
+    def test_high_tempo(self):
+        """Two high-pace teams should classify as high tempo"""
+        home = TeamMetrics(
+            goals_for=3.5, goals_against=3.0,
+            shot_attempts_per_60=72.0, rush_chances_per_60=8.0,
+            neutral_zone_transition_pct=58.0,
+        )
+        away = TeamMetrics(
+            goals_for=3.3, goals_against=3.2,
+            shot_attempts_per_60=70.0, rush_chances_per_60=7.5,
+            neutral_zone_transition_pct=56.0,
+        )
+        result = NHLAdvancedAnalytics.calculate_pace_tempo(home, away)
+        self.assertEqual(result["tempo"], "high")
+        self.assertEqual(result["lean"], "over")
+        self.assertGreater(result["pace_goal_adjustment"], 0)
+
+    def test_low_tempo(self):
+        """Two slow defensive teams should classify as low tempo"""
+        home = TeamMetrics(
+            goals_for=2.2, goals_against=2.0,
+            shot_attempts_per_60=48.0, rush_chances_per_60=2.5,
+            neutral_zone_transition_pct=40.0,
+        )
+        away = TeamMetrics(
+            goals_for=2.3, goals_against=2.1,
+            shot_attempts_per_60=50.0, rush_chances_per_60=3.0,
+            neutral_zone_transition_pct=42.0,
+        )
+        result = NHLAdvancedAnalytics.calculate_pace_tempo(home, away)
+        self.assertEqual(result["tempo"], "low")
+        self.assertEqual(result["lean"], "under")
+        self.assertLess(result["pace_goal_adjustment"], 0)
+
+    def test_average_tempo(self):
+        """Average teams should be neutral"""
+        home = TeamMetrics(
+            goals_for=3.0, goals_against=3.0,
+            shot_attempts_per_60=60.0, rush_chances_per_60=5.0,
+            neutral_zone_transition_pct=50.0,
+        )
+        away = TeamMetrics(
+            goals_for=3.0, goals_against=3.0,
+            shot_attempts_per_60=60.0, rush_chances_per_60=5.0,
+            neutral_zone_transition_pct=50.0,
+        )
+        result = NHLAdvancedAnalytics.calculate_pace_tempo(home, away)
+        self.assertEqual(result["tempo"], "average")
+        self.assertEqual(result["lean"], "neutral")
+        self.assertAlmostEqual(result["pace_goal_adjustment"], 0.0, places=2)
+
+    def test_derivative_signal_low_pace(self):
+        """Very low pace should signal 1P under / team total under"""
+        home = TeamMetrics(
+            goals_for=2.0, goals_against=1.8,
+            shot_attempts_per_60=45.0, rush_chances_per_60=2.0,
+            neutral_zone_transition_pct=38.0,
+        )
+        away = TeamMetrics(
+            goals_for=2.1, goals_against=2.0,
+            shot_attempts_per_60=47.0, rush_chances_per_60=2.5,
+            neutral_zone_transition_pct=40.0,
+        )
+        result = NHLAdvancedAnalytics.calculate_pace_tempo(home, away)
+        self.assertEqual(result["derivative_signal"], "1p_under_team_total_under")
+
+
+class TestRestTravelModifier(unittest.TestCase):
+    """Test rest vs travel modifier"""
+
+    def test_b2b_road_fade(self):
+        """B2B on road with backup goalie should be a fade spot"""
+        result = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=0, is_road=True, is_back_to_back=True,
+            goalie_is_backup=True, travel_zones=2,
+        )
+        self.assertEqual(result["spot"], "fade")
+        self.assertLess(result["modifier"], -0.2)
+        self.assertIn("back_to_back", result["flags"])
+        self.assertIn("b2b_on_road", result["flags"])
+        self.assertIn("goalie_rotation", result["flags"])
+
+    def test_rested_at_home_fire(self):
+        """3+ rest days at home should be a bet-on spot"""
+        result = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=4, is_road=False, is_back_to_back=False,
+        )
+        self.assertEqual(result["spot"], "bet_on")
+        self.assertGreater(result["modifier"], 0)
+        self.assertIn("well_rested", result["flags"])
+        self.assertIn("rested_at_home", result["flags"])
+
+    def test_neutral_spot(self):
+        """Normal rest, normal travel should be neutral"""
+        result = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=1, is_road=False, is_back_to_back=False,
+        )
+        self.assertEqual(result["spot"], "neutral")
+
+    def test_cross_country_travel(self):
+        """3+ timezone travel should add penalty"""
+        result = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=1, is_road=True, is_back_to_back=False,
+            travel_zones=3,
+        )
+        self.assertLess(result["modifier"], 0)
+        self.assertIn("cross_country_travel", result["flags"])
+
+    def test_rest_differential(self):
+        """Large rest differential should affect modifier"""
+        rested = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=3, is_road=False, is_back_to_back=False,
+            opponent_rest_days=0,
+        )
+        tired = NHLAdvancedAnalytics.calculate_rest_travel_modifier(
+            rest_days=0, is_road=True, is_back_to_back=True,
+            opponent_rest_days=3,
+        )
+        self.assertGreater(rested["modifier"], tired["modifier"])
+
+
+class TestReverseLineMovement(unittest.TestCase):
+    """Test RLM and public splits detection"""
+
+    def test_rlm_detected(self):
+        """Public on A but line moves to B = RLM"""
+        result = ReverseLineMovement.detect_rlm(
+            bet_pct_side_a=70.0,
+            money_pct_side_a=45.0,
+            opening_odds_a=-110,
+            current_odds_a=-105,  # line got cheaper = moved away from A
+            opening_odds_b=-110,
+            current_odds_b=-115,  # line got more expensive = moved toward B
+            total_bets=3000,
+            side_a_label="Home",
+            side_b_label="Away",
+        )
+        self.assertTrue(result["rlm_detected"])
+        self.assertEqual(result["rlm_side"], "Away")
+
+    def test_no_rlm(self):
+        """Public on A and line moves toward A = no RLM"""
+        result = ReverseLineMovement.detect_rlm(
+            bet_pct_side_a=70.0,
+            money_pct_side_a=72.0,
+            opening_odds_a=-110,
+            current_odds_a=-130,  # got more expensive = line moved toward A
+            opening_odds_b=-110,
+            current_odds_b=110,
+            total_bets=10000,
+            side_a_label="Home",
+            side_b_label="Away",
+        )
+        self.assertFalse(result["rlm_detected"])
+
+    def test_sharp_money_detection(self):
+        """Big money divergence from bet count = sharp money"""
+        result = ReverseLineMovement.detect_rlm(
+            bet_pct_side_a=40.0,
+            money_pct_side_a=65.0,  # 25% divergence
+            opening_odds_a=-110,
+            current_odds_a=-110,
+            opening_odds_b=-110,
+            current_odds_b=-110,
+            total_bets=8000,
+            side_a_label="Home",
+            side_b_label="Away",
+        )
+        self.assertEqual(result["sharp_side"], "Home")
+
+    def test_low_volume_flag(self):
+        """RLM on low volume game = market inefficiency flag"""
+        result = ReverseLineMovement.detect_rlm(
+            bet_pct_side_a=65.0,
+            money_pct_side_a=40.0,
+            opening_odds_a=-110,
+            current_odds_a=-105,
+            opening_odds_b=-110,
+            current_odds_b=-115,
+            total_bets=2000,
+            side_a_label="Over",
+            side_b_label="Under",
+        )
+        self.assertTrue(result["sharp_low_volume_flag"])
+        self.assertEqual(result["signal"], "market_inefficiency")
+
+    def test_totals_rlm_under(self):
+        """Public on Over but total drops = sharp Under"""
+        result = ReverseLineMovement.detect_totals_rlm(
+            bet_pct_over=72.0,
+            money_pct_over=48.0,
+            opening_total=6.5,
+            current_total=6.0,
+            total_bets=4000,
+        )
+        self.assertTrue(result["rlm_detected"])
+        self.assertEqual(result["rlm_lean"], "under")
+
+    def test_totals_rlm_over(self):
+        """Public on Under but total rises = sharp Over"""
+        result = ReverseLineMovement.detect_totals_rlm(
+            bet_pct_over=30.0,
+            money_pct_over=55.0,
+            opening_total=5.5,
+            current_total=6.0,
+            total_bets=6000,
+        )
+        self.assertTrue(result["rlm_detected"])
+        self.assertEqual(result["rlm_lean"], "over")
+
+    def test_totals_no_rlm(self):
+        """No significant movement = no RLM"""
+        result = ReverseLineMovement.detect_totals_rlm(
+            bet_pct_over=55.0,
+            money_pct_over=52.0,
+            opening_total=6.5,
+            current_total=6.5,
+            total_bets=10000,
+        )
+        self.assertFalse(result["rlm_detected"])
+        self.assertEqual(result["signal"], "no_signal")
+
+
+class TestGoalieRegressionEnhanced(unittest.TestCase):
+    """Test enhanced goalie regression detection with medium danger"""
+
+    def test_heater_detection(self):
+        """Goalie playing well above career should be flagged heater"""
+        goalie = GoaltenderStats(
+            high_danger_save_pct=0.870,
+            low_danger_save_pct=0.990,
+            career_high_danger_save_pct=0.820,
+            career_low_danger_save_pct=0.975,
+            recent_high_danger_save_pct=0.870,
+            recent_low_danger_save_pct=0.990,
+            is_starter=True,
+            starts_last_7=3,
+        )
+        result = NHLAdvancedAnalytics.detect_goalie_regression(goalie)
+        self.assertEqual(result["signal"], "heater")
+
+    def test_slump_detection(self):
+        """Goalie playing well below career should be flagged slump"""
+        goalie = GoaltenderStats(
+            high_danger_save_pct=0.780,
+            low_danger_save_pct=0.950,
+            career_high_danger_save_pct=0.830,
+            career_low_danger_save_pct=0.980,
+            recent_high_danger_save_pct=0.780,
+            recent_low_danger_save_pct=0.950,
+            is_starter=True,
+            starts_last_7=3,
+        )
+        result = NHLAdvancedAnalytics.detect_goalie_regression(goalie)
+        self.assertEqual(result["signal"], "slump")
+
+    def test_b2b_strength_penalty(self):
+        """B2B goalie should reduce team strength"""
+        goalie = GoaltenderStats(
+            high_danger_save_pct=0.830,
+            low_danger_save_pct=0.980,
+            career_high_danger_save_pct=0.820,
+            career_low_danger_save_pct=0.975,
+            is_starter=True,
+            back_to_back_starts=1,
+            starts_last_7=3,
+        )
+        result = NHLAdvancedAnalytics.adjust_team_strength_for_goalie(50.0, goalie)
+        self.assertLess(result["adjusted_strength"], result["base_strength"])
+        self.assertLess(result["fatigue_penalty"], 0)
 
 
 if __name__ == '__main__':
