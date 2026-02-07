@@ -103,6 +103,7 @@ class TeamMetrics:
     rush_chances_per_60: float = 5.0        # Rush scoring chances per 60
     neutral_zone_transition_pct: float = 50.0  # NZ transition success %
     pp_opportunities_per_game: float = 3.0  # Avg PP opportunities per game
+    xg_for_per_60: float = 0.0             # xG generated per 60 minutes (0 = use xg_for fallback)
 
     def __post_init__(self) -> None:
         if self.power_play_pct is None:
@@ -126,6 +127,8 @@ class GoaltenderStats:
     recent_medium_danger_save_pct: Optional[float] = None
     recent_low_danger_save_pct: Optional[float] = None
     recent_save_percentage: Optional[float] = None
+    season_high_danger_save_pct: Optional[float] = None   # Full-season HDS% for shrinkage
+    season_low_danger_save_pct: Optional[float] = None     # Full-season LDS% for shrinkage
     games_started: int = 0
     quality_starts: int = 0
     games_saved_above_expected: float = 0.0  # total GSAx
@@ -1181,6 +1184,440 @@ class NHLAdvancedAnalytics:
         adj_away = max(0.5, min(adj_away, 5.5))
         return float(adj_home), float(adj_away)
 
+    # ============================================================
+    # V2 UPGRADED SIGNALS
+    # ============================================================
+
+    @staticmethod
+    def detect_goalie_regression_v2(
+        goalie: GoaltenderStats,
+        hds_weight_last10: float = 0.50,
+        hds_weight_season: float = 0.30,
+        hds_weight_career: float = 0.20,
+    ) -> Dict[str, Any]:
+        """
+        Goalie Regression Detection 2.0.
+
+        Improvements over v1:
+        - Shrinkage: blends last-10 with season and career baselines
+        - Converts deviation into a goals-impact score (not just heater/slump label)
+        - Fatigue/uncertainty penalty for B2B or heavy workload
+        - Outputs both goalie_effect_xGA and goalie_variance
+
+        adj_hds = 0.50*last10_hds + 0.30*season_hds + 0.20*career_hds
+        regress_score = (adj_hds - career_hds)/0.03 * 0.7
+                      + (adj_lds - career_lds)/0.01 * 0.3
+        Clamped to [-1, +1].
+
+        Positive goalie_effect_xGA = more goals allowed expected (Over lean).
+        Negative = fewer goals allowed expected (Under lean).
+        """
+        # Career baselines (ultimate fallback)
+        career_hds = goalie.career_high_danger_save_pct or goalie.high_danger_save_pct
+        career_lds = goalie.career_low_danger_save_pct or goalie.low_danger_save_pct
+
+        # Season baselines (fall back to career)
+        season_hds = goalie.season_high_danger_save_pct or career_hds
+        season_lds = goalie.season_low_danger_save_pct or career_lds
+
+        # Last-10 / recent (fall back to season)
+        last10_hds = goalie.recent_high_danger_save_pct or season_hds
+        last10_lds = goalie.recent_low_danger_save_pct or season_lds
+
+        # Shrinkage blend
+        adj_hds = (
+            hds_weight_last10 * last10_hds
+            + hds_weight_season * season_hds
+            + hds_weight_career * career_hds
+        )
+        adj_lds = (
+            hds_weight_last10 * last10_lds
+            + hds_weight_season * season_lds
+            + hds_weight_career * career_lds
+        )
+
+        # Regress score: normalized deviation from career
+        # HD deviations of 0.03 are significant; LD deviations of 0.01
+        hd_component = (adj_hds - career_hds) / 0.03 * 0.7
+        ld_component = (adj_lds - career_lds) / 0.01 * 0.3
+        regress_score = max(-1.0, min(1.0, hd_component + ld_component))
+
+        # Fatigue / uncertainty penalty
+        fatigue_penalty = False
+        if goalie.is_back_to_back or goalie.starts_last_7 >= 3:
+            fatigue_penalty = True
+            regress_score *= 0.6  # pull toward 0
+
+        # Convert to goals impact
+        # Positive regress_score = performing above career = heater =
+        # expect regression toward more goals allowed
+        goalie_effect_xGA = regress_score * 0.4
+
+        # Variance: higher when uncertain
+        base_variance = 0.3
+        if fatigue_penalty:
+            base_variance += 0.15
+        if goalie.games_started < 10:
+            base_variance += 0.15
+        if not goalie.is_starter:
+            base_variance += 0.20
+        goalie_variance = min(1.0, base_variance + abs(regress_score) * 0.2)
+
+        # Signal label
+        if regress_score > 0.3:
+            signal = "heater_regression_expected"
+        elif regress_score < -0.3:
+            signal = "slump_rebound_expected"
+        else:
+            signal = "stable"
+
+        return {
+            "goalie_effect_xGA": float(goalie_effect_xGA),
+            "goalie_variance": float(goalie_variance),
+            "regress_score": float(regress_score),
+            "signal": signal,
+            "adj_hds": float(adj_hds),
+            "adj_lds": float(adj_lds),
+            "career_hds": float(career_hds),
+            "career_lds": float(career_lds),
+            "fatigue_penalty_applied": fatigue_penalty,
+            "is_starter": goalie.is_starter,
+        }
+
+    @staticmethod
+    def calculate_pace_tempo_v2(
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+    ) -> Dict[str, Any]:
+        """
+        Pace & Tempo 2.0: z-score-based tempo index.
+
+        Builds a tempo index from:
+        - xG_for_60 (or xg_for as fallback)
+        - rush_chances_per_60
+        - neutral_zone_transition_pct (NZ speed proxy)
+        - pp_opportunities_per_game (penalties drawn)
+
+        tempo = 0.40*z(xG60) + 0.25*z(rush) + 0.20*z(NZspeed) + 0.15*z(PPopp)
+
+        Buckets:
+        - High:  tempo >= +0.75
+        - Low:   tempo <= -0.75
+
+        Also computes mismatch: high-tempo offense vs slow defense.
+        """
+        # League averages and std devs for z-scoring (NHL baselines)
+        XG60_MEAN, XG60_STD = 2.5, 0.5
+        RUSH_MEAN, RUSH_STD = 5.0, 1.5
+        NZ_MEAN, NZ_STD = 50.0, 5.0
+        PP_MEAN, PP_STD = 3.0, 0.7
+
+        def z(val: float, mean: float, std: float) -> float:
+            return (val - mean) / std if std > 0 else 0.0
+
+        # Use xg_for_per_60 if provided, otherwise fall back to xg_for
+        home_xg60 = home_team.xg_for_per_60 if home_team.xg_for_per_60 > 0 else home_team.xg_for
+        away_xg60 = away_team.xg_for_per_60 if away_team.xg_for_per_60 > 0 else away_team.xg_for
+
+        # If still zero, use league average
+        if home_xg60 <= 0:
+            home_xg60 = XG60_MEAN
+        if away_xg60 <= 0:
+            away_xg60 = XG60_MEAN
+
+        avg_xg60 = (home_xg60 + away_xg60) / 2.0
+        avg_rush = (home_team.rush_chances_per_60 + away_team.rush_chances_per_60) / 2.0
+        avg_nz = (home_team.neutral_zone_transition_pct + away_team.neutral_zone_transition_pct) / 2.0
+        avg_pp = (home_team.pp_opportunities_per_game + away_team.pp_opportunities_per_game) / 2.0
+
+        z_xg = z(avg_xg60, XG60_MEAN, XG60_STD)
+        z_rush = z(avg_rush, RUSH_MEAN, RUSH_STD)
+        z_nz = z(avg_nz, NZ_MEAN, NZ_STD)
+        z_pp = z(avg_pp, PP_MEAN, PP_STD)
+
+        tempo = 0.40 * z_xg + 0.25 * z_rush + 0.20 * z_nz + 0.15 * z_pp
+
+        # Bucket classification
+        if tempo >= 0.75:
+            tempo_label = "high"
+        elif tempo <= -0.75:
+            tempo_label = "low"
+        else:
+            tempo_label = "neutral"
+
+        # Mismatch detection: high-tempo offense vs slow defense
+        GA_MEAN, GA_STD = 3.1, 0.4  # goals against baselines
+        home_offense_z = z(home_xg60, XG60_MEAN, XG60_STD)
+        away_offense_z = z(away_xg60, XG60_MEAN, XG60_STD)
+        home_defense_z = z(home_team.goals_against, GA_MEAN, GA_STD)  # higher GA = weaker
+        away_defense_z = z(away_team.goals_against, GA_MEAN, GA_STD)
+
+        mismatch_score = 0.0
+        mismatch_tags: List[str] = []
+
+        if home_offense_z > 0.5 and away_defense_z > 0.5:
+            mismatch_score += (home_offense_z + away_defense_z) / 2.0
+            mismatch_tags.append("home_offense_vs_away_weak_defense")
+        if away_offense_z > 0.5 and home_defense_z > 0.5:
+            mismatch_score += (away_offense_z + home_defense_z) / 2.0
+            mismatch_tags.append("away_offense_vs_home_weak_defense")
+
+        # Tempo goal adjustment: each 1.0 of tempo index ~ 0.35 goals
+        tempo_delta = tempo * 0.35
+
+        return {
+            "tempo_index": float(tempo),
+            "tempo_label": tempo_label,
+            "tempo_delta": float(tempo_delta),
+            "mismatch_score": float(mismatch_score),
+            "mismatch_tags": mismatch_tags,
+            "z_scores": {
+                "xg60": float(z_xg),
+                "rush": float(z_rush),
+                "nz_speed": float(z_nz),
+                "pp_opp": float(z_pp),
+            },
+            "raw_averages": {
+                "avg_xg60": float(avg_xg60),
+                "avg_rush": float(avg_rush),
+                "avg_nz": float(avg_nz),
+                "avg_pp": float(avg_pp),
+            },
+        }
+
+    @staticmethod
+    def calculate_fatigue_severity(
+        is_b2b: bool = False,
+        games_4_nights: int = 0,
+        travel_km: float = 0.0,
+        time_zones_crossed: int = 0,
+        home_rest_days: int = 1,
+        is_road: bool = False,
+        goalie_confirmed: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Rest vs Travel Modifier 2.0: Fatigue Severity Score.
+
+        Replaces binary B2B/travel flags with continuous severity scoring.
+        Accounts for 3-in-4, time zones, travel distance, and home rest.
+
+        fatigue = 0.50*b2b + 0.25*min(travel_km/1000,1) + 0.25*min(tz/2,1)
+        rest_boost = 0.35*I(home_rest_days >= 3)
+
+        Outputs:
+        - fatigue_effect_team: hurts side/team total
+        - fatigue_effect_total: pushes total (tired legs = more goals allowed,
+          but also less finishing; net slight Over from defensive breakdowns)
+
+        Rule-of-thumb tag:
+        "Away B2B + >300km + unconfirmed goalie" = avoid/fade spot
+        """
+        b2b = 1.0 if is_b2b else 0.0
+
+        travel_component = min(travel_km / 1000.0, 1.0)
+        tz_component = min(time_zones_crossed / 2.0, 1.0)
+
+        fatigue = 0.50 * b2b + 0.25 * travel_component + 0.25 * tz_component
+
+        # Games-in-4-nights additional penalty
+        if games_4_nights >= 3:
+            fatigue += 0.30
+        elif games_4_nights >= 2:
+            fatigue += 0.10
+
+        # Rest boost
+        rest_boost = 0.35 if (home_rest_days >= 3 and not is_road) else 0.0
+
+        # Net fatigue effect on team performance
+        fatigue_effect_team = -(fatigue * 0.4) + rest_boost
+
+        # Effect on total: tired teams allow more goals but finish less.
+        # Net effect is slight push toward Over due to defensive breakdowns.
+        fatigue_effect_total = fatigue * 0.15 - rest_boost * 0.10
+
+        # Tags
+        tags: List[str] = []
+        is_avoid = False
+        if is_b2b and is_road and not goalie_confirmed:
+            tags.append("away_b2b_unconfirmed_goalie_avoid")
+            is_avoid = True
+        if is_b2b and is_road:
+            tags.append("away_b2b_fade_spot")
+        if is_b2b:
+            tags.append("b2b")
+        if games_4_nights >= 3:
+            tags.append("3_in_4_heavy_schedule")
+        if travel_km > 2000:
+            tags.append("long_travel")
+        if time_zones_crossed >= 2:
+            tags.append("significant_timezone_change")
+        if home_rest_days >= 3 and not is_road:
+            tags.append("well_rested_at_home")
+
+        return {
+            "fatigue_score": float(fatigue),
+            "fatigue_effect_team": float(fatigue_effect_team),
+            "fatigue_effect_total": float(fatigue_effect_total),
+            "rest_boost": float(rest_boost),
+            "tags": tags,
+            "is_avoid_spot": bool(is_avoid),
+            "components": {
+                "b2b": float(b2b),
+                "travel_component": float(travel_component),
+                "tz_component": float(tz_component),
+                "games_4_nights_penalty": float(
+                    0.30 if games_4_nights >= 3 else 0.10 if games_4_nights >= 2 else 0.0
+                ),
+            },
+        }
+
+    @staticmethod
+    def calculate_composite_edge(
+        home_team: TeamMetrics,
+        away_team: TeamMetrics,
+        home_goalie: GoaltenderStats,
+        away_goalie: GoaltenderStats,
+        line_total: float,
+        model_total_mean: Optional[float] = None,
+        total_sigma: float = 0.85,
+        home_fatigue: Optional[Dict[str, Any]] = None,
+        away_fatigue: Optional[Dict[str, Any]] = None,
+        market_data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Composite Edge 2.0: Convert all signals to projected total adjustment.
+
+        Start with baseline total projection, then adjust:
+          T = T0 + goalie_delta + tempo_delta + fatigue_delta + market_delta
+
+        Then convert to bet decision:
+          edge_points = T - line_total
+          prob_over = NormalCDF(edge_points / total_sigma)
+
+        Bet rules:
+          - Bet Over  if prob_over >= 0.55 and CLV/sharp_move supports
+          - Bet Under if prob_over <= 0.45
+
+        Derivatives logic:
+          - High tempo + goalie variance high => full-game total Over or live Over
+          - Low tempo + strong goalie + rested => 1P Under, team total Under
+        """
+        # 1. Baseline
+        T0 = model_total_mean if model_total_mean is not None else NHLConstants.AVG_TOTAL_GOALS
+
+        # 2. Goalie deltas
+        home_goalie_reg = NHLAdvancedAnalytics.detect_goalie_regression_v2(home_goalie)
+        away_goalie_reg = NHLAdvancedAnalytics.detect_goalie_regression_v2(away_goalie)
+        goalie_delta = home_goalie_reg["goalie_effect_xGA"] + away_goalie_reg["goalie_effect_xGA"]
+
+        # 3. Tempo delta
+        tempo = NHLAdvancedAnalytics.calculate_pace_tempo_v2(home_team, away_team)
+        tempo_delta = tempo["tempo_delta"]
+
+        # 4. Fatigue delta
+        fatigue_delta = 0.0
+        if home_fatigue:
+            fatigue_delta += home_fatigue.get("fatigue_effect_total", 0.0)
+        if away_fatigue:
+            fatigue_delta += away_fatigue.get("fatigue_effect_total", 0.0)
+
+        # 5. Market delta
+        market_delta = 0.0
+        if market_data:
+            market_delta = market_data.get("market_delta", 0.0)
+
+        # Projected total
+        projected_total = T0 + goalie_delta + tempo_delta + fatigue_delta + market_delta
+        projected_total = max(3.5, min(9.0, projected_total))
+
+        # Edge
+        edge_points = projected_total - line_total
+
+        # Prob over via normal CDF
+        z_val = edge_points / total_sigma
+        prob_over = 0.5 * (1.0 + math.erf(z_val / math.sqrt(2)))
+
+        # Confidence based on data completeness + variance
+        confidence = 1.0
+        if not home_goalie.is_starter:
+            confidence -= 0.20
+        if not away_goalie.is_starter:
+            confidence -= 0.20
+        if home_fatigue and home_fatigue.get("is_avoid_spot"):
+            confidence -= 0.15
+        if away_fatigue and away_fatigue.get("is_avoid_spot"):
+            confidence -= 0.15
+        avg_variance = (
+            home_goalie_reg["goalie_variance"] + away_goalie_reg["goalie_variance"]
+        ) / 2.0
+        confidence -= avg_variance * 0.3
+        confidence = max(0.1, min(1.0, confidence))
+
+        # Tags
+        tags: List[str] = []
+        if home_goalie_reg["signal"] == "heater_regression_expected":
+            tags.append("Home goalie heater likely to regress")
+        if away_goalie_reg["signal"] == "heater_regression_expected":
+            tags.append("Away goalie heater likely to regress")
+        if home_goalie_reg["signal"] == "slump_rebound_expected":
+            tags.append("Home goalie slump rebound expected")
+        if away_goalie_reg["signal"] == "slump_rebound_expected":
+            tags.append("Away goalie slump rebound expected")
+        if tempo["tempo_label"] == "high":
+            tags.append("High tempo matchup")
+        if tempo["tempo_label"] == "low":
+            tags.append("Low tempo matchup")
+        if tempo["mismatch_tags"]:
+            tags.extend(tempo["mismatch_tags"])
+        if home_fatigue:
+            tags.extend(home_fatigue.get("tags", []))
+        if away_fatigue:
+            tags.extend(away_fatigue.get("tags", []))
+        if market_data and market_data.get("steam_flag"):
+            tags.append("Steam move detected")
+
+        # Recommendation
+        if prob_over >= 0.55 and confidence >= 0.5:
+            recommendation = "Over"
+        elif prob_over <= 0.45 and confidence >= 0.5:
+            recommendation = "Under"
+        else:
+            recommendation = "Pass"
+
+        # Derivatives logic
+        derivatives: List[str] = []
+        if tempo["tempo_label"] == "high" and avg_variance > 0.4:
+            derivatives.append("Full-game total Over or live Over")
+        if tempo["tempo_label"] == "low" and avg_variance < 0.35:
+            derivatives.append("1P Under, team total Under")
+        if home_goalie_reg["goalie_variance"] > 0.5:
+            derivatives.append("Home team total Over consideration")
+        if away_goalie_reg["goalie_variance"] > 0.5:
+            derivatives.append("Away team total Over consideration")
+
+        return {
+            "projected_total": float(projected_total),
+            "line_total": float(line_total),
+            "edge_points": float(edge_points),
+            "prob_over": float(prob_over),
+            "confidence": float(confidence),
+            "tags": tags,
+            "recommendation": recommendation,
+            "derivatives": derivatives,
+            "components": {
+                "baseline": float(T0),
+                "goalie_delta": float(goalie_delta),
+                "tempo_delta": float(tempo_delta),
+                "fatigue_delta": float(fatigue_delta),
+                "market_delta": float(market_delta),
+            },
+            "goalie_detail": {
+                "home": home_goalie_reg,
+                "away": away_goalie_reg,
+            },
+            "tempo_detail": tempo,
+        }
+
     @staticmethod
     def predict_game_from_xg(
         home_xg: float,
@@ -1348,6 +1785,76 @@ class ReverseLineMovement:
                 side_b_label: {"opening": float(opening_odds_b), "current": float(current_odds_b)},
             },
             "total_bets": int(total_bets),
+        }
+
+    @staticmethod
+    def detect_sharp_movement(
+        line_moves: Optional[List[Dict[str, Any]]] = None,
+        is_pinnacle_moved_first: bool = False,
+        move_sustained: bool = False,
+        low_volume_significant_move: bool = False,
+    ) -> Dict[str, Any]:
+        """
+        RLM & Public Splits 2.0: Sharpness scoring.
+
+        Tracks line movement quality, not just direction.
+        Public splits become optional, used only as secondary confirmation.
+
+        Sharpness score (0-3):
+          +1 if sharp book (Pinnacle/Circa style) moves first
+          +1 if move is sustained (doesn't snap back)
+          +1 if move happens on low volume but meaningful cents/half-goal
+
+        Outputs:
+          steam_flag: fast multi-book move
+          sharp_move_score: 0-3
+          rlm_direction: "over" | "under" | "none"
+          market_delta: projected total adjustment from market signal
+        """
+        if line_moves is None:
+            line_moves = []
+
+        sharp_move_score = 0
+        if is_pinnacle_moved_first:
+            sharp_move_score += 1
+        if move_sustained:
+            sharp_move_score += 1
+        if low_volume_significant_move:
+            sharp_move_score += 1
+
+        # Steam detection: multiple books moving in same direction rapidly
+        steam_flag = False
+        if len(line_moves) >= 2:
+            directions = [m.get("direction", 0) for m in line_moves]
+            nonzero = [d for d in directions if d != 0]
+            if len(nonzero) >= 2 and (
+                all(d > 0 for d in nonzero) or all(d < 0 for d in nonzero)
+            ):
+                steam_flag = True
+
+        # Determine RLM direction from moves
+        rlm_direction = "none"
+        if line_moves:
+            avg_direction = sum(m.get("direction", 0) for m in line_moves) / len(line_moves)
+            if avg_direction > 0:
+                rlm_direction = "over"
+            elif avg_direction < 0:
+                rlm_direction = "under"
+
+        # Market delta for composite model
+        # sharp_move_score of 3 with steam ~ 0.25 goal adjustment
+        sign = 1 if rlm_direction == "over" else -1 if rlm_direction == "under" else 0
+        market_delta = 0.0
+        if steam_flag:
+            market_delta += 0.15 * sign
+        market_delta += sharp_move_score * 0.05 * sign
+
+        return {
+            "steam_flag": bool(steam_flag),
+            "sharp_move_score": int(sharp_move_score),
+            "rlm_direction": rlm_direction,
+            "market_delta": float(market_delta),
+            "line_moves_count": len(line_moves),
         }
 
     @staticmethod
