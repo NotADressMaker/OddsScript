@@ -33,6 +33,9 @@ from sportsbetlang.core import (
     JITCompilationResult,
 )
 
+# Language boundary alias
+from sportsbetlang import language
+
 # Common utilities
 from sportsbetlang.common import (
     american_to_decimal,
@@ -42,11 +45,17 @@ from sportsbetlang.common import (
     ValidationError
 )
 
+# Betting math boundary
+from sportsbetlang import betting
+
 # Configuration
 from sportsbetlang.config import get_config, set_config
 
 # Data storage
 from sportsbetlang.data import create_storage
+
+# Models boundary
+from sportsbetlang import models
 
 __all__ = [
     # Version info
@@ -64,6 +73,7 @@ __all__ = [
     'JITCompiler',
     'JITCompilationError',
     'JITCompilationResult',
+    'language',
 
     # Common utilities
     'american_to_decimal',
@@ -71,6 +81,7 @@ __all__ = [
     'implied_probability',
     'calculate_kelly',
     'ValidationError',
+    'betting',
 
     # Configuration
     'get_config',
@@ -78,4 +89,7 @@ __all__ = [
 
     # Storage
     'create_storage',
+
+    # Models
+    'models',
 ]
