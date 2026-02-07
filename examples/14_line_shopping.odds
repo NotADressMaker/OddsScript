@@ -1,0 +1,27 @@
+# Line shopping across books
+
+print("=== Line Shopping Across Books ===")
+
+func pick_best_offer(offers) {
+    let best = offers[0]
+    let i = 1
+    while i < len(offers) {
+        let current = offers[i]
+        if current.price > best.price {
+            best = current
+        }
+        i = i + 1
+    }
+    return best
+}
+
+let spread_offers = [{"book": "DraftKings", "price": -110}, {"book": "FanDuel", "price": -108}, {"book": "Circa", "price": -105}]
+let total_offers = [{"book": "DraftKings", "price": -112}, {"book": "FanDuel", "price": -110}, {"book": "Circa", "price": -107}]
+
+let best_spread = pick_best_offer(spread_offers)
+let best_total = pick_best_offer(total_offers)
+
+print("Best spread price (-3.5):")
+print(best_spread.book, best_spread.price)
+print("Best total price (O/U 228.5):")
+print(best_total.book, best_total.price)

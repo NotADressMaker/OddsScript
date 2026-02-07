@@ -48,6 +48,7 @@ setup(
     entry_points={
         'console_scripts': [
             'sportsbetlang=sportsbetlang.cli:main',
+            'betlang=sportsbetlang.betlang_cli:main',
         ],
     },
     package_data={

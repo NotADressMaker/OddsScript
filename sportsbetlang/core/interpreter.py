@@ -2,7 +2,10 @@
 SportsBetLang Interpreter - Executes the AST with built-in betting functions
 """
 
+import csv
+import json
 import math
+from io import StringIO
 from typing import Any, Dict, List, Optional
 from sportsbetlang.core.parser import *
 from sportsbetlang.core.lexer import TokenType
@@ -188,6 +191,31 @@ class Interpreter:
             from math import comb
             return comb(bets_count, parlay_size)
 
+        def to_json(value: Any) -> str:
+            """Serialize a value to pretty JSON."""
+            return json.dumps(value, indent=2, default=str)
+
+        def to_csv(rows: Any) -> str:
+            """Serialize rows to CSV."""
+            output = StringIO()
+            if isinstance(rows, list) and rows:
+                first = rows[0]
+                if isinstance(first, dict):
+                    writer = csv.DictWriter(output, fieldnames=list(first.keys()), lineterminator="\n")
+                    writer.writeheader()
+                    writer.writerows(rows)
+                else:
+                    writer = csv.writer(output, lineterminator="\n")
+                    writer.writerows(rows)
+            elif isinstance(rows, dict):
+                writer = csv.DictWriter(output, fieldnames=list(rows.keys()), lineterminator="\n")
+                writer.writeheader()
+                writer.writerow(rows)
+            else:
+                writer = csv.writer(output, lineterminator="\n")
+                writer.writerow([rows])
+            return output.getvalue().rstrip("\n")
+
         def arbitrage_stakes(odds1: float, odds2: float, total_stake: float = 100) -> Dict:
             """Calculate two-way arbitrage stakes and expected profit"""
             decimal1 = american_to_decimal(odds1)
@@ -252,6 +280,8 @@ class Interpreter:
         self.global_env.define('units_to_risk', units_to_risk)
         self.global_env.define('roi_calculator', roi_calculator)
         self.global_env.define('round_robin', round_robin)
+        self.global_env.define('to_json', to_json)
+        self.global_env.define('to_csv', to_csv)
         self.global_env.define('arbitrage_stakes', arbitrage_stakes)
         self.global_env.define('hedge_stake', hedge_stake)
         self.global_env.define('abs', abs)

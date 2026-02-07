@@ -1,0 +1,46 @@
+# Bankroll rules: daily cap, max exposure, fractional Kelly
+
+print("=== Bankroll Rules (Daily Cap + Max Exposure + Fractional Kelly) ===")
+
+const bankroll = 2500
+const daily_cap_pct = 0.05
+const max_exposure_pct = 0.02
+const kelly_fraction = 0.5
+
+let daily_cap = bankroll * daily_cap_pct
+let max_exposure = bankroll * max_exposure_pct
+
+print("Daily cap:")
+print(daily_cap)
+print("Max exposure per bet:")
+print(max_exposure)
+
+func size_bet(prob, price, bankroll, daily_remaining, max_exposure, kelly_fraction) {
+    let kelly = kelly_criterion(prob, price)
+    let raw_size = bankroll * kelly * kelly_fraction
+    let capped_size = min(max_exposure, raw_size)
+    let final_size = min(capped_size, daily_remaining)
+    return final_size
+}
+
+let bets = [{"label": "NBA total over 228.5", "prob": 0.58, "price": -110}, {"label": "NFL spread -3.5", "prob": 0.54, "price": 120}, {"label": "Player points over 27.5", "prob": 0.52, "price": -105}]
+
+let daily_remaining = daily_cap
+let total_staked = 0
+let i = 0
+
+while i < len(bets) {
+    let bet_item = bets[i]
+    let size = size_bet(bet_item.prob, bet_item.price, bankroll, daily_remaining, max_exposure, kelly_fraction)
+    print("Recommended stake for:")
+    print(bet_item.label)
+    print(size)
+    daily_remaining = daily_remaining - size
+    total_staked = total_staked + size
+    i = i + 1
+}
+
+print("Total staked today:")
+print(total_staked)
+print("Daily cap remaining:")
+print(daily_remaining)

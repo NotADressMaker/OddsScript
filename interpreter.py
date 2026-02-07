@@ -578,6 +578,31 @@ class Interpreter:
             csv_text = web_get(url, timeout=timeout, headers=headers)
             return parse_csv_text(csv_text)
 
+        def to_json(value: Any) -> str:
+            """Serialize a value to pretty JSON."""
+            return json.dumps(value, indent=2, default=str)
+
+        def to_csv(rows: Any) -> str:
+            """Serialize rows to CSV."""
+            output = StringIO()
+            if isinstance(rows, list) and rows:
+                first = rows[0]
+                if isinstance(first, dict):
+                    writer = csv.DictWriter(output, fieldnames=list(first.keys()), lineterminator="\n")
+                    writer.writeheader()
+                    writer.writerows(rows)
+                else:
+                    writer = csv.writer(output, lineterminator="\n")
+                    writer.writerows(rows)
+            elif isinstance(rows, dict):
+                writer = csv.DictWriter(output, fieldnames=list(rows.keys()), lineterminator="\n")
+                writer.writeheader()
+                writer.writerow(rows)
+            else:
+                writer = csv.writer(output, lineterminator="\n")
+                writer.writerow([rows])
+            return output.getvalue().rstrip("\n")
+
         # Register built-in functions
         register_builtin('american_to_decimal', american_to_decimal, module='betting')
         register_builtin('decimal_to_american', decimal_to_american, module='betting')
@@ -607,6 +632,8 @@ class Interpreter:
         register_builtin('len', len, module='core')
         register_builtin('range', range, module='core')
         register_builtin('sum', sum, module='core')
+        register_builtin('to_json', to_json, module='core')
+        register_builtin('to_csv', to_csv, module='core')
 
         # Poisson distribution functions
         register_builtin('poisson_probability', poisson_probability, module='stats')
