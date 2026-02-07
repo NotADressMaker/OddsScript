@@ -108,6 +108,11 @@ class NBAModels:
         - opponent_defensive_rating
         - home_court
         - rest_advantage
+        - ppg_interaction
+        - pace_offense_interaction
+        - pace_defense_interaction
+        - rest_pace_interaction
+        - home_offense_interaction
         """
         return (Model()
                 .named("NBA Total Points")
@@ -125,7 +130,12 @@ class NBAModels:
                     'team_defensive_rating',
                     'opponent_defensive_rating',
                     'home_court',
-                    'rest_advantage'
+                    'rest_advantage',
+                    'ppg_interaction',
+                    'pace_offense_interaction',
+                    'pace_defense_interaction',
+                    'rest_pace_interaction',
+                    'home_offense_interaction'
                 ])
                 .with_normalization('standard'))
 
