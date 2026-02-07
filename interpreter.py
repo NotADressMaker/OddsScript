@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from parser import *
 from lexer import TokenType
 from lib.poisson_calculator import PoissonCalculator
+from lib.elo_totals import EloTotalsModel
 
 
 @dataclass(frozen=True)
@@ -374,6 +375,90 @@ class Interpreter:
                 'locked_profit': min(profit_main, profit_hedge)
             }
 
+        def elo_totals_init(
+            league: str = "NBA",
+            k: float = 20.0,
+            base_total: Optional[float] = None,
+            base_total_std: Optional[float] = None,
+            points_per_elo: float = 0.025,
+        ) -> EloTotalsModel:
+            """Initialize an Elo totals model instance."""
+            return EloTotalsModel(
+                league=league,
+                k_factor=k,
+                base_total=base_total,
+                base_total_std=base_total_std,
+                points_per_elo=points_per_elo,
+            )
+
+        def elo_totals_update(model: Any, game: Any) -> None:
+            """Update model ratings with a game dict/object."""
+            if not isinstance(model, EloTotalsModel):
+                raise RuntimeError("elo_totals.update expects a model handle")
+            model.update(game)
+
+        def elo_totals_predict_total(
+            model: Any,
+            home: str,
+            away: str,
+            neutral: bool = False,
+            home_field_adv: Optional[float] = None,
+            league_avg_total: Optional[float] = None,
+        ) -> float:
+            """Predict total points for a matchup."""
+            if not isinstance(model, EloTotalsModel):
+                raise RuntimeError("elo_totals.predict_total expects a model handle")
+            return model.predict_total(
+                home,
+                away,
+                neutral_site=neutral,
+                home_field_adv=home_field_adv,
+                league_avg_total=league_avg_total,
+            )
+
+        def elo_totals_prob_over(
+            model: Any,
+            home: str,
+            away: str,
+            line: Any,
+            neutral: bool = False,
+            home_field_adv: Optional[float] = None,
+            league_avg_total: Optional[float] = None,
+        ) -> TaggedNumber:
+            """Probability that total points go over the line."""
+            if not isinstance(model, EloTotalsModel):
+                raise RuntimeError("elo_totals.prob_over expects a model handle")
+            line_value = self.unwrap_number(line, label="line")
+            probability = model.prob_over(
+                home,
+                away,
+                line_value,
+                neutral_site=neutral,
+                home_field_adv=home_field_adv,
+                league_avg_total=league_avg_total,
+            )
+            return TaggedNumber(probability, "probability")
+
+        def elo_totals_predict_distribution(
+            model: Any,
+            home: str,
+            away: str,
+            neutral: bool = False,
+            home_field_adv: Optional[float] = None,
+            league_avg_total: Optional[float] = None,
+        ) -> Dict[str, float]:
+            """Return a dict with mean/std for total points."""
+            if not isinstance(model, EloTotalsModel):
+                raise RuntimeError("elo_totals.predict_distribution expects a model handle")
+            mean, std = model.predict_distribution(
+                home,
+                away,
+                neutral_site=neutral,
+                home_field_adv=home_field_adv,
+                league_avg_total=league_avg_total,
+            )
+            return {"mean": mean, "std": std}
+
         # Poisson Distribution Simulation Functions
         def poisson_probability(k: int, lambda_param: float) -> float:
             """Calculate Poisson probability P(X = k)"""
@@ -509,6 +594,11 @@ class Interpreter:
         register_builtin('round_robin', round_robin, module='betting')
         register_builtin('arbitrage_stakes', arbitrage_stakes, module='betting')
         register_builtin('hedge_stake', hedge_stake, module='betting')
+        register_builtin('init', elo_totals_init, module='elo_totals')
+        register_builtin('update', elo_totals_update, module='elo_totals')
+        register_builtin('predict_total', elo_totals_predict_total, module='elo_totals')
+        register_builtin('prob_over', elo_totals_prob_over, module='elo_totals')
+        register_builtin('predict_distribution', elo_totals_predict_distribution, module='elo_totals')
         register_builtin('abs', abs, module='core')
         register_builtin('min', min, module='core')
         register_builtin('max', max, module='core')

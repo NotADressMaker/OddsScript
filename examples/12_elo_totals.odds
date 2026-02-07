@@ -1,0 +1,38 @@
+# Elo-Based Totals Model example
+
+import elo_totals
+
+print("=== Elo Totals Model Example ===")
+
+let games = [
+    {"home_team": "Hawks", "away_team": "Celtics", "home_score": 112, "away_score": 118},
+    {"home_team": "Lakers", "away_team": "Warriors", "home_score": 121, "away_score": 115},
+    {"home_team": "Celtics", "away_team": "Lakers", "home_score": 109, "away_score": 104}
+]
+
+let model = elo_totals.init("NBA", 20, 220)
+
+for g in games {
+    elo_totals.update(model, g)
+}
+
+let upcoming = [
+    {"home_team": "Warriors", "away_team": "Celtics", "line": 223.5, "label": "Warriors vs Celtics"},
+    {"home_team": "Hawks", "away_team": "Lakers", "line": 218.0, "label": "Hawks vs Lakers"}
+]
+
+for game in upcoming {
+    let pred_total = elo_totals.predict_total(model, game.home_team, game.away_team)
+    let over_prob = elo_totals.prob_over(model, game.home_team, game.away_team, game.line)
+
+    print(game.label + " predicted total: " + pred_total)
+    print("Over " + game.line + " prob: " + over_prob)
+
+    if over_prob >= 0.55 {
+        bet total ("Over " + game.label) odds -110 stake 50
+    }
+
+    if abs(pred_total - game.line) >= 6 {
+        print("Strong edge vs line on " + game.label)
+    }
+}

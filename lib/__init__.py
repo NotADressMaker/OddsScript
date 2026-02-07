@@ -53,6 +53,7 @@ from lib.simple_api import SBL, Bet, Compare
 # Import model builder
 from lib.model_builder import Model, ModelBuilder, DataHelper, AdditiveModel, add_on_model
 from lib.poisson_totals_model import PoissonTotalsModel
+from lib.elo_totals import EloTotalsModel
 
 # Import sport-specific models and features
 from lib.sport_models import (
@@ -123,6 +124,7 @@ __all__ = [
     'AdditiveModel',
     'add_on_model',
     'PoissonTotalsModel',
+    'EloTotalsModel',
 
     # Sport-Specific Models
     'NBAModels',
