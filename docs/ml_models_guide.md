@@ -8,6 +8,7 @@ Complete guide to using machine learning models for sports betting predictions i
 - [Decision Trees](#decision-trees)
 - [Random Forests](#random-forests)
 - [Neural Networks](#neural-networks)
+- [Bayesian Hierarchical Models](#bayesian-hierarchical-models)
 - [Feature Engineering](#feature-engineering)
 - [Model Validation](#model-validation)
 - [Complete Examples](#complete-examples)
@@ -220,6 +221,28 @@ predictions = nn.predict(X_test)
 - **RELU**: Fast training, good for hidden layers
 - **TANH**: Output -1 to 1, centered around 0
 - **LEAKY_RELU**: Prevents "dying ReLU" problem
+
+## Bayesian Hierarchical Models
+
+Bayesian hierarchical models treat team scoring as distributions rather than single-point estimates, which helps quantify uncertainty in totals markets.
+
+**Best for:** Analysts, researchers, patient bettors.
+
+**Idea: Totals are distributions, not numbers.**
+
+- Team scoring abilities as latent variables
+- Shrink extreme teams toward league average
+- Update beliefs game by game
+
+### Strengths
+
+- Handles uncertainty cleanly
+- Excellent early season
+
+### Weaknesses
+
+- Complex to implement
+- Slower to compute
 
 ### Betting Outcome Prediction
 
