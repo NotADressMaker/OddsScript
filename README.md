@@ -49,6 +49,54 @@ python -m sportsbetlang.ingestion.pipelines.cli backfill --sport nba --start 202
 python -m sportsbetlang.ingestion.pipelines.cli live --sport nba --start 2025-10-01 --end 2025-10-01 --markets spread,total,moneyline
 ```
 
+## Sports Web Research Agent (Public Web Only)
+
+The Sports Web Research Agent is a compliant research assistant that gathers sports information from **public web pages only** (no private APIs, no paywalls). It enforces robots.txt, per-domain rate limits, and citation anchoring for every non-trivial fact. The core implementation lives in `src/sports_research_agent/` with a CLI entry point in `src/sports_research_agent/cli.py`.【F:src/sports_research_agent/cli.py†L1-L109】
+
+### Compliance Policy
+- **Allowed**: Public HTML pages, RSS/Atom feeds, sitemaps, public CSV/JSON files, official league/team pages, reputable news sites, and public boxscore pages.
+- **Not allowed**: Login/paywall scraping, robots.txt bypassing, CAPTCHA circumvention, private endpoints, or hidden JSON endpoints not intended for public use.
+- **Required**: Robots.txt enforcement, per-domain rate limiting, cached fetches (ETag/Last-Modified), and citations for each extracted claim.
+The HTTP client implementation enforces robots.txt and rate limits before fetching URLs.【F:src/sports_research_agent/fetch/http_client.py†L1-L94】
+
+### Configure Trusted Sources
+Trusted sources are configured per-league in YAML. Each entry includes domains, RSS feeds, sitemap URLs, allowed paths, and content types (injuries, starters, schedules, boxscores, lines). Example configs:
+- `configs/sources_nhl.yaml`
+- `configs/sources_nba.yaml`
+- `configs/sources_mlb.yaml`
+- `configs/sources_nfl.yaml`
+Each YAML file maps trusted domains and discovery feeds for that league.【F:configs/sources_nhl.yaml†L1-L18】【F:configs/sources_nba.yaml†L1-L18】【F:configs/sources_mlb.yaml†L1-L18】【F:configs/sources_nfl.yaml†L1-L18】
+
+### CLI Usage
+```bash
+python -m src.sports_research_agent.cli "Projected starting goalies" --league NHL
+python -m src.sports_research_agent.cli "Injury status for Player Y" --league NBA --json
+python -m src.sports_research_agent.cli "Probable pitchers" --league MLB --limit 5
+```
+The CLI discovers URLs via RSS/sitemaps, fetches compliant pages, extracts structured facts, and outputs markdown or JSON reports with citations.【F:src/sports_research_agent/cli.py†L1-L109】
+
+### Example Output (Abbreviated)
+**NHL starting goalie check**
+```text
+- John Doe (NYR): confirmed — John Doe (NYR) - Confirmed starter. (https://example.com/goalies)
+```
+**NFL starting QB**
+```text
+- Starting QB: Taylor Swift (KC) — Starting QB: Taylor Swift (KC) (https://example.com/qb)
+```
+**MLB probable pitcher**
+```text
+- Max Power (BOS) vs NYY: projected — Max Power (BOS) vs. NYY (https://example.com/pitchers)
+```
+**Injury status query**
+```text
+- Alex Smith (ABC): OUT — Alex Smith listed as Out. (https://example.com/injuries)
+```
+Structured extraction models, citations, and reconciliation logic live in the `extract/` and `verify/` modules.【F:src/sports_research_agent/extract/schemas.py†L1-L113】【F:src/sports_research_agent/verify/reconcile.py†L1-L58】
+
+### Tests (Offline Fixtures)
+Tests use saved HTML fixtures to avoid live network calls. See `tests/sports_research_agent/fixtures/` and `tests/sports_research_agent/test_extractors.py`.【F:tests/sports_research_agent/test_extractors.py†L1-L44】
+
 ## Installation
 
 SportsBetLang works on **desktop, laptop, Jupyter notebooks, Google Colab, and online Python environments**. Requires Python 3.7 or higher.

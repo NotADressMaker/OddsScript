@@ -1,0 +1,27 @@
+league: NFL
+sources:
+  - domain: nfl.com
+    label: NFL Official
+    type: official
+    rss: []
+    sitemaps:
+      - https://www.nfl.com/sitemap.xml
+    allowed_paths:
+      - /news/
+      - /stats/
+    content_types:
+      - injuries
+      - starters
+      - schedules
+  - domain: espn.com
+    label: ESPN NFL
+    type: media
+    rss:
+      - https://www.espn.com/espn/rss/nfl/news
+    sitemaps: []
+    allowed_paths:
+      - /nfl/
+    content_types:
+      - injuries
+      - starters
+      - boxscores

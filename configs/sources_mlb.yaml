@@ -1,0 +1,27 @@
+league: MLB
+sources:
+  - domain: mlb.com
+    label: MLB Official
+    type: official
+    rss: []
+    sitemaps:
+      - https://www.mlb.com/sitemap.xml
+    allowed_paths:
+      - /news/
+      - /stats/
+    content_types:
+      - injuries
+      - starters
+      - schedules
+  - domain: espn.com
+    label: ESPN MLB
+    type: media
+    rss:
+      - https://www.espn.com/espn/rss/mlb/news
+    sitemaps: []
+    allowed_paths:
+      - /mlb/
+    content_types:
+      - injuries
+      - starters
+      - boxscores
