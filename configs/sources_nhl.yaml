@@ -1,0 +1,27 @@
+league: NHL
+sources:
+  - domain: nhl.com
+    label: NHL Official
+    type: official
+    rss: []
+    sitemaps:
+      - https://www.nhl.com/sitemap.xml
+    allowed_paths:
+      - /news/
+      - /stats/
+    content_types:
+      - injuries
+      - starters
+      - schedules
+  - domain: espn.com
+    label: ESPN NHL
+    type: media
+    rss:
+      - https://www.espn.com/espn/rss/nhl/news
+    sitemaps: []
+    allowed_paths:
+      - /nhl/
+    content_types:
+      - injuries
+      - starters
+      - boxscores

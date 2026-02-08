@@ -1,0 +1,27 @@
+league: NBA
+sources:
+  - domain: nba.com
+    label: NBA Official
+    type: official
+    rss: []
+    sitemaps:
+      - https://www.nba.com/sitemap.xml
+    allowed_paths:
+      - /news/
+      - /stats/
+    content_types:
+      - injuries
+      - starters
+      - schedules
+  - domain: espn.com
+    label: ESPN NBA
+    type: media
+    rss:
+      - https://www.espn.com/espn/rss/nba/news
+    sitemaps: []
+    allowed_paths:
+      - /nba/
+    content_types:
+      - injuries
+      - starters
+      - boxscores
