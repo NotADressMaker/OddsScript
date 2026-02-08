@@ -1034,6 +1034,29 @@ rivalry_adjustment = CFBAnalytics.calculate_rivalry_factor(
 
 📚 See `lib/` directory for all sport-specific packages and detailed documentation
 
+## Basketball Totals Edge
+
+Two-stage NBA/NCAA totals edge model that projects possessions and points-per-possession (PPP),
+then produces over/under probabilities, edge points, and derivative suggestions.
+
+**Required inputs**
+- `game`: schedule context (team ids, rest, travel, B2B flags)
+- `home_team_stats` / `away_team_stats`: pace + efficiency + shot profile (rolling window)
+
+**Optional inputs**
+- `home_players` / `away_players`: role-based injury/rotation impacts
+- `market`: open/current totals, odds, and book list for line shopping
+
+**How to run the example**
+```bash
+python sportsbetlang.py examples/basketball_totals_edges.odds
+```
+
+**Model overview**
+- Project possessions from weighted pace and schedule adjustments.
+- Project PPP from offense vs defense with shot profile, turnover, ORB, and FT rate deltas.
+- Combine to total mean, then inflate uncertainty from pace volatility, 3PA rate, and injury variance.
+
 ## Totals Regression Service (O/U Models)
 
 This repository also includes a production-ready Python project for training and serving totals (O/U) regression models for NBA, WNBA, NFL, NHL, MLB, EPL soccer, and NCAA basketball.
