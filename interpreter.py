@@ -15,6 +15,7 @@ from parser import *
 from lexer import TokenType
 from lib.poisson_calculator import PoissonCalculator
 from lib.elo_totals import EloTotalsModel
+from lib import basketball_totals
 
 
 @dataclass(frozen=True)
@@ -624,6 +625,9 @@ class Interpreter:
         register_builtin('predict_total', elo_totals_predict_total, module='elo_totals')
         register_builtin('prob_over', elo_totals_prob_over, module='elo_totals')
         register_builtin('predict_distribution', elo_totals_predict_distribution, module='elo_totals')
+        register_builtin('compute', basketball_totals.compute, module='basketball_totals')
+        register_builtin('prob_over', basketball_totals.prob_over, module='basketball_totals')
+        register_builtin('pick_best_book', basketball_totals.pick_best_book, module='basketball_totals')
         register_builtin('abs', abs, module='core')
         register_builtin('min', min, module='core')
         register_builtin('max', max, module='core')

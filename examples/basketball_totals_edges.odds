@@ -1,0 +1,121 @@
+# Basketball Totals Edge example
+
+print("=== Basketball Totals Edge ===")
+
+let game = {
+    "game_id": "NBA_2026_02_07_LAL_BOS",
+    "league": "NBA",
+    "date": "2026-02-07",
+    "start_time": "2026-02-07T19:30:00",
+    "home_team": "BOS",
+    "away_team": "LAL",
+    "neutral_site": false,
+    "home_rest_days": 2,
+    "away_rest_days": 0,
+    "home_is_b2b": false,
+    "away_is_b2b": true,
+    "home_travel_km": 0,
+    "away_travel_km": 600,
+    "altitude_game": false
+}
+
+let home_stats = {
+    "team": "BOS",
+    "pace": 100.8,
+    "pace_std": 2.9,
+    "off_rtg": 118.4,
+    "def_rtg": 113.1,
+    "efg_pct": 0.545,
+    "tov_pct": 0.131,
+    "orb_pct": 0.265,
+    "ftr": 0.216,
+    "three_pa_rate": 0.405,
+    "rim_rate": 0.315,
+    "opp_three_pa_allowed_rate": 0.390,
+    "opp_rim_allowed_rate": 0.328,
+    "window_games": 10
+}
+
+let away_stats = {
+    "team": "LAL",
+    "pace": 101.9,
+    "pace_std": 3.3,
+    "off_rtg": 116.0,
+    "def_rtg": 114.6,
+    "efg_pct": 0.533,
+    "tov_pct": 0.139,
+    "orb_pct": 0.246,
+    "ftr": 0.241,
+    "three_pa_rate": 0.355,
+    "rim_rate": 0.342,
+    "opp_three_pa_allowed_rate": 0.374,
+    "opp_rim_allowed_rate": 0.318,
+    "window_games": 8
+}
+
+let home_players = {
+    "team": "BOS",
+    "players": [
+        {"name": "A", "status": "out", "role": "primary_ballhandler", "usage": 0.28, "minutes": 34},
+        {"name": "B", "status": "questionable", "role": "rim_protector", "usage": 0.16, "minutes": 30}
+    ]
+}
+
+let away_players = {
+    "team": "LAL",
+    "players": [
+        {"name": "C", "status": "questionable", "role": "wing", "usage": 0.19, "minutes": 28}
+    ]
+}
+
+let market = {
+    "game_id": "NBA_2026_02_07_LAL_BOS",
+    "total_open": 228.5,
+    "total_current": 230.0,
+    "odds_over_decimal": 1.91,
+    "odds_under_decimal": 1.91,
+    "books": [
+        {"book": "BookA", "total": 230.0, "over_odds_dec": 1.91, "under_odds_dec": 1.91},
+        {"book": "BookB", "total": 229.5, "over_odds_dec": 1.87, "under_odds_dec": 1.95}
+    ],
+    "bets_pct_over": 0.72,
+    "money_pct_over": 0.41,
+    "market_volume": "high"
+}
+
+let result = basketball_totals.compute(game, home_stats, away_stats, market, home_players, away_players)
+
+print("Projected total:")
+print(result.projected_total)
+print("Total sigma:")
+print(result.total_sigma)
+print("Edge points:")
+print(result.edge_points)
+print("Prob over line:")
+print(result.prob_over)
+print("Prob under line:")
+print(result.prob_under)
+print("Recommendation:")
+print(result.recommendation)
+print("Derivative:")
+print(result.derivative_recommendation)
+print("Tags:")
+print(result.tags)
+
+let edge_threshold = 2.0
+if result.edge_points >= edge_threshold and result.prob_over >= 0.55 {
+    let odds_dec = result.chosen_odds_dec
+    let odds = decimal_to_american(odds_dec)
+    bet total "LAL vs BOS over" odds odds stake 110 spread result.chosen_line
+}
+
+if result.edge_points <= -edge_threshold and result.prob_under >= 0.55 {
+    let odds_dec = result.chosen_odds_dec
+    let odds = decimal_to_american(odds_dec)
+    bet total "LAL vs BOS under" odds odds stake 110 spread result.chosen_line
+}
+
+if result.recommendation == "DERIVATIVE" {
+    print("Derivative suggestion:")
+    print(result.derivative_recommendation)
+}
