@@ -3,15 +3,10 @@ Unit tests for SportsBetLang interpreter
 """
 
 import unittest
-import sys
-import os
 
-# Add parent directory to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from lexer import Lexer
-from parser import Parser
-from interpreter import Interpreter
+from sportsbetlang.core.interpreter import Interpreter
+from sportsbetlang.core.lexer import Lexer
+from sportsbetlang.core.parser import Parser
 
 
 class TestInterpreter(unittest.TestCase):

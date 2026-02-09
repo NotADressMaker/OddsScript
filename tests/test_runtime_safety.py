@@ -3,9 +3,9 @@
 
 import unittest
 
-from interpreter import Interpreter, LanguageRuntimeError
-from lexer import Lexer
-from parser import Parser
+from sportsbetlang.core.interpreter import Interpreter, LanguageRuntimeError
+from sportsbetlang.core.lexer import Lexer
+from sportsbetlang.core.parser import Parser
 
 
 class TestRuntimeSafety(unittest.TestCase):

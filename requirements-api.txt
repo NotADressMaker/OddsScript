@@ -2,20 +2,20 @@
 # Install with: pip install -r requirements-api.txt
 
 # FastAPI and server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
 
 # WebSocket support
-websockets==12.0
+websockets>=12.0
 
 # CORS
-python-multipart==0.0.6
+python-multipart>=0.0.6
 
 # Optional: Production server
-gunicorn==21.2.0
+gunicorn>=21.2
 
 # Serverless adapters
-mangum==0.17.0
-functions-framework==3.5.0
-asgiref==3.7.2
+mangum>=0.17
+functions-framework>=3.5
+asgiref>=3.7

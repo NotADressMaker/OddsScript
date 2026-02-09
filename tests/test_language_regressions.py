@@ -4,10 +4,10 @@ import json
 import unittest
 from pathlib import Path
 
-from diagnostics import DiagnosticError
-from interpreter import Interpreter, TaggedNumber
-from lexer import Lexer
-from parser import Parser
+from sportsbetlang.core.diagnostics import DiagnosticError
+from sportsbetlang.core.interpreter import Interpreter, TaggedNumber
+from sportsbetlang.core.lexer import Lexer
+from sportsbetlang.core.parser import Parser
 
 
 class TestParserErrors(unittest.TestCase):
