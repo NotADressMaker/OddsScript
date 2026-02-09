@@ -47,9 +47,9 @@ from lib import (
 )
 from lib.soccer_analytics import SoccerAnalytics, League
 from sportsbetlang.data.dataset_storage import DatasetStorage
-from lexer import Lexer
-from parser import Parser
-from interpreter import Interpreter
+from sportsbetlang.core.interpreter import Interpreter
+from sportsbetlang.core.lexer import Lexer
+from sportsbetlang.core.parser import Parser
 
 # Create FastAPI app
 app = FastAPI(
