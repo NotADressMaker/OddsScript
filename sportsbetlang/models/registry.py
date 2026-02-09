@@ -4,6 +4,7 @@ Model registry for SportsBetLang plugins.
 
 from __future__ import annotations
 
+import difflib
 import importlib
 from typing import Dict, Iterable, List
 
@@ -36,7 +37,14 @@ def available() -> List[str]:
 def get(name: str) -> ModelSpec:
     """Fetch a ModelSpec by name."""
     if name not in _REGISTRY:
-        raise KeyError(f"Model '{name}' is not registered")
+        available_models = sorted(_REGISTRY.keys())
+        suggestions = difflib.get_close_matches(name, available_models, n=3)
+        message = f"Model '{name}' is not registered."
+        if available_models:
+            message += f" Available models: {', '.join(available_models)}."
+        if suggestions:
+            message += f" Did you mean: {', '.join(suggestions)}?"
+        raise KeyError(message)
     return _REGISTRY[name]
 
 
