@@ -21,7 +21,7 @@ Example usage:
 from sportsbetlang.__version__ import __version__, __author__, __description__
 
 # Core language
-from sportsbetlang.core import (
+from sportsbetlang.lang import (
     Lexer,
     Parser,
     Interpreter,

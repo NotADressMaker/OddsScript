@@ -44,6 +44,8 @@ from sportsbetlang.analytics.state_space import (
     KalmanState,
     LocalLevelModel,
 )
+from sportsbetlang.analytics.repro import ensure_random_state, set_global_seed
+from sportsbetlang.analytics.registry import ModelRegistry
 
 __all__ = [
     # Basic stats
@@ -66,4 +68,8 @@ __all__ = [
 
     # State space models
     'KalmanState', 'LocalLevelModel',
+
+    # Reproducibility
+    'ensure_random_state', 'set_global_seed',
+    'ModelRegistry',
 ]

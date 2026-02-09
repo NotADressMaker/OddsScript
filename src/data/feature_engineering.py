@@ -26,6 +26,7 @@ class FeatureEngineer:
         for col in ALL_COLUMNS:
             if col not in df.columns:
                 df[col] = pd.NA
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df.sort_values("date")
         df["neutral_site"] = df["neutral_site"].fillna(False).astype(bool)
         for col in ["home_rest_days", "away_rest_days", "injuries_home", "injuries_away"]:
@@ -109,30 +110,30 @@ class FeatureEngineer:
         window = self.config.rolling_window
         group = long_df.groupby(["league", "team"], sort=False)
 
-        long_df["roll_points_for"] = (
-            group["points_for"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_points_against"] = (
-            group["points_against"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_total"] = (
-            group["total"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_total_var"] = (
-            group["total"].shift(1).rolling(window, min_periods=1).var().fillna(0.0)
-        )
-        long_df["roll_pace"] = (
-            group["pace_proxy"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_off_rating"] = (
-            group["points_for"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_def_rating"] = (
-            group["points_against"].shift(1).rolling(window, min_periods=1).mean()
-        )
-        long_df["roll_draw_rate"] = (
-            group["is_draw"].shift(1).rolling(window, min_periods=1).mean()
-        )
+        long_df["roll_points_for"] = group["points_for"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_points_against"] = group["points_against"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_total"] = group["total"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_total_var"] = group["total"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).var()
+        ).fillna(0.0)
+        long_df["roll_pace"] = group["pace_proxy"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_off_rating"] = group["points_for"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_def_rating"] = group["points_against"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
+        long_df["roll_draw_rate"] = group["is_draw"].transform(
+            lambda s: s.shift(1).rolling(window, min_periods=1).mean()
+        ).fillna(0.0)
         return long_df
 
     def _merge_back(self, df: pd.DataFrame, long_df: pd.DataFrame) -> pd.DataFrame:
@@ -200,7 +201,7 @@ class FeatureEngineer:
             on=["date", "league", "home_team", "away_team"],
             how="left",
         )
-        return merged
+        return merged.sort_values("date").reset_index(drop=True)
 
     def _select_features(self, df: pd.DataFrame) -> pd.DataFrame:
         features = pd.DataFrame(

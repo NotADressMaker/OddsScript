@@ -4,7 +4,7 @@ Language core for SportsBetLang.
 Re-exports the lexer/parser/AST/interpreter surface for clean separation.
 """
 
-from sportsbetlang.core import (
+from sportsbetlang.lang import (
     Lexer,
     Parser,
     Interpreter,

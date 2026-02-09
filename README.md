@@ -302,6 +302,13 @@ pip install -e ".[dev]"
 pytest
 ```
 
+Install and run pre-commit hooks:
+```bash
+pip install pre-commit
+pre-commit install
+pre-commit run --all-files
+```
+
 ## Built-in Functions
 
 Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are available by default. Betting, stats, and web helpers live in modules and must be imported (e.g., `import betting`, `import stats as s`, `import web as http`).

@@ -51,6 +51,12 @@ from sportsbetlang.core.interpreter import Interpreter
 from sportsbetlang.core.lexer import Lexer
 from sportsbetlang.core.parser import Parser
 
+try:
+    import python_multipart  # type: ignore  # noqa: F401
+    _HAS_MULTIPART = True
+except ImportError:
+    _HAS_MULTIPART = False
+
 # Create FastAPI app
 app = FastAPI(
     title="SportsBetLang API",
@@ -1201,32 +1207,38 @@ async def export_bets(
             "filename": f"bets_{datetime.now().strftime('%Y%m%d')}.json"
         }
 
-@app.post("/datasets/upload")
-async def upload_dataset(
-    file: UploadFile = File(...),
-    dataset_type: str = Form("generic"),
-    name: Optional[str] = Form(None),
-    compress: bool = Form(True)
-):
-    """
-    Upload a dataset file and persist it efficiently.
+if _HAS_MULTIPART:
+    @app.post("/datasets/upload")
+    async def upload_dataset(
+        file: UploadFile = File(...),
+        dataset_type: str = Form("generic"),
+        name: Optional[str] = Form(None),
+        compress: bool = Form(True),
+    ):
+        """
+        Upload a dataset file and persist it efficiently.
 
-    Supports CSV/JSON/text uploads with optional gzip compression.
-    """
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Filename is required")
+        Supports CSV/JSON/text uploads with optional gzip compression.
+        """
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="Filename is required")
 
-    record = dataset_storage.save_upload(
-        upload_file=file,
-        dataset_type=dataset_type,
-        name=name,
-        compress=compress
-    )
+        record = dataset_storage.save_upload(
+            upload_file=file,
+            dataset_type=dataset_type,
+            name=name,
+            compress=compress,
+        )
 
-    return {
-        "message": "Dataset uploaded successfully",
-        "dataset": record
-    }
+        return {
+            "message": "Dataset uploaded successfully",
+            "dataset": record,
+        }
+else:
+    @app.post("/datasets/upload")
+    async def upload_dataset() -> dict[str, str]:  # type: ignore[override]
+        """Placeholder upload handler when multipart support is unavailable."""
+        raise HTTPException(status_code=503, detail="python-multipart is required for uploads")
 
 @app.get("/datasets")
 async def list_datasets(dataset_type: Optional[str] = None):
