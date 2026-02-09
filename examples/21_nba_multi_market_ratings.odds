@@ -1,0 +1,52 @@
+# Multi-market ratings model example (NBA)
+
+import multi_market_ratings
+
+print("=== NBA Multi-Market Ratings Example ===")
+
+let games = [
+    {"sport": "NBA", "home_team": "Lakers", "away_team": "Warriors", "home_score": 118, "away_score": 112},
+    {"sport": "NBA", "home_team": "Celtics", "away_team": "Bucks", "home_score": 109, "away_score": 104},
+    {"sport": "NBA", "home_team": "Suns", "away_team": "Nuggets", "home_score": 115, "away_score": 121},
+    {"sport": "NBA", "home_team": "Heat", "away_team": "Knicks", "home_score": 111, "away_score": 107},
+    {"sport": "NBA", "home_team": "Mavericks", "away_team": "Clippers", "home_score": 123, "away_score": 117},
+    {"sport": "NBA", "home_team": "Warriors", "away_team": "Suns", "home_score": 120, "away_score": 113},
+    {"sport": "NBA", "home_team": "Bucks", "away_team": "Lakers", "home_score": 114, "away_score": 119},
+    {"sport": "NBA", "home_team": "Nuggets", "away_team": "Celtics", "home_score": 112, "away_score": 108},
+    {"sport": "NBA", "home_team": "Knicks", "away_team": "Mavericks", "home_score": 105, "away_score": 110},
+    {"sport": "NBA", "home_team": "Clippers", "away_team": "Heat", "home_score": 116, "away_score": 109}
+]
+
+let model = multi_market_ratings.init("NBA")
+
+for g in games {
+    multi_market_ratings.update(model, g)
+}
+
+let matchups = [
+    {"home_team": "Lakers", "away_team": "Suns", "spread_line": -3.5, "total_line": 229.5, "label": "Lakers vs Suns"},
+    {"home_team": "Celtics", "away_team": "Heat", "spread_line": -4.0, "total_line": 222.0, "label": "Celtics vs Heat"}
+]
+
+for game in matchups {
+    let pred_spread = multi_market_ratings.predict_spread(model, game.home_team, game.away_team)
+    let pred_total = multi_market_ratings.predict_total(model, game.home_team, game.away_team)
+    let pcover = multi_market_ratings.prob_cover(model, game.home_team, game.away_team, game.spread_line)
+    let pover = multi_market_ratings.prob_over(model, game.home_team, game.away_team, game.total_line)
+
+    print(game.label + " predicted spread: " + pred_spread)
+    print(game.label + " predicted total: " + pred_total)
+    print("Cover prob: " + pcover)
+    print("Over prob: " + pover)
+
+    let spread_edge = pred_spread - game.spread_line
+    let total_edge = pred_total - game.total_line
+
+    if pcover >= 0.55 and abs(spread_edge) >= 3 {
+        bet spread ("Home " + game.label) odds -110 stake 50
+    }
+
+    if pover >= 0.55 and abs(total_edge) >= 3 {
+        bet total ("Over " + game.label) odds -110 stake 50
+    }
+}
