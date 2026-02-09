@@ -435,11 +435,210 @@ class Interpreter:
             "parlay_probability": self.global_env.get("parlay_probability"),
         }
 
+    def _elo_totals_module(self) -> Dict[str, Any]:
+        from lib.elo_totals import EloTotalsModel
+
+        def init(
+            league: str = "NBA",
+            k_factor: float = 20.0,
+            base_total: Optional[float] = None,
+            base_total_std: Optional[float] = None,
+            points_per_elo: float = 0.025,
+        ) -> EloTotalsModel:
+            return EloTotalsModel(
+                league=league,
+                k_factor=k_factor,
+                base_total=base_total,
+                base_total_std=base_total_std,
+                points_per_elo=points_per_elo,
+            )
+
+        def update(model: EloTotalsModel, game: Dict[str, Any]) -> None:
+            model.update(game)
+
+        def predict_total(
+            model: EloTotalsModel,
+            home_team: str,
+            away_team: str,
+            neutral_site: bool = False,
+            home_field_adv: Optional[float] = None,
+            league_avg_total: Optional[float] = None,
+        ) -> float:
+            return model.predict_total(
+                home_team,
+                away_team,
+                neutral_site=neutral_site,
+                home_field_adv=home_field_adv,
+                league_avg_total=league_avg_total,
+            )
+
+        def prob_over(
+            model: EloTotalsModel,
+            home_team: str,
+            away_team: str,
+            line: float,
+            neutral_site: bool = False,
+            home_field_adv: Optional[float] = None,
+            league_avg_total: Optional[float] = None,
+        ) -> float:
+            return model.prob_over(
+                home_team,
+                away_team,
+                line,
+                neutral_site=neutral_site,
+                home_field_adv=home_field_adv,
+                league_avg_total=league_avg_total,
+            )
+
+        return {
+            "init": init,
+            "update": update,
+            "predict_total": predict_total,
+            "prob_over": prob_over,
+        }
+
+    def _multi_market_ratings_module(self) -> Dict[str, Any]:
+        from lib.multi_market_ratings import MultiMarketRatingsModel
+
+        def init(
+            sport: str,
+            window: Optional[int] = None,
+            k_off: Optional[float] = None,
+            k_def: Optional[float] = None,
+            home_adv: Optional[float] = None,
+            base_total: Optional[float] = None,
+            base_spread: float = 0.0,
+            spread_stdev: Optional[float] = None,
+            total_stdev: Optional[float] = None,
+            scoring_scale: Optional[float] = None,
+            k_pace: Optional[float] = None,
+        ) -> MultiMarketRatingsModel:
+            return MultiMarketRatingsModel(
+                sport=sport,
+                window=window,
+                k_off=k_off,
+                k_def=k_def,
+                home_adv=home_adv,
+                base_total=base_total,
+                base_spread=base_spread,
+                spread_stdev=spread_stdev,
+                total_stdev=total_stdev,
+                scoring_scale=scoring_scale,
+                k_pace=k_pace,
+            )
+
+        def update(model: MultiMarketRatingsModel, game: Dict[str, Any]) -> None:
+            model.update(game)
+
+        def predict(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            neutral_site: bool = False,
+        ) -> Dict[str, float]:
+            return model.predict(home_team, away_team, neutral_site=neutral_site)
+
+        def predict_spread(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.predict_spread(home_team, away_team, neutral_site=neutral_site)
+
+        def predict_total(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.predict_total(home_team, away_team, neutral_site=neutral_site)
+
+        def prob_cover(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            spread_line: float,
+            stdev: Optional[float] = None,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.prob_cover(
+                home_team,
+                away_team,
+                spread_line,
+                stdev=stdev,
+                neutral_site=neutral_site,
+            )
+
+        def prob_away_cover(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            spread_line: float,
+            stdev: Optional[float] = None,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.prob_away_cover(
+                home_team,
+                away_team,
+                spread_line,
+                stdev=stdev,
+                neutral_site=neutral_site,
+            )
+
+        def prob_over(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            total_line: float,
+            stdev: Optional[float] = None,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.prob_over(
+                home_team,
+                away_team,
+                total_line,
+                stdev=stdev,
+                neutral_site=neutral_site,
+            )
+
+        def prob_under(
+            model: MultiMarketRatingsModel,
+            home_team: str,
+            away_team: str,
+            total_line: float,
+            stdev: Optional[float] = None,
+            neutral_site: bool = False,
+        ) -> float:
+            return model.prob_under(
+                home_team,
+                away_team,
+                total_line,
+                stdev=stdev,
+                neutral_site=neutral_site,
+            )
+
+        return {
+            "init": init,
+            "update": update,
+            "predict": predict,
+            "predict_spread": predict_spread,
+            "predict_total": predict_total,
+            "prob_cover": prob_cover,
+            "prob_away_cover": prob_away_cover,
+            "prob_over": prob_over,
+            "prob_under": prob_under,
+        }
+
     def load_module(self, module: str) -> Dict[str, Any]:
         """Load a module for import statements."""
 
         if module == "betting":
             return self._betting_module()
+        if module == "elo_totals":
+            return self._elo_totals_module()
+        if module == "multi_market_ratings":
+            return self._multi_market_ratings_module()
         raise RuntimeError(f"Unknown module '{module}'")
 
     def interpret(self, program: Program) -> Any:

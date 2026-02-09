@@ -15,6 +15,7 @@ from sportsbetlang.models.registry import (
 
 _BUILTIN_MODULES = [
     "sportsbetlang.models.elo_totals",
+    "sportsbetlang.models.multi_market_ratings",
 ]
 
 bulk_register(_BUILTIN_MODULES)

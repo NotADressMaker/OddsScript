@@ -1,0 +1,50 @@
+# Multi-market ratings model example (NFL)
+
+import multi_market_ratings
+
+print("=== NFL Multi-Market Ratings Example ===")
+
+let games = [
+    {"sport": "NFL", "home_team": "Chiefs", "away_team": "Bills", "home_score": 27, "away_score": 24},
+    {"sport": "NFL", "home_team": "Eagles", "away_team": "Cowboys", "home_score": 31, "away_score": 28},
+    {"sport": "NFL", "home_team": "49ers", "away_team": "Rams", "home_score": 24, "away_score": 20},
+    {"sport": "NFL", "home_team": "Dolphins", "away_team": "Jets", "home_score": 26, "away_score": 17},
+    {"sport": "NFL", "home_team": "Ravens", "away_team": "Bengals", "home_score": 23, "away_score": 21},
+    {"sport": "NFL", "home_team": "Cowboys", "away_team": "Giants", "home_score": 30, "away_score": 16},
+    {"sport": "NFL", "home_team": "Bills", "away_team": "Eagles", "home_score": 20, "away_score": 27},
+    {"sport": "NFL", "home_team": "Rams", "away_team": "Seahawks", "home_score": 19, "away_score": 24}
+]
+
+let model = multi_market_ratings.init("NFL")
+
+for g in games {
+    multi_market_ratings.update(model, g)
+}
+
+let matchups = [
+    {"home_team": "Chiefs", "away_team": "Ravens", "spread_line": -2.5, "total_line": 47.5, "label": "Chiefs vs Ravens"},
+    {"home_team": "49ers", "away_team": "Cowboys", "spread_line": -3.0, "total_line": 45.0, "label": "49ers vs Cowboys"}
+]
+
+for game in matchups {
+    let pred_spread = multi_market_ratings.predict_spread(model, game.home_team, game.away_team)
+    let pred_total = multi_market_ratings.predict_total(model, game.home_team, game.away_team)
+    let pcover = multi_market_ratings.prob_cover(model, game.home_team, game.away_team, game.spread_line)
+    let pover = multi_market_ratings.prob_over(model, game.home_team, game.away_team, game.total_line)
+
+    print(game.label + " predicted spread: " + pred_spread)
+    print(game.label + " predicted total: " + pred_total)
+    print("Cover prob: " + pcover)
+    print("Over prob: " + pover)
+
+    let spread_edge = pred_spread - game.spread_line
+    let total_edge = pred_total - game.total_line
+
+    if pcover >= 0.55 and abs(spread_edge) >= 2 {
+        bet spread ("Home " + game.label) odds -110 stake 50
+    }
+
+    if pover >= 0.55 and abs(total_edge) >= 2 {
+        bet total ("Over " + game.label) odds -110 stake 50
+    }
+}
