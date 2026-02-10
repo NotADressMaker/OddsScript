@@ -5,10 +5,15 @@ CLI tool for backtesting multi-market ratings model predictions.
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import hashlib
+import json
 import math
 from pathlib import Path
+import random
 from typing import Any, Dict, Iterable, List, Optional
+
+from sportsbetlang.__version__ import __version__
 
 from sportsbetlang.tools.base_tool import BaseTool
 from lib.multi_market_ratings import MultiMarketRatingsModel, normalize_game_row
@@ -53,8 +58,10 @@ class MultiMarketBacktestTool(BaseTool):
             default=0.55,
             help="Probability threshold for picks (default: 0.55).",
         )
+        parser.add_argument("--seed", type=int, default=7, help="RNG seed for deterministic backtests.")
 
     def run(self, args) -> int:
+        random.seed(args.seed)
         sport = args.sport.upper()
         games = list(self._load_games(Path(args.games), sport))
         if not games:
@@ -161,10 +168,28 @@ class MultiMarketBacktestTool(BaseTool):
         out_file = out_dir / "multi_market_predictions.csv"
         self._write_predictions(out_file, predictions)
 
+        config_payload = {
+            "sport": sport,
+            "edge_threshold": edge_threshold,
+            "prob_threshold": prob_threshold,
+            "seed": args.seed,
+        }
+        config_hash = hashlib.sha256(json.dumps(config_payload, sort_keys=True).encode("utf-8")).hexdigest()
+        fixtures_file = out_dir / "multi_market_inputs.json"
+        fixtures_file.write_text(json.dumps([asdict(g) for g in games], indent=2), encoding="utf-8")
+        metadata = {"seed": args.seed, "version": __version__, "config_hash": config_hash, "inputs_artifact": str(fixtures_file)}
+        metadata_file = out_dir / "multi_market_metadata.json"
+        metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
         self.print_output(
             {
                 "games": len(games),
                 "predictions_csv": str(out_file),
+                "metadata_json": str(metadata_file),
+                "inputs_json": str(fixtures_file),
+                "seed": args.seed,
+                "version": __version__,
+                "config_hash": config_hash,
             },
             format=args.output_format,
         )

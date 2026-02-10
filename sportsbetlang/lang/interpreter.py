@@ -25,7 +25,7 @@ class ReturnValue(Exception):
 
 @dataclass(frozen=True)
 class TaggedNumber:
-    """Typed number wrapper for safety-critical betting semantics."""
+    """Tiny units system for safety-critical betting semantics."""
 
     value: float
     tag: str
@@ -38,10 +38,13 @@ class TaggedNumber:
         return TaggedNumber(float(value), "money")
 
     @staticmethod
-    def probability(value: float) -> "TaggedNumber":
-        if value < 0 or value > 1:
+    def probability(value: float, clamp: bool = False) -> "TaggedNumber":
+        numeric = float(value)
+        if clamp:
+            numeric = min(1.0, max(0.0, numeric))
+        elif numeric < 0 or numeric > 1:
             raise ValueError("Probability must be between 0 and 1")
-        return TaggedNumber(float(value), "probability")
+        return TaggedNumber(numeric, "probability")
 
     @staticmethod
     def american_odds(value: float) -> "TaggedNumber":
@@ -66,10 +69,14 @@ class TaggedNumber:
         return other
 
     def __add__(self, other: Any) -> "TaggedNumber":
+        if self.tag in {"american_odds", "decimal_odds"}:
+            raise TypeError(f"Cannot add values with unit '{self.tag}'")
         rhs = self._expect_same_tag(other, "add")
         return TaggedNumber(self.value + rhs.value, self.tag)
 
     def __sub__(self, other: Any) -> "TaggedNumber":
+        if self.tag in {"american_odds", "decimal_odds"}:
+            raise TypeError(f"Cannot subtract values with unit '{self.tag}'")
         rhs = self._expect_same_tag(other, "subtract")
         return TaggedNumber(self.value - rhs.value, self.tag)
 
@@ -266,27 +273,29 @@ class Interpreter:
         from sportsbetlang.analytics.poisson import (
             poisson_cumulative,
             poisson_probability,
+            set_seed as set_poisson_seed,
             simulate_match,
             simulate_poisson_event,
         )
+        from sportsbetlang.analytics.repro import set_global_seed
 
-        def american_to_decimal(odds: float) -> float:
+        def american_to_decimal(odds: float | TaggedNumber) -> TaggedNumber:
             """Convert American odds to decimal odds"""
-            if odds == 0:
-                raise ValueError("American odds cannot be 0")
-            if odds > 0:
-                return (odds / 100) + 1
+            american = TaggedNumber.american_odds(float(odds))
+            if american.value > 0:
+                decimal = (american.value / 100) + 1
             else:
-                return (100 / abs(odds)) + 1
+                decimal = (100 / abs(american.value)) + 1
+            return TaggedNumber.decimal_odds(decimal)
 
-        def decimal_to_american(odds: float) -> float:
+        def decimal_to_american(odds: float | TaggedNumber) -> TaggedNumber:
             """Convert decimal odds to American odds"""
-            if odds <= 1.0:
-                raise ValueError("Decimal odds must be greater than 1.0")
-            if odds >= 2.0:
-                return (odds - 1) * 100
+            decimal = TaggedNumber.decimal_odds(float(odds))
+            if decimal.value >= 2.0:
+                american = (decimal.value - 1) * 100
             else:
-                return -100 / (odds - 1)
+                american = -100 / (decimal.value - 1)
+            return TaggedNumber.american_odds(american)
 
         def implied_probability(odds: float) -> TaggedNumber:
             """Calculate implied probability from American odds"""
@@ -301,41 +310,41 @@ class Interpreter:
             prob_value = float(true_prob)
             if prob_value < 0 or prob_value > 1:
                 raise ValueError("Probability must be between 0 and 1")
-            american_value = float(odds)
-            stake_value = float(stake)
-            decimal_odds = american_to_decimal(american_value)
+            american_value = float(TaggedNumber.american_odds(float(odds)))
+            stake_value = float(TaggedNumber.money(float(stake)))
+            decimal_odds = float(american_to_decimal(american_value))
             win_amount = stake_value * (decimal_odds - 1)
             loss_amount = stake_value
             ev = (prob_value * win_amount) - ((1 - prob_value) * loss_amount)
             return TaggedNumber.money(ev)
 
-        def kelly_criterion(true_prob: float, odds: float) -> float:
+        def kelly_criterion(true_prob: float | TaggedNumber, odds: float | TaggedNumber) -> float:
             """Calculate optimal bet size using Kelly Criterion"""
-            decimal_odds = american_to_decimal(odds)
+            p = float(TaggedNumber.probability(float(true_prob)))
+            decimal_odds = float(american_to_decimal(odds))
             b = decimal_odds - 1  # net odds received on the wager
-            p = true_prob
             q = 1 - p
             kelly = (b * p - q) / b
             return max(0, kelly)  # Don't bet if kelly is negative
 
-        def parlay_odds(*odds_list: float) -> float:
+        def parlay_odds(*odds_list: float | TaggedNumber) -> TaggedNumber:
             """Calculate parlay odds from multiple bets"""
-            decimal_odds = [american_to_decimal(o) for o in odds_list]
-            combined = 1
+            decimal_odds = [float(american_to_decimal(o)) for o in odds_list]
+            combined = 1.0
             for odd in decimal_odds:
                 combined *= odd
             return decimal_to_american(combined)
 
-        def parlay_probability(*probs: float) -> float:
+        def parlay_probability(*probs: float | TaggedNumber) -> TaggedNumber:
             """Calculate probability of winning a parlay"""
-            result = 1
+            result = 1.0
             for p in probs:
-                result *= p
-            return result
+                result *= float(TaggedNumber.probability(float(p)))
+            return TaggedNumber.probability(result, clamp=True)
 
-        def break_even_percentage(odds: float) -> float:
+        def break_even_percentage(odds: float | TaggedNumber) -> TaggedNumber:
             """Calculate break-even win percentage"""
-            return float(implied_probability(odds))
+            return TaggedNumber.probability(float(implied_probability(float(odds))))
 
         def vig_calculator(odds1: float, odds2: float) -> float:
             """Calculate bookmaker's vig (juice) from two-way market"""
@@ -345,15 +354,15 @@ class Interpreter:
             vig = total - 1
             return vig * 100  # Return as percentage
 
-        def true_odds_from_vig(odds: float, total_vig: float) -> float:
+        def true_odds_from_vig(odds: float | TaggedNumber, total_vig: float) -> TaggedNumber:
             """Remove vig to get true odds"""
-            implied_prob = float(implied_probability(odds))
+            implied_prob = float(implied_probability(float(odds)))
             true_prob = implied_prob / (1 + total_vig)
             if true_prob >= 0.5:
                 true_american = -100 * true_prob / (1 - true_prob)
             else:
                 true_american = 100 * (1 - true_prob) / true_prob
-            return true_american
+            return TaggedNumber.american_odds(true_american)
 
         def units_to_risk(odds: float, units_to_win: float = 1) -> float:
             """Calculate units to risk to win specified units"""
@@ -409,8 +418,8 @@ class Interpreter:
             total_stake: float = 100,
         ) -> Dict[str, float]:
             """Calculate two-way arbitrage stakes and expected profit"""
-            decimal1 = american_to_decimal(odds1)
-            decimal2 = american_to_decimal(odds2)
+            decimal1 = float(american_to_decimal(odds1))
+            decimal2 = float(american_to_decimal(odds2))
 
             implied1 = 1 / decimal1
             implied2 = 1 / decimal2
@@ -441,8 +450,8 @@ class Interpreter:
             hedge_odds: float,
         ) -> Dict[str, float]:
             """Calculate hedge stake to lock in profit on a two-way bet"""
-            decimal_main = american_to_decimal(odds)
-            decimal_hedge = american_to_decimal(hedge_odds)
+            decimal_main = float(american_to_decimal(odds))
+            decimal_hedge = float(american_to_decimal(hedge_odds))
 
             hedge_amount = stake * (decimal_main - 1) / (decimal_hedge - 1)
             total_stake = stake + hedge_amount
@@ -460,6 +469,14 @@ class Interpreter:
                 'profit_if_hedge_wins': profit_hedge,
                 'locked_profit': min(profit_main, profit_hedge)
             }
+
+
+        def set_seed(seed: int) -> int:
+            """Set deterministic global seed for language runtime helpers."""
+            normalized = int(seed)
+            set_global_seed(normalized)
+            set_poisson_seed(normalized)
+            return normalized
 
         def poisson_simulate_event(lambda_param: float) -> int:
             """Simulate a single Poisson event."""
@@ -500,6 +517,7 @@ class Interpreter:
         self.global_env.define('poisson_simulate_event', poisson_simulate_event)
         self.global_env.define('poisson_simulate_match', poisson_simulate_match)
         self.global_env.define('poisson_simulate_matches', poisson_simulate_matches)
+        self.global_env.define('set_seed', set_seed)
         self.global_env.define('abs', abs)
         self.global_env.define('min', min)
         self.global_env.define('max', max)

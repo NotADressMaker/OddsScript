@@ -13,6 +13,14 @@ import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Tuple
 
+_RNG = random.Random()
+
+
+def set_seed(seed: int) -> None:
+    """Set deterministic seed for Poisson simulation helpers."""
+
+    _RNG.seed(seed)
+
 
 def poisson_probability(k: int, lambda_param: float) -> float:
     """Calculate Poisson probability P(X = k)."""
@@ -167,7 +175,7 @@ def simulate_poisson_event(lambda_param: float, seed: Optional[int] = None) -> i
     if lambda_param < 0:
         raise ValueError("lambda_param must be non-negative")
     if seed is not None:
-        random.seed(seed)
+        _RNG.seed(seed)
 
     if lambda_param < 30:
         threshold = math.exp(-lambda_param)
@@ -175,9 +183,9 @@ def simulate_poisson_event(lambda_param: float, seed: Optional[int] = None) -> i
         p = 1.0
         while p > threshold:
             k += 1
-            p *= random.random()
+            p *= _RNG.random()
         return k - 1
-    return max(0, int(random.gauss(lambda_param, math.sqrt(lambda_param)) + 0.5))
+    return max(0, int(_RNG.gauss(lambda_param, math.sqrt(lambda_param)) + 0.5))
 
 
 def simulate_match(
@@ -187,7 +195,7 @@ def simulate_match(
 ) -> Dict[str, object]:
     """Simulate a single match outcome using Poisson distribution."""
     if seed is not None:
-        random.seed(seed)
+        _RNG.seed(seed)
 
     home_score = simulate_poisson_event(home_lambda)
     away_score = simulate_poisson_event(away_lambda)

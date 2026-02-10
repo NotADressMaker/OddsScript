@@ -24,7 +24,15 @@ class Citation(BaseModel):
     published_at: datetime | None = None
 
 
-class InjuryReport(BaseModel):
+class ExtractedEntityV1(BaseModel):
+    schema_version: Literal["v1"] = "v1"
+    source: str
+    timestamp: datetime | None = None
+    confidence: float = 0.5
+    citation: Citation
+
+
+class InjuryReport(ExtractedEntityV1):
     player: str
     team: str | None
     status: StatusEnum
@@ -33,10 +41,9 @@ class InjuryReport(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class StarterInfo(BaseModel):
+class StarterInfo(ExtractedEntityV1):
     player: str
     team: str | None
     role: str
@@ -45,10 +52,9 @@ class StarterInfo(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class LineupInfo(BaseModel):
+class LineupInfo(ExtractedEntityV1):
     team: str
     starters: list[str]
     confirmed: bool
@@ -56,10 +62,9 @@ class LineupInfo(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class ProbablePitcher(BaseModel):
+class ProbablePitcher(ExtractedEntityV1):
     pitcher: str
     team: str | None
     opponent: str | None
@@ -68,10 +73,9 @@ class ProbablePitcher(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class StartingGoalie(BaseModel):
+class StartingGoalie(ExtractedEntityV1):
     goalie: str
     team: str | None
     confirmed: bool
@@ -79,10 +83,9 @@ class StartingGoalie(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class ScheduleContext(BaseModel):
+class ScheduleContext(ExtractedEntityV1):
     team: str
     rest_days: int | None
     back_to_back: bool | None
@@ -93,7 +96,7 @@ class ScheduleContext(BaseModel):
     confidence: float = 0.4
 
 
-class LineMove(BaseModel):
+class LineMove(ExtractedEntityV1):
     market: Literal["spread", "total", "moneyline"]
     open: str | None
     current: str | None
@@ -106,17 +109,16 @@ class LineMove(BaseModel):
     confidence: float = 0.4
 
 
-class NewsItem(BaseModel):
+class NewsItem(ExtractedEntityV1):
     headline: str
     summary: str
     update_time: datetime | None
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5
 
 
-class BoxscoreSnapshot(BaseModel):
+class BoxscoreSnapshot(ExtractedEntityV1):
     team: str
     opponent: str | None
     score: str | None
@@ -124,4 +126,3 @@ class BoxscoreSnapshot(BaseModel):
     source_url: str
     snippet: str
     citations: list[Citation]
-    confidence: float = 0.5

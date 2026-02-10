@@ -5,9 +5,14 @@ CLI tool for backtesting Elo totals model predictions.
 from __future__ import annotations
 
 import csv
-from dataclasses import dataclass
+import hashlib
+import json
+from dataclasses import asdict, dataclass
 from pathlib import Path
+import random
 from typing import Dict, Iterable, List
+
+from sportsbetlang.__version__ import __version__
 
 from sportsbetlang.tools.base_tool import BaseTool
 from lib.elo_totals import EloTotalsModel
@@ -37,8 +42,10 @@ class EloTotalsBacktestTool(BaseTool):
         parser.add_argument("--out", required=True, help="Output directory for reports.")
         parser.add_argument("--k", type=float, default=20.0, help="Elo K-factor.")
         parser.add_argument("--base-total", type=float, default=None, help="Override league avg total.")
+        parser.add_argument("--seed", type=int, default=7, help="RNG seed for deterministic backtests.")
 
     def run(self, args) -> int:
+        random.seed(args.seed)
         games = list(self._load_games(Path(args.games)))
         if not games:
             self.print_error("No games found in CSV.")
@@ -79,6 +86,13 @@ class EloTotalsBacktestTool(BaseTool):
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / "elo_totals_predictions.csv"
         self._write_predictions(out_file, predictions)
+        config_payload = {"league": args.league, "k": args.k, "base_total": args.base_total, "seed": args.seed}
+        config_hash = hashlib.sha256(json.dumps(config_payload, sort_keys=True).encode("utf-8")).hexdigest()
+        fixtures_file = out_dir / "elo_totals_inputs.json"
+        fixtures_file.write_text(json.dumps([asdict(g) for g in games], indent=2), encoding="utf-8")
+        metadata = {"seed": args.seed, "version": __version__, "config_hash": config_hash, "inputs_artifact": str(fixtures_file)}
+        metadata_file = out_dir / "elo_totals_metadata.json"
+        metadata_file.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
         self.print_output(
             {
@@ -86,6 +100,11 @@ class EloTotalsBacktestTool(BaseTool):
                 "mae": round(mae, 3),
                 "rmse": round(rmse, 3),
                 "predictions_csv": str(out_file),
+                "metadata_json": str(metadata_file),
+                "inputs_json": str(fixtures_file),
+                "seed": args.seed,
+                "version": __version__,
+                "config_hash": config_hash,
             },
             format=args.output_format,
         )

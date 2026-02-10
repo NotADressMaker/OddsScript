@@ -60,6 +60,9 @@ def extract_injuries_from_html(
                     source_url=source_url,
                     snippet=snippet,
                     citations=[citation],
+                    source=source_url,
+                    timestamp=retrieved_at,
+                    citation=citation,
                 )
             )
     return injuries
@@ -87,6 +90,9 @@ def extract_goalies_from_text(
                 source_url=source_url,
                 snippet=snippet,
                 citations=[citation],
+                source=source_url,
+                timestamp=retrieved_at,
+                citation=citation,
             )
         )
     return results
@@ -114,6 +120,9 @@ def extract_probable_pitchers(
                 source_url=source_url,
                 snippet=snippet,
                 citations=[citation],
+                source=source_url,
+                timestamp=retrieved_at,
+                citation=citation,
             )
         )
     return results
@@ -152,6 +161,9 @@ def extract_line_moves(
                 source_url=source_url,
                 snippet=snippet,
                 citations=[citation],
+                source=source_url,
+                timestamp=retrieved_at,
+                citation=citation,
             )
         )
     return results
@@ -179,6 +191,9 @@ def extract_qb_starters(
                 source_url=source_url,
                 snippet=snippet,
                 citations=[citation],
+                source=source_url,
+                timestamp=retrieved_at,
+                citation=citation,
             )
         )
     return results

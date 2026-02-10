@@ -128,6 +128,22 @@ class TestInterpreterBehavior(unittest.TestCase):
         bet = Bet("moneyline", "Lakers", -110.0, 100)
         self.assertIn("@ -110", repr(bet))
 
+    def test_probability_clamp_and_error_modes(self):
+        self.assertEqual(TaggedNumber.probability(1.2, clamp=True).value, 1.0)
+        self.assertEqual(TaggedNumber.probability(-0.3, clamp=True).value, 0.0)
+        with self.assertRaises(ValueError):
+            TaggedNumber.probability(1.2)
+
+    def test_odds_arithmetic_rejected(self):
+        with self.assertRaises(TypeError):
+            TaggedNumber.american_odds(-110) + TaggedNumber.american_odds(-105)
+
+    def test_set_seed_builtin_makes_poisson_repeatable(self):
+        self.run_code("set_seed(123)")
+        first = self.run_code("poisson_simulate_event(2.3)")
+        self.run_code("set_seed(123)")
+        second = self.run_code("poisson_simulate_event(2.3)")
+        self.assertEqual(first, second)
 
 
 class TestFixtures(unittest.TestCase):
