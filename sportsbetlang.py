@@ -11,15 +11,16 @@ from parser import Parser
 from interpreter import Interpreter, LanguageRuntimeError
 from formatting import format_source
 from linting import lint_source
+from sportsbetlang.lang.limits import EXPERT_LIMITS, SAFE_LIMITS, resolve_runtime_limits
 
 
-def run_file(filename: str):
+def run_file(filename: str, *, mode: str = "safe", max_steps: int | None = None, max_loop: int | None = None, max_recursion: int | None = None):
     """Execute a SportsBetLang file"""
     try:
         with open(filename, 'r') as f:
             source = f.read()
 
-        run(source, filename)
+        run(source, filename, mode=mode, max_steps=max_steps, max_loop=max_loop, max_recursion=max_recursion)
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found")
         sys.exit(1)
@@ -28,19 +29,21 @@ def run_file(filename: str):
         sys.exit(1)
 
 
-def run(source: str, filename: str = "<stdin>"):
+def run(source: str, filename: str = "<stdin>", *, mode: str = "safe", max_steps: int | None = None, max_loop: int | None = None, max_recursion: int | None = None):
     """Execute SportsBetLang source code"""
     try:
-        # Lexical analysis
-        lexer = Lexer(source)
+        limits = resolve_runtime_limits(
+            source,
+            base_limits=SAFE_LIMITS if mode == "safe" else EXPERT_LIMITS,
+            max_steps=max_steps,
+            max_loop=max_loop,
+            max_recursion=max_recursion,
+        )
+        lexer = Lexer(source, limits=limits)
         tokens = lexer.tokenize()
-
-        # Parsing
-        parser = Parser(tokens, source)
+        parser = Parser(tokens, source, limits=limits)
         ast = parser.parse()
-
-        # Interpretation
-        interpreter = Interpreter()
+        interpreter = Interpreter(limits=limits, source=source)
         interpreter.interpret(ast)
 
     except SyntaxError as e:
@@ -59,13 +62,14 @@ def run(source: str, filename: str = "<stdin>"):
         sys.exit(1)
 
 
-def repl():
+def repl(*, mode: str = "safe", max_steps: int | None = None, max_loop: int | None = None, max_recursion: int | None = None):
     """Run an interactive REPL"""
     print("SportsBetLang v1.0 - Sports Betting Programming Language")
     print("Type 'exit' or 'quit' to exit, 'help' for help")
     print()
 
-    interpreter = Interpreter()
+    limits = resolve_runtime_limits("", base_limits=SAFE_LIMITS if mode == "safe" else EXPERT_LIMITS, max_steps=max_steps, max_loop=max_loop, max_recursion=max_recursion)
+    interpreter = Interpreter(limits=limits, source="")
 
     while True:
         try:
@@ -81,10 +85,10 @@ def repl():
             if not line.strip():
                 continue
 
-            lexer = Lexer(line)
+            lexer = Lexer(line, limits=limits)
             tokens = lexer.tokenize()
 
-            parser = Parser(tokens, line)
+            parser = Parser(tokens, line, limits=limits)
             ast = parser.parse()
 
             result = interpreter.interpret(ast)
@@ -153,6 +157,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to a .odds SportsBetLang program.",
     )
     parser.add_argument(
+        "--mode",
+        choices=("safe", "expert"),
+        default="safe",
+        help="Runtime profile: safe defaults for new users (default) or expert.",
+    )
+    parser.add_argument("--max-steps", type=int, default=None, help="Maximum interpreter steps before aborting.")
+    parser.add_argument("--max-loop", type=int, default=None, help="Maximum loop iterations before aborting.")
+    parser.add_argument("--max-recursion", type=int, default=None, help="Maximum recursion depth before aborting.")
+    parser.add_argument(
         "--format",
         action="store_true",
         help="Format a .odds SportsBetLang program.",
@@ -196,9 +209,9 @@ def main() -> int:
                     return 1
             return 0
         if args.source:
-            run_file(args.source)
+            run_file(args.source, mode=args.mode, max_steps=args.max_steps, max_loop=args.max_loop, max_recursion=args.max_recursion)
         else:
-            repl()
+            repl(mode=args.mode, max_steps=args.max_steps, max_loop=args.max_loop, max_recursion=args.max_recursion)
     except FileNotFoundError as exc:
         print(f"Error: {exc}")
         return 1
