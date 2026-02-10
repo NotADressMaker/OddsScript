@@ -9,12 +9,16 @@ import json
 import math
 from dataclasses import dataclass
 from io import StringIO
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.request import urlopen
+
 
 from sportsbetlang.lang.diagnostics import format_snippet
 from sportsbetlang.lang.lexer import TokenType
 from sportsbetlang.lang.limits import DEFAULT_LIMITS, RuntimeLimits
 from sportsbetlang.lang.parser import *
+from sportsbetlang.lang.sandbox import HostCapabilities, SandboxViolation
 
 
 class ReturnValue(Exception):
@@ -69,14 +73,16 @@ class TaggedNumber:
         return other
 
     def __add__(self, other: Any) -> "TaggedNumber":
-        if self.tag in {"american_odds", "decimal_odds"}:
+        if self.tag in {"american_odds"}:
             raise TypeError(f"Cannot add values with unit '{self.tag}'")
         rhs = self._expect_same_tag(other, "add")
         return TaggedNumber(self.value + rhs.value, self.tag)
 
     def __sub__(self, other: Any) -> "TaggedNumber":
-        if self.tag in {"american_odds", "decimal_odds"}:
+        if self.tag in {"american_odds"}:
             raise TypeError(f"Cannot subtract values with unit '{self.tag}'")
+        if not isinstance(other, TaggedNumber) and self.tag == "decimal_odds":
+            return TaggedNumber(self.value - float(other), self.tag)
         rhs = self._expect_same_tag(other, "subtract")
         return TaggedNumber(self.value - rhs.value, self.tag)
 
@@ -225,6 +231,7 @@ class Interpreter:
         max_steps: Optional[int] = None,
         limits: RuntimeLimits = DEFAULT_LIMITS,
         source: str = "",
+        capabilities: Optional[HostCapabilities] = None,
     ) -> None:
         self.limits = limits
         self.source = source
@@ -232,6 +239,7 @@ class Interpreter:
         self.steps_remaining = self.max_steps
         self.recursion_depth = 0
         self.global_env = Environment()
+        self.capabilities = capabilities or HostCapabilities(no_io=True)
         self.setup_builtins()
 
     def _enter_eval(self) -> None:
@@ -391,6 +399,19 @@ class Interpreter:
             """Serialize a value to pretty JSON."""
             return json.dumps(value, indent=2, default=str)
 
+        def host_read_text(path: str) -> str:
+            self.capabilities.check_read_path(path)
+            return Path(path).read_text(encoding="utf-8")
+
+        def host_http_get(url: str, timeout: float = 5.0) -> str:
+            self.capabilities.check_domain(url)
+            with urlopen(url, timeout=timeout) as response:
+                payload = response.read()
+            return payload.decode("utf-8", errors="replace")
+
+        def host_audit_log() -> list[str]:
+            return self.capabilities.snapshot_audit_log()
+
         def to_csv(rows: Any) -> str:
             """Serialize rows to CSV."""
             output = StringIO()
@@ -510,6 +531,9 @@ class Interpreter:
         self.global_env.define('round_robin', round_robin)
         self.global_env.define('to_json', to_json)
         self.global_env.define('to_csv', to_csv)
+        self.global_env.define('host_read_text', host_read_text)
+        self.global_env.define('host_http_get', host_http_get)
+        self.global_env.define('host_audit_log', host_audit_log)
         self.global_env.define('arbitrage_stakes', arbitrage_stakes)
         self.global_env.define('hedge_stake', hedge_stake)
         self.global_env.define('poisson_probability', poisson_probability)
@@ -844,7 +868,11 @@ class Interpreter:
 
             elif isinstance(node, WhileLoop):
                 result = None
+                iterations = 0
                 while self.is_truthy(self.eval_node(node.condition, env)):
+                    iterations += 1
+                    if iterations > self.limits.max_loop_iterations:
+                        raise self._runtime_error("Maximum loop iteration count exceeded", node, hint="Increase --max-loop, use --mode expert, or add #limits max_loop=<n>.")
                     for stmt in node.body:
                         result = self.eval_node(stmt, env)
                 return result
@@ -895,6 +923,8 @@ class Interpreter:
                 raise RuntimeError(f"Unknown node type: {type(node)}")
         except LanguageRuntimeError:
             raise
+        except SandboxViolation as exc:
+            raise self._runtime_error(str(exc), node, hint="Adjust --allow-read-dir/--allow-domain or disable --no-io.") from exc
         except (RuntimeError, TypeError, ValueError, ZeroDivisionError) as exc:
             hint = None
             msg = str(exc)
