@@ -25,6 +25,8 @@ class TestCodegen(unittest.TestCase):
     def test_generate_python(self):
         code = generate_code(self.source, language="python")
         self.assertIn("def american_to_decimal", code)
+        self.assertIn("American odds cannot be 0", code)
+        self.assertIn("Decimal odds must be greater than 1.0", code)
         self.assertIn("sbl_create_bet", code)
         self.assertIn("sbl_create_parlay", code)
         self.assertIn("nums[1]", code)

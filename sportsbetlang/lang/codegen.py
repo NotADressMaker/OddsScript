@@ -496,6 +496,8 @@ class CodeGenerator:
 
         helper_map["american_to_decimal"] = [
             "def american_to_decimal(odds):",
+            "    if odds == 0:",
+            "        raise ValueError('American odds cannot be 0')",
             "    if odds > 0:",
             "        return (odds / 100) + 1",
             "    return (100 / abs(odds)) + 1",
@@ -503,6 +505,8 @@ class CodeGenerator:
         ]
         helper_map["decimal_to_american"] = [
             "def decimal_to_american(odds):",
+            "    if odds <= 1.0:",
+            "        raise ValueError('Decimal odds must be greater than 1.0')",
             "    if odds >= 2.0:",
             "        return (odds - 1) * 100",
             "    return -100 / (odds - 1)",

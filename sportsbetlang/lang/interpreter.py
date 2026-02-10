@@ -132,6 +132,8 @@ class Bet:
 
     def calculate_payout(self) -> float:
         """Calculate potential payout"""
+        if self.odds == 0:
+            raise ValueError("American odds cannot be 0")
         if self.odds > 0:  # American odds (positive)
             return self.stake * (self.odds / 100)
         else:  # American odds (negative)
@@ -143,6 +145,8 @@ class Bet:
 
     def to_decimal_odds(self) -> float:
         """Convert American odds to decimal"""
+        if self.odds == 0:
+            raise ValueError("American odds cannot be 0")
         if self.odds > 0:
             return (self.odds / 100) + 1
         else:
@@ -150,7 +154,7 @@ class Bet:
 
     def __repr__(self) -> str:
         spread_info = f" ({self.spread:+.1f})" if self.spread else ""
-        return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+d}, ${self.stake:.2f})"
+        return f"Bet({self.bet_type}: {self.team}{spread_info} @ {self.odds:+.0f}, ${self.stake:.2f})"
 
 
 class Interpreter:
@@ -196,6 +200,8 @@ class Interpreter:
 
         def american_to_decimal(odds: float) -> float:
             """Convert American odds to decimal odds"""
+            if odds == 0:
+                raise ValueError("American odds cannot be 0")
             if odds > 0:
                 return (odds / 100) + 1
             else:
@@ -203,6 +209,8 @@ class Interpreter:
 
         def decimal_to_american(odds: float) -> float:
             """Convert decimal odds to American odds"""
+            if odds <= 1.0:
+                raise ValueError("Decimal odds must be greater than 1.0")
             if odds >= 2.0:
                 return (odds - 1) * 100
             else:
