@@ -6,19 +6,28 @@ on:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.10"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-      - name: Run tests
+          pip install -e ".[dev,research]"
+      - name: Run tests with coverage threshold
         run: |
-          pytest
+          pytest --cov=sportsbetlang --cov-report=term-missing --cov-fail-under=70
+      - name: Smoke run CLI examples
+        run: |
+          betlang run examples/01_basic_bet.odds --json
+          betlang run examples/06_odds_conversion.odds --json
       - name: Ruff format check
         run: |
           ruff format --check .
@@ -27,4 +36,4 @@ jobs:
           ruff check .
       - name: Mypy
         run: |
-          mypy sportsbetlang/cli.py linting.py formatting.py
+          mypy sportsbetlang/cli.py sportsbetlang/betlang_cli.py linting.py formatting.py
