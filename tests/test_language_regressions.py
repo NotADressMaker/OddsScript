@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from sportsbetlang.core.diagnostics import DiagnosticError
-from sportsbetlang.core.interpreter import Bet, Interpreter, TaggedNumber
+from sportsbetlang.core.interpreter import Bet, Interpreter, LanguageRuntimeError, TaggedNumber
 from sportsbetlang.core.lexer import Lexer
 from sportsbetlang.core.parser import Parser
 
@@ -101,6 +101,16 @@ class TestInterpreterBehavior(unittest.TestCase):
             self.assertLessEqual(prob.value, 1)
 
 
+
+    def test_tagged_number_prevents_mixed_units(self):
+        with self.assertRaises(LanguageRuntimeError) as context:
+            self.run_code("implied_probability(-110) + calculate_ev(0.55, -110, 100)")
+        self.assertIn("Cannot add", str(context.exception))
+
+    def test_calculate_ev_returns_money_tag(self):
+        result = self.run_code("calculate_ev(0.55, -110, 100)")
+        self.assertIsInstance(result, TaggedNumber)
+        self.assertEqual(result.tag, "money")
     def test_odds_conversion_rejects_zero_american(self):
         interpreter = Interpreter()
         american_to_decimal = interpreter.global_env.get("american_to_decimal")

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import Any, Dict, List, Optional
 
+from sportsbetlang.lang.diagnostics import format_snippet
 from sportsbetlang.lang.lexer import TokenType
 from sportsbetlang.lang.limits import DEFAULT_LIMITS, RuntimeLimits
 from sportsbetlang.lang.parser import *
@@ -24,39 +25,86 @@ class ReturnValue(Exception):
 
 @dataclass(frozen=True)
 class TaggedNumber:
-    """Number wrapper tagged with semantic metadata (e.g., probability)."""
+    """Typed number wrapper for safety-critical betting semantics."""
+
     value: float
     tag: str
 
     def __float__(self) -> float:
         return float(self.value)
 
-    def _coerce(self, other: Any) -> float:
+    @staticmethod
+    def money(value: float) -> "TaggedNumber":
+        return TaggedNumber(float(value), "money")
+
+    @staticmethod
+    def probability(value: float) -> "TaggedNumber":
+        if value < 0 or value > 1:
+            raise ValueError("Probability must be between 0 and 1")
+        return TaggedNumber(float(value), "probability")
+
+    @staticmethod
+    def american_odds(value: float) -> "TaggedNumber":
+        if value == 0:
+            raise ValueError("American odds cannot be 0")
+        return TaggedNumber(float(value), "american_odds")
+
+    @staticmethod
+    def decimal_odds(value: float) -> "TaggedNumber":
+        if value <= 1.0:
+            raise ValueError("Decimal odds must be greater than 1.0")
+        return TaggedNumber(float(value), "decimal_odds")
+
+    def _number(self, other: Any) -> float:
         return other.value if isinstance(other, TaggedNumber) else float(other)
 
-    def __add__(self, other: Any) -> float:
-        return float(self.value) + self._coerce(other)
+    def _expect_same_tag(self, other: Any, op: str) -> "TaggedNumber":
+        if not isinstance(other, TaggedNumber):
+            raise TypeError(f"Cannot {op} tagged value '{self.tag}' with untagged number")
+        if other.tag != self.tag:
+            raise TypeError(f"Cannot {op} '{self.tag}' and '{other.tag}'")
+        return other
 
-    def __radd__(self, other: Any) -> float:
-        return self._coerce(other) + float(self.value)
+    def __add__(self, other: Any) -> "TaggedNumber":
+        rhs = self._expect_same_tag(other, "add")
+        return TaggedNumber(self.value + rhs.value, self.tag)
 
-    def __sub__(self, other: Any) -> float:
-        return float(self.value) - self._coerce(other)
+    def __sub__(self, other: Any) -> "TaggedNumber":
+        rhs = self._expect_same_tag(other, "subtract")
+        return TaggedNumber(self.value - rhs.value, self.tag)
 
-    def __rsub__(self, other: Any) -> float:
-        return self._coerce(other) - float(self.value)
+    def __mul__(self, other: Any) -> "TaggedNumber":
+        if isinstance(other, TaggedNumber):
+            raise TypeError(f"Cannot multiply '{self.tag}' by '{other.tag}'")
+        return TaggedNumber(self.value * float(other), self.tag)
 
-    def __mul__(self, other: Any) -> float:
-        return float(self.value) * self._coerce(other)
+    def __rmul__(self, other: Any) -> "TaggedNumber":
+        return self.__mul__(other)
 
-    def __rmul__(self, other: Any) -> float:
-        return self._coerce(other) * float(self.value)
+    def __truediv__(self, other: Any) -> "TaggedNumber":
+        if isinstance(other, TaggedNumber):
+            raise TypeError(f"Cannot divide '{self.tag}' by '{other.tag}'")
+        return TaggedNumber(self.value / float(other), self.tag)
 
-    def __truediv__(self, other: Any) -> float:
-        return float(self.value) / self._coerce(other)
+    def __lt__(self, other: Any) -> bool:
+        if isinstance(other, TaggedNumber):
+            self._expect_same_tag(other, "compare")
+            return self.value < other.value
+        return self.value < float(other)
 
-    def __rtruediv__(self, other: Any) -> float:
-        return self._coerce(other) / float(self.value)
+    def __le__(self, other: Any) -> bool:
+        return self == other or self < other
+
+    def __gt__(self, other: Any) -> bool:
+        return not self <= other
+
+    def __ge__(self, other: Any) -> bool:
+        return not self < other
+
+    def __eq__(self, other: Any) -> bool:  # type: ignore[override]
+        if isinstance(other, TaggedNumber):
+            return self.tag == other.tag and self.value == other.value
+        return self.value == float(other)
 
 
 @dataclass
@@ -64,6 +112,8 @@ class LanguageRuntimeError(RuntimeError):
     message: str
     line: Optional[int] = None
     column: Optional[int] = None
+    source: Optional[str] = None
+    hint: Optional[str] = None
 
     def __post_init__(self) -> None:
         super().__init__(self.message)
@@ -72,6 +122,11 @@ class LanguageRuntimeError(RuntimeError):
         details = self.message
         if self.line is not None and self.column is not None:
             details = f"{details} (line {self.line}, column {self.column})"
+        snippet = format_snippet(self.source or "", self.line, self.column)
+        if snippet:
+            details = f"{details}\n{snippet}"
+        if self.hint:
+            details = f"{details}\nHint: {self.hint}"
         return details
 
     def __str__(self) -> str:
@@ -162,8 +217,10 @@ class Interpreter:
         self,
         max_steps: Optional[int] = None,
         limits: RuntimeLimits = DEFAULT_LIMITS,
+        source: str = "",
     ) -> None:
         self.limits = limits
+        self.source = source
         self.max_steps = max_steps or limits.max_steps
         self.steps_remaining = self.max_steps
         self.recursion_depth = 0
@@ -173,21 +230,36 @@ class Interpreter:
     def _enter_eval(self) -> None:
         self.steps_remaining -= 1
         if self.steps_remaining < 0:
-            raise LanguageRuntimeError("Execution step limit exceeded")
+            raise LanguageRuntimeError(
+                "Execution step limit exceeded",
+                source=self.source,
+                hint="Increase --max-steps, use --mode expert, or add #limits max_steps=<n>.",
+            )
         self.recursion_depth += 1
         if self.recursion_depth > self.limits.max_recursion_depth:
-            raise LanguageRuntimeError("Maximum recursion depth exceeded")
+            raise LanguageRuntimeError(
+                "Maximum recursion depth exceeded",
+                source=self.source,
+                hint="Increase --max-recursion, use --mode expert, or refactor recursive functions.",
+            )
 
     def _exit_eval(self) -> None:
         self.recursion_depth = max(self.recursion_depth - 1, 0)
 
     def _check_string_length(self, value: str) -> None:
         if len(value) > self.limits.max_string_length:
-            raise LanguageRuntimeError("Maximum string length exceeded")
+            raise LanguageRuntimeError("Maximum string length exceeded", source=self.source)
 
     def _check_list_length(self, value: List[Any]) -> None:
         if len(value) > self.limits.max_list_length:
-            raise LanguageRuntimeError("Maximum list length exceeded")
+            raise LanguageRuntimeError("Maximum list length exceeded", source=self.source)
+
+    def _node_location(self, node: ASTNode) -> tuple[Optional[int], Optional[int]]:
+        return getattr(node, "line", None), getattr(node, "column", None)
+
+    def _runtime_error(self, message: str, node: ASTNode, hint: Optional[str] = None) -> LanguageRuntimeError:
+        line, column = self._node_location(node)
+        return LanguageRuntimeError(message, line=line, column=column, source=self.source, hint=hint)
 
     def setup_builtins(self) -> None:
         """Setup built-in functions for betting operations"""
@@ -222,15 +294,20 @@ class Interpreter:
                 probability = 100 / (odds + 100)
             else:
                 probability = abs(odds) / (abs(odds) + 100)
-            return TaggedNumber(probability, "probability")
+            return TaggedNumber.probability(probability)
 
-        def calculate_ev(true_prob: float, odds: float, stake: float = 100) -> float:
-            """Calculate expected value of a bet"""
-            decimal_odds = american_to_decimal(odds)
-            win_amount = stake * (decimal_odds - 1)
-            loss_amount = stake
-            ev = (true_prob * win_amount) - ((1 - true_prob) * loss_amount)
-            return ev
+        def calculate_ev(true_prob: float | TaggedNumber, odds: float | TaggedNumber, stake: float | TaggedNumber = 100) -> TaggedNumber:
+            """Calculate expected value of a bet."""
+            prob_value = float(true_prob)
+            if prob_value < 0 or prob_value > 1:
+                raise ValueError("Probability must be between 0 and 1")
+            american_value = float(odds)
+            stake_value = float(stake)
+            decimal_odds = american_to_decimal(american_value)
+            win_amount = stake_value * (decimal_odds - 1)
+            loss_amount = stake_value
+            ev = (prob_value * win_amount) - ((1 - prob_value) * loss_amount)
+            return TaggedNumber.money(ev)
 
         def kelly_criterion(true_prob: float, odds: float) -> float:
             """Calculate optimal bet size using Kelly Criterion"""
@@ -258,19 +335,19 @@ class Interpreter:
 
         def break_even_percentage(odds: float) -> float:
             """Calculate break-even win percentage"""
-            return implied_probability(odds)
+            return float(implied_probability(odds))
 
         def vig_calculator(odds1: float, odds2: float) -> float:
             """Calculate bookmaker's vig (juice) from two-way market"""
-            prob1 = implied_probability(odds1)
-            prob2 = implied_probability(odds2)
+            prob1 = float(implied_probability(odds1))
+            prob2 = float(implied_probability(odds2))
             total = prob1 + prob2
             vig = total - 1
             return vig * 100  # Return as percentage
 
         def true_odds_from_vig(odds: float, total_vig: float) -> float:
             """Remove vig to get true odds"""
-            implied_prob = implied_probability(odds)
+            implied_prob = float(implied_probability(odds))
             true_prob = implied_prob / (1 + total_vig)
             if true_prob >= 0.5:
                 true_american = -100 * true_prob / (1 - true_prob)
@@ -290,7 +367,7 @@ class Interpreter:
             if wins + losses == 0:
                 return 0
             win_rate = wins / (wins + losses)
-            avg_payout = calculate_ev(win_rate, avg_odds, 100)
+            avg_payout = float(calculate_ev(win_rate, avg_odds, 100))
             total_staked = (wins + losses) * 100
             total_return = wins * (100 + abs(avg_payout))
             roi = ((total_return - total_staked) / total_staked) * 100
@@ -761,7 +838,7 @@ class Interpreter:
                 for item in iterable:
                     iterations += 1
                     if iterations > self.limits.max_loop_iterations:
-                        raise LanguageRuntimeError("Maximum loop iteration count exceeded")
+                        raise self._runtime_error("Maximum loop iteration count exceeded", node, hint="Increase --max-loop, use --mode expert, or add #limits max_loop=<n>.")
                     loop_env = Environment(env)
                     loop_env.define(node.variable, item)
                     for stmt in node.body:
@@ -798,6 +875,20 @@ class Interpreter:
 
             else:
                 raise RuntimeError(f"Unknown node type: {type(node)}")
+        except LanguageRuntimeError:
+            raise
+        except (RuntimeError, TypeError, ValueError, ZeroDivisionError) as exc:
+            hint = None
+            msg = str(exc)
+            if "Undefined variable" in msg:
+                hint = "Declare it first with 'let name = ...' before using it."
+            elif "not a function" in msg:
+                hint = "Check the callee name and ensure you're calling a function value."
+            elif "Cannot reassign constant" in msg:
+                hint = "Use 'let' for mutable values, or avoid reassigning a 'const'."
+            elif "expects" in msg and "arguments" in msg:
+                hint = "Verify the function signature and the number of arguments passed."
+            raise self._runtime_error(msg, node, hint=hint) from exc
         finally:
             self._exit_eval()
 

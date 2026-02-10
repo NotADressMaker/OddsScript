@@ -174,8 +174,10 @@ class Parser:
 
     def _track_node(self, node: ASTNode, token: Optional[Token] = None) -> ASTNode:
         self.ast_nodes += 1
+        location = token or self.current_token()
+        setattr(node, "line", location.line)
+        setattr(node, "column", location.column)
         if self.ast_nodes > self.limits.max_ast_nodes:
-            location = token or self.current_token()
             raise DiagnosticError(
                 "AST node limit exceeded",
                 location.line,
