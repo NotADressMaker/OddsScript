@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from sportsbetlang.core.diagnostics import DiagnosticError
-from sportsbetlang.core.interpreter import Interpreter, TaggedNumber
+from sportsbetlang.core.interpreter import Bet, Interpreter, TaggedNumber
 from sportsbetlang.core.lexer import Lexer
 from sportsbetlang.core.parser import Parser
 
@@ -99,6 +99,25 @@ class TestInterpreterBehavior(unittest.TestCase):
             prob = implied_probability(odds)
             self.assertGreaterEqual(prob.value, 0)
             self.assertLessEqual(prob.value, 1)
+
+
+    def test_odds_conversion_rejects_zero_american(self):
+        interpreter = Interpreter()
+        american_to_decimal = interpreter.global_env.get("american_to_decimal")
+        with self.assertRaises(ValueError):
+            american_to_decimal(0)
+
+    def test_odds_conversion_rejects_invalid_decimal(self):
+        interpreter = Interpreter()
+        decimal_to_american = interpreter.global_env.get("decimal_to_american")
+        for decimal_odds in (1.0, 0.95):
+            with self.assertRaises(ValueError):
+                decimal_to_american(decimal_odds)
+
+    def test_bet_repr_formats_float_odds(self):
+        bet = Bet("moneyline", "Lakers", -110.0, 100)
+        self.assertIn("@ -110", repr(bet))
+
 
 
 class TestFixtures(unittest.TestCase):
