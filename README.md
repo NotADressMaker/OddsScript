@@ -279,20 +279,19 @@ let data = http.get_json("https://example.com/data.json")
 
 ## CLI Usage
 
-Run the REPL:
+SportsBetLang now uses a single front door with explicit subcommands:
+
 ```bash
-sportsbetlang
+betlang run examples/01_basic_bet.odds
+betlang repl
+betlang test -q
+betlang ingest backfill --sport nba --start 2025-10-01 --end 2025-10-31
+betlang research --json "tonight's nba injury report"
 ```
 
-Run a program:
-```bash
-sportsbetlang examples/01_basic_bet.odds
-```
+All major subcommands support `--json` for machine-readable automation output.
 
-Limit execution steps for untrusted scripts:
-```bash
-sportsbetlang --max-steps 100000 examples/01_basic_bet.odds
-```
+For complete canonical workflows and copy/paste recipes, see [docs/GOLDEN_PATHS_RECIPES.md](docs/GOLDEN_PATHS_RECIPES.md).
 
 ## Development + Tests
 

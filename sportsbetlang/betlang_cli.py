@@ -1,111 +1,199 @@
-"""
-BetLang CLI entry point.
-"""
+"""Unified BetLang CLI front door."""
 
 from __future__ import annotations
 
 import argparse
+import io
+import json
+import sys
+from contextlib import redirect_stdout
 from pathlib import Path
 
 from formatting import format_source
 from interpreter import Interpreter, LanguageRuntimeError
 from lexer import Lexer
 from linting import lint_source
-from parser import Parser
+from parser import Parser, Program
+from sportsbetlang.ingestion.config import DEFAULT_MARKETS, PipelineConfig, SourceConfig, Tooling
+from sportsbetlang.ingestion.pipelines.runner import PipelineRunner
+from sportsbetlang.lang.ir import build_ir, has_definitely_infinite_loop
 from sportsbetlang.lang.limits import EXPERT_LIMITS, SAFE_LIMITS, resolve_runtime_limits
+from sportsbetlang.lang.sandbox import HostCapabilities
+
+
+def _add_runtime_flags(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--mode", choices=("safe", "expert"), default="safe")
+    parser.add_argument("--max-steps", type=int, default=None)
+    parser.add_argument("--max-loop", type=int, default=None)
+    parser.add_argument("--max-recursion", type=int, default=None)
+    parser.add_argument(
+        "--no-io", action="store_true", help="Disable host file/network functions (default deny)."
+    )
+    parser.add_argument(
+        "--allow-read-dir",
+        action="append",
+        default=[],
+        help="Allow host_read_text() access under this directory. Repeatable.",
+    )
+    parser.add_argument(
+        "--allow-domain",
+        action="append",
+        default=[],
+        help="Allow host_http_get() to this domain. Repeatable.",
+    )
+    parser.add_argument(
+        "--audit-log", default=None, help="Write host capability audit events to this file."
+    )
+
+
+def _add_json_flag(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--json", dest="as_json", action="store_true", help="Emit machine-readable JSON output."
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="betlang",
-        description="Run SportsBetLang programs with simple subcommands.",
+        prog="betlang", description="Unified CLI for SportsBetLang workflows."
     )
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run a SportsBetLang .odds file.")
     run_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
-    run_parser.add_argument("--mode", choices=("safe", "expert"), default="safe")
-    run_parser.add_argument("--max-steps", type=int, default=None)
-    run_parser.add_argument("--max-loop", type=int, default=None)
-    run_parser.add_argument("--max-recursion", type=int, default=None)
+    _add_runtime_flags(run_parser)
+    _add_json_flag(run_parser)
 
     repl_parser = subparsers.add_parser("repl", help="Start an interactive REPL.")
-    repl_parser.add_argument("--mode", choices=("safe", "expert"), default="safe")
-    repl_parser.add_argument("--max-steps", type=int, default=None)
-    repl_parser.add_argument("--max-loop", type=int, default=None)
-    repl_parser.add_argument("--max-recursion", type=int, default=None)
+    _add_runtime_flags(repl_parser)
+    _add_json_flag(repl_parser)
+
+    test_parser = subparsers.add_parser("test", help="Run repository tests via pytest.")
+    test_parser.add_argument("pytest_args", nargs="*", help="Additional pytest args.")
+    _add_json_flag(test_parser)
+
+    ingest_parser = subparsers.add_parser("ingest", help="Run ingestion pipelines (backfill/live).")
+    ingest_parser.add_argument("mode", choices=("backfill", "live"))
+    ingest_parser.add_argument("--sport", required=True)
+    ingest_parser.add_argument("--start", dest="start_date", required=True)
+    ingest_parser.add_argument("--end", dest="end_date", required=True)
+    ingest_parser.add_argument("--markets", default=",".join(DEFAULT_MARKETS))
+    _add_json_flag(ingest_parser)
+
+    research_parser = subparsers.add_parser("research", help="Run compliant web research agent.")
+    research_parser.add_argument("query", help="Research query")
+    research_parser.add_argument("--sources", type=str, help="Path to seed URL list")
+    research_parser.add_argument("--sitemaps", type=str, help="Path to sitemap list")
+    research_parser.add_argument("--rss", type=str, help="Path to RSS feed list")
+    research_parser.add_argument("--no-external-search", action="store_true")
+    research_parser.add_argument("--max-results", type=int, default=8)
+    research_parser.add_argument("--cache-dir", type=str, default=".cache/web_research_agent")
+    research_parser.add_argument("--rate-limit", type=float, default=1.0)
+    research_parser.add_argument(
+        "--user-agent", type=str, default="WebResearchAgent/1.0 (+https://example.org/agent)"
+    )
+    _add_json_flag(research_parser)
 
     format_parser = subparsers.add_parser("format", help="Format a .odds SportsBetLang program.")
     format_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
     format_parser.add_argument(
-        "--write",
-        action="store_true",
-        help="Write formatted output back to the source file.",
+        "--write", action="store_true", help="Write formatted output back to the source file."
     )
+    _add_json_flag(format_parser)
 
     lint_parser = subparsers.add_parser("lint", help="Lint a .odds SportsBetLang program.")
     lint_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
-
+    _add_json_flag(lint_parser)
     return parser
 
 
-def run_source(source: str, filename: str, *, mode: str, max_steps: int | None, max_loop: int | None, max_recursion: int | None) -> None:
-    limits = resolve_runtime_limits(
+def _emit(args: argparse.Namespace, payload: dict, text: str | None = None) -> None:
+    if getattr(args, "as_json", False):
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    elif text:
+        print(text)
+
+
+def _runtime_limits(source: str, args: argparse.Namespace):
+    return resolve_runtime_limits(
         source,
-        base_limits=SAFE_LIMITS if mode == "safe" else EXPERT_LIMITS,
-        max_steps=max_steps,
-        max_loop=max_loop,
-        max_recursion=max_recursion,
+        base_limits=SAFE_LIMITS if args.mode == "safe" else EXPERT_LIMITS,
+        max_steps=args.max_steps,
+        max_loop=args.max_loop,
+        max_recursion=args.max_recursion,
     )
-    lexer = Lexer(source, limits=limits)
-    tokens = lexer.tokenize()
-    parser = Parser(tokens, source, limits=limits)
-    ast = parser.parse()
-    interpreter = Interpreter(limits=limits, source=source)
-    interpreter.interpret(ast)
 
 
-def run_file(path: str, *, mode: str, max_steps: int | None, max_loop: int | None, max_recursion: int | None) -> None:
-    file_path = Path(path)
+def _run_file(args: argparse.Namespace) -> int:
+    file_path = Path(args.source)
     if not file_path.exists():
-        raise FileNotFoundError(f"File '{path}' not found")
+        raise FileNotFoundError(f"File '{args.source}' not found")
+
     source = file_path.read_text(encoding="utf-8")
-    run_source(source, str(file_path), mode=mode, max_steps=max_steps, max_loop=max_loop, max_recursion=max_recursion)
+    limits = _runtime_limits(source, args)
+    tokens = Lexer(source, limits=limits).tokenize()
+    ast = Parser(tokens, source, limits=limits).parse()
+    ir_program = build_ir(ast)
+    if has_definitely_infinite_loop(ir_program):
+        raise LanguageRuntimeError("Program contains a definitely-infinite while true loop")
+
+    interpreter = Interpreter(
+        limits=limits,
+        source=source,
+        capabilities=HostCapabilities(
+            no_io=args.no_io,
+            allow_read_dirs=args.allow_read_dir,
+            allow_domains=args.allow_domain,
+        ),
+    )
+    program_output = ""
+    if args.as_json:
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            interpreter.interpret(Program(statements=ir_program.statements))
+        program_output = stream.getvalue()
+    else:
+        interpreter.interpret(Program(statements=ir_program.statements))
+
+    if args.audit_log:
+        Path(args.audit_log).write_text(
+            "\n".join(interpreter.capabilities.snapshot_audit_log()) + "\n", encoding="utf-8"
+        )
+
+    payload = {"command": "run", "status": "ok", "source": str(file_path)}
+    if args.as_json:
+        payload["program_output"] = program_output
+    _emit(args, payload)
+    return 0
 
 
-def repl(*, mode: str, max_steps: int | None, max_loop: int | None, max_recursion: int | None) -> None:
+def _repl(args: argparse.Namespace) -> int:
     print("SportsBetLang v1.0 - Sports Betting Programming Language")
     print("Type 'exit' or 'quit' to exit, 'help' for help")
     print()
 
-    limits = resolve_runtime_limits("", base_limits=SAFE_LIMITS if mode == "safe" else EXPERT_LIMITS, max_steps=max_steps, max_loop=max_loop, max_recursion=max_recursion)
-    interpreter = Interpreter(limits=limits, source="")
+    limits = _runtime_limits("", args)
+    interpreter = Interpreter(
+        limits=limits,
+        source="",
+        capabilities=HostCapabilities(
+            no_io=args.no_io,
+            allow_read_dirs=args.allow_read_dir,
+            allow_domains=args.allow_domain,
+        ),
+    )
 
     while True:
         try:
             line = input(">>> ")
-
             if line.strip() in ["exit", "quit"]:
                 break
-
-            if line.strip() == "help":
-                print_help()
-                continue
-
             if not line.strip():
                 continue
-
-            lexer = Lexer(line, limits=limits)
-            tokens = lexer.tokenize()
-
-            parser = Parser(tokens, line, limits=limits)
-            ast = parser.parse()
-
+            tokens = Lexer(line, limits=limits).tokenize()
+            ast = Parser(tokens, line, limits=limits).parse()
             result = interpreter.interpret(ast)
-
             if result is not None:
                 print(result)
-
         except EOFError:
             break
         except KeyboardInterrupt:
@@ -116,53 +204,213 @@ def repl(*, mode: str, max_steps: int | None, max_loop: int | None, max_recursio
         except Exception as exc:
             print(f"Error: {exc}")
 
+    _emit(args, {"command": "repl", "status": "ok"})
+    return 0
 
-def print_help() -> None:
-    help_text = """
-BetLang - SportsBetLang Runner
 
-COMMANDS:
-  betlang run examples/01_basic_bet.odds   Run a .odds file
-  betlang repl                             Start the REPL
-  betlang format examples/01_basic_bet.odds
-  betlang lint examples/01_basic_bet.odds
-"""
-    print(help_text)
+def _test(args: argparse.Namespace) -> int:
+    import pytest
+
+    code = pytest.main(args.pytest_args)
+    _emit(args, {"command": "test", "status": "ok" if code == 0 else "failed", "exit_code": code})
+    return int(code)
+
+
+def _ingest(args: argparse.Namespace) -> int:
+    config = PipelineConfig(
+        sport=args.sport,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        markets=[market.strip() for market in args.markets.split(",")],
+        sources=SourceConfig(),
+    )
+    report = PipelineRunner(Tooling()).run(config, mode=args.mode)
+
+    payload = {
+        "command": "ingest",
+        "status": "ok",
+        "mode": args.mode,
+        "counts": report.counts,
+        "data_gaps": report.data_gaps,
+        "feature_preview_sql": report.feature_preview_sql,
+    }
+    _emit(
+        args,
+        payload,
+        text=(
+            "Pipeline run complete\n"
+            f"Counts: {report.counts}\n"
+            f"Data gaps: {report.data_gaps}\n"
+            f"Feature preview SQL: {report.feature_preview_sql}"
+        ),
+    )
+    return 0
+
+
+def _research(args: argparse.Namespace) -> int:
+    from sportsbetlang.web_research_agent.cli import (
+        DEFAULT_USER_AGENT,
+        _confidence_score,
+        _read_url_file,
+    )
+    from sportsbetlang.web_research_agent.extract import extract_facts
+    from sportsbetlang.web_research_agent.fetch import FetchError, RobotsBlockedError, WebFetcher
+    from sportsbetlang.web_research_agent.output import build_summary, format_json, format_markdown
+    from sportsbetlang.web_research_agent.parse import is_soft_404, parse_html
+    from sportsbetlang.web_research_agent.search import SearchConfig, Searcher
+    from sportsbetlang.web_research_agent.verify import detect_contradictions, triangulate
+
+    user_agent = args.user_agent or DEFAULT_USER_AGENT
+    fetcher = WebFetcher(
+        cache_dir=Path(args.cache_dir),
+        user_agent=user_agent,
+        rate_limit_per_domain=args.rate_limit,
+    )
+    try:
+        config = SearchConfig(
+            sitemaps=_read_url_file(args.sitemaps),
+            rss_feeds=_read_url_file(args.rss),
+            seed_urls=_read_url_file(args.sources),
+            no_external_search=args.no_external_search,
+        )
+        searcher = Searcher(fetcher=fetcher, config=config)
+        results = searcher.search(args.query, max_results=args.max_results)
+
+        facts = []
+        for result in results:
+            try:
+                fetched = fetcher.fetch(result.url)
+            except (RobotsBlockedError, FetchError):
+                continue
+            if fetched.status_code in {401, 403}:
+                continue
+            document = parse_html(fetched.content, fetched.final_url)
+            if is_soft_404(document):
+                continue
+            facts.extend(extract_facts(args.query, document, fetched.fetched_at))
+
+        verification = triangulate(facts)
+        contradictions = detect_contradictions(facts)
+        confidence = _confidence_score(verification, contradictions)
+        summary = build_summary(args.query, verification["confirmed"], verification["unconfirmed"])
+
+        if args.as_json:
+            print(format_json(args.query, summary, facts, contradictions, confidence))
+        else:
+            print(format_markdown(args.query, facts, contradictions, confidence))
+        return 0
+    finally:
+        fetcher.close()
+
+
+def _format(args: argparse.Namespace) -> int:
+    file_path = Path(args.source)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File '{args.source}' not found")
+    source = file_path.read_text(encoding="utf-8")
+    formatted = format_source(source)
+    if args.write:
+        file_path.write_text(formatted, encoding="utf-8")
+    else:
+        print(formatted, end="")
+    _emit(
+        args,
+        {"command": "format", "status": "ok", "wrote": bool(args.write), "source": str(file_path)},
+    )
+    return 0
+
+
+def _lint(args: argparse.Namespace) -> int:
+    file_path = Path(args.source)
+    if not file_path.exists():
+        raise FileNotFoundError(f"File '{args.source}' not found")
+    source = file_path.read_text(encoding="utf-8")
+    issues = lint_source(source)
+    if issues:
+        if args.as_json:
+            print(
+                json.dumps(
+                    {
+                        "command": "lint",
+                        "status": "failed",
+                        "issues": [issue.format() for issue in issues],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            for issue in issues:
+                print(issue.format())
+        return 1
+    _emit(args, {"command": "lint", "status": "ok", "issues": []})
+    return 0
+
+
+def _normalize_argv(argv: list[str]) -> list[str]:
+    """Support legacy invocations by translating them to subcommands."""
+    if not argv:
+        return ["repl"]
+
+    known = {
+        "run",
+        "repl",
+        "test",
+        "ingest",
+        "research",
+        "format",
+        "lint",
+        "-h",
+        "--help",
+        "--version",
+    }
+    if argv[0] in known:
+        return argv
+
+    # Legacy form: `sportsbetlang <file> [runtime-flags]`
+    if not argv[0].startswith("-"):
+        return ["run", *argv]
+
+    # Legacy formatter/linter forms: `sportsbetlang --format file` or `--lint file`
+    if argv[0] in {"--format", "--lint"}:
+        command = argv[0][2:]
+        return [command, *argv[1:]]
+
+    # Legacy runtime flags before file: `sportsbetlang --max-steps 100 file.odds`
+    runtime_flags = {
+        "--mode",
+        "--max-steps",
+        "--max-loop",
+        "--max-recursion",
+        "--no-io",
+        "--allow-read-dir",
+        "--allow-domain",
+        "--audit-log",
+    }
+    if argv[0] in runtime_flags and any(not token.startswith("-") for token in argv):
+        return ["run", *argv]
+    return argv
 
 
 def main() -> int:
     parser = build_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(_normalize_argv(sys.argv[1:]))
 
     try:
         if args.command == "run":
-            run_file(args.source, mode=args.mode, max_steps=args.max_steps, max_loop=args.max_loop, max_recursion=args.max_recursion)
-            return 0
-        if args.command == "repl" or args.command is None:
-            repl(mode=getattr(args, "mode", "safe"), max_steps=getattr(args, "max_steps", None), max_loop=getattr(args, "max_loop", None), max_recursion=getattr(args, "max_recursion", None))
-            return 0
+            return _run_file(args)
+        if args.command == "repl":
+            return _repl(args)
+        if args.command == "test":
+            return _test(args)
+        if args.command == "ingest":
+            return _ingest(args)
+        if args.command == "research":
+            return _research(args)
         if args.command == "format":
-            file_path = Path(args.source)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File '{args.source}' not found")
-            source = file_path.read_text(encoding="utf-8")
-            formatted = format_source(source)
-            if args.write:
-                file_path.write_text(formatted, encoding="utf-8")
-            else:
-                print(formatted, end="")
-            return 0
+            return _format(args)
         if args.command == "lint":
-            file_path = Path(args.source)
-            if not file_path.exists():
-                raise FileNotFoundError(f"File '{args.source}' not found")
-            source = file_path.read_text(encoding="utf-8")
-            issues = lint_source(source)
-            if issues:
-                for issue in issues:
-                    print(issue.format())
-                return 1
-            return 0
+            return _lint(args)
     except FileNotFoundError as exc:
         print(f"Error: {exc}")
         return 1
@@ -171,6 +419,9 @@ def main() -> int:
         return 1
     except SyntaxError as exc:
         print(f"Syntax Error: {exc}")
+        return 1
+    except ImportError as exc:
+        print(f"Dependency Error: {exc}")
         return 1
     except Exception as exc:
         print(f"Unexpected Error: {exc}")

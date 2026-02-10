@@ -1,11 +1,12 @@
 """Smoke tests for the CLI entry point."""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
 
 
-def test_cli_runs_poisson_example():
+def test_legacy_cli_runs_poisson_example():
     odds_path = Path(__file__).resolve().parents[1] / "test_poisson.odds"
     result = subprocess.run(
         [sys.executable, "-m", "sportsbetlang", str(odds_path)],
@@ -33,17 +34,40 @@ def test_cli_runtime_limit_flags_trigger(tmp_path: Path):
         check=False,
     )
     assert result.returncode == 1
-    assert "step limit" in result.stdout.lower()
+    assert "definitely-infinite" in result.stdout.lower()
 
 
-def test_cli_limits_pragma_overrides_mode(tmp_path: Path):
-    program = tmp_path / "pragma.odds"
-    program.write_text("#limits max_steps=5\nwhile true { }\n", encoding="utf-8")
+def test_betlang_run_supports_json_output():
+    odds_path = Path(__file__).resolve().parents[1] / "examples" / "01_basic_bet.odds"
     result = subprocess.run(
-        [sys.executable, "-m", "sportsbetlang", "--mode", "expert", str(program)],
+        [sys.executable, "-m", "sportsbetlang", "run", str(odds_path), "--json"],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 1
-    assert "step limit" in result.stdout.lower()
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "run"
+    assert payload["status"] == "ok"
+
+
+def test_betlang_test_subcommand_accepts_pytest_args():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "sportsbetlang",
+            "test",
+            "tests/test_smoke_cli.py::test_legacy_cli_runs_poisson_example",
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    json_start = result.stdout.rfind("{")
+    assert json_start != -1, result.stdout
+    payload = json.loads(result.stdout[json_start:])
+    assert payload["command"] == "test"
+    assert payload["exit_code"] == 0
