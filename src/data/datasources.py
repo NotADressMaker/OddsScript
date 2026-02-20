@@ -29,7 +29,7 @@ class CSVHistoricalDataSource:
         missing = [col for col in ALL_COLUMNS if col not in df.columns]
         for col in missing:
             df[col] = pd.NA
-        df = df[ALL_COLUMNS]
+        df = df[list(ALL_COLUMNS)]
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         return df
 

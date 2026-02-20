@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -241,9 +241,13 @@ class FeatureEngineer:
         return features.fillna(features.mean(numeric_only=True)).fillna(0.0)
 
 
+class FeatureSchemaDict(TypedDict):
+    columns: List[str]
+
+
 @dataclass
 class FeatureSchema:
     columns: List[str]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> FeatureSchemaDict:
         return {"columns": self.columns}
