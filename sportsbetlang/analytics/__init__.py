@@ -46,6 +46,14 @@ from sportsbetlang.analytics.state_space import (
 )
 from sportsbetlang.analytics.repro import ensure_random_state, set_global_seed
 from sportsbetlang.analytics.registry import ModelRegistry
+from sportsbetlang.analytics.ats_trends import (
+    ATSGameResult,
+    ATSRecord,
+    ATSTrendInsight,
+    calculate_ats_record,
+    current_ats_streak,
+    find_relevant_ats_trends,
+)
 
 __all__ = [
     # Basic stats
@@ -72,4 +80,8 @@ __all__ = [
     # Reproducibility
     'ensure_random_state', 'set_global_seed',
     'ModelRegistry',
+
+    # ATS trends
+    'ATSGameResult', 'ATSRecord', 'ATSTrendInsight',
+    'calculate_ats_record', 'current_ats_streak', 'find_relevant_ats_trends',
 ]
