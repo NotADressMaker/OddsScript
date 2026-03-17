@@ -26,24 +26,33 @@ class CSVHistoricalDataSource:
 
     def load(self) -> pd.DataFrame:
         df = pd.read_csv(self.path)
-        missing = [col for col in ALL_COLUMNS if col not in df.columns]
-        for col in missing:
-            df[col] = pd.NA
-        df = df[list(ALL_COLUMNS)]
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        return df
+        return _normalize_historical_frame(df)
+
+
+def _normalize_historical_frame(df: pd.DataFrame) -> pd.DataFrame:
+    missing = [col for col in ALL_COLUMNS if col not in df.columns]
+    for col in missing:
+        df[col] = pd.NA
+    df = df[list(ALL_COLUMNS)]
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    return df
 
 
 @dataclass
 class APIDataSource:
-    """Placeholder for fetching historical data from an API.
+    """Fetch historical game data from a JSON-compatible API endpoint.
 
-    Implementers should override `fetch` with their API logic.
+    Override ``fetch`` when custom auth/session logic is needed.
     """
 
     endpoint: str
 
+    def fetch(self) -> pd.DataFrame:
+        """Load tabular data from ``endpoint`` using pandas JSON readers."""
+        payload = pd.read_json(self.endpoint)
+        if isinstance(payload, pd.DataFrame):
+            return payload
+        return pd.DataFrame(payload)
+
     def load(self) -> pd.DataFrame:
-        raise NotImplementedError(
-            "APIDataSource is a placeholder. Implement fetch logic for your provider."
-        )
+        return _normalize_historical_frame(self.fetch())
