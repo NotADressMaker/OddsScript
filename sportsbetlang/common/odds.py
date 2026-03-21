@@ -39,6 +39,9 @@ class OddsConverter:
             >>> OddsConverter.american_to_decimal(150)
             Decimal('2.5000')
         """
+        if odds == 0:
+            raise ValueError("American odds cannot be 0")
+
         if odds > 0:
             result = (odds / 100) + 1
         else:
@@ -64,6 +67,9 @@ class OddsConverter:
             >>> OddsConverter.decimal_to_american(2.50)
             150.0
         """
+        if odds <= 1:
+            raise ValueError("Decimal odds must be greater than 1.0")
+
         if odds >= 2.0:
             return (odds - 1) * 100
         else:
@@ -121,6 +127,8 @@ class OddsConverter:
             raise ValueError(f"Invalid fractional format: {fractional}")
 
         num, denom = float(parts[0]), float(parts[1])
+        if denom == 0:
+            raise ValueError("Fractional odds denominator cannot be 0")
         decimal = (num / denom) + 1
 
         return OddsConverter.decimal_to_american(decimal)
