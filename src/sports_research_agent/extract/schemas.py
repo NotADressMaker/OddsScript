@@ -4,7 +4,26 @@ from datetime import datetime
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, Field
+try:
+    from pydantic import BaseModel, Field
+except ModuleNotFoundError:  # pragma: no cover - lightweight fallback for minimal envs
+    def Field(default=..., **_: object):
+        return default
+
+    class BaseModel:
+        def __init__(self, **kwargs):
+            annotations = {}
+            for cls in reversed(type(self).__mro__):
+                annotations.update(getattr(cls, "__annotations__", {}))
+            for name in annotations:
+                default = getattr(type(self), name, ...)
+                if name in kwargs:
+                    value = kwargs[name]
+                elif default is ...:
+                    raise TypeError(f"Missing required field: {name}")
+                else:
+                    value = default
+                setattr(self, name, value)
 
 
 class StatusEnum(str, Enum):
