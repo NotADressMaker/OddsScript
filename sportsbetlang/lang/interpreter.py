@@ -78,13 +78,19 @@ class TaggedNumber:
         rhs = self._expect_same_tag(other, "add")
         return TaggedNumber(self.value + rhs.value, self.tag)
 
-    def __sub__(self, other: Any) -> "TaggedNumber":
+    def __sub__(self, other: Any) -> "TaggedNumber | float":
+        if not isinstance(other, TaggedNumber):
+            return float(self.value - float(other))
         if self.tag in {"american_odds"}:
             raise TypeError(f"Cannot subtract values with unit '{self.tag}'")
-        if not isinstance(other, TaggedNumber) and self.tag == "decimal_odds":
-            return TaggedNumber(self.value - float(other), self.tag)
         rhs = self._expect_same_tag(other, "subtract")
         return TaggedNumber(self.value - rhs.value, self.tag)
+
+    def __rsub__(self, other: Any) -> float:
+        return float(float(other) - self.value)
+
+    def __abs__(self) -> float:
+        return abs(self.value)
 
     def __mul__(self, other: Any) -> "TaggedNumber":
         if isinstance(other, TaggedNumber):
