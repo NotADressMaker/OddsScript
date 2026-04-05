@@ -62,6 +62,29 @@ class TestMLBMoneyline(unittest.TestCase):
         )
         self.assertGreater(result['win_probability'], 0.6)
 
+    def test_ace_pitcher_reduces_opponent_expected_runs(self):
+        """Better team pitcher should suppress opponent scoring expectation"""
+        baseline = MLBAnalytics.calculate_moneyline_probability(
+            team_runs_avg=4.5, opponent_runs_avg=4.5, is_home=True
+        )
+        ace = MLBAnalytics.calculate_moneyline_probability(
+            team_runs_avg=4.5, opponent_runs_avg=4.5, is_home=True,
+            team_pitcher_era=2.90, team_bullpen_era=3.20
+        )
+        self.assertLess(ace['opponent_expected_runs'], baseline['opponent_expected_runs'])
+        self.assertGreater(ace['win_probability'], baseline['win_probability'])
+
+    def test_hot_offense_increases_expected_runs(self):
+        """Recent runs should increase expected scoring when team is hot"""
+        baseline = MLBAnalytics.calculate_moneyline_probability(
+            team_runs_avg=4.2, opponent_runs_avg=4.2, is_home=False
+        )
+        hot = MLBAnalytics.calculate_moneyline_probability(
+            team_runs_avg=4.2, opponent_runs_avg=4.2, is_home=False,
+            team_recent_runs=6.0
+        )
+        self.assertGreater(hot['expected_runs'], baseline['expected_runs'])
+
 
 class TestMLBRunLine(unittest.TestCase):
     """Test run line calculations"""
@@ -109,6 +132,17 @@ class TestMLBRunLine(unittest.TestCase):
             team_runs_avg=5.0, opponent_runs_avg=4.0, runline=-1.5, is_home=True
         )
         self.assertGreater(ml['win_probability'], rl['cover_probability'])
+
+    def test_weak_opponent_pitching_improves_cover_probability(self):
+        """Facing weaker opponent pitching should increase runline cover chance."""
+        baseline = MLBAnalytics.calculate_runline_probability(
+            team_runs_avg=5.0, opponent_runs_avg=4.0, runline=-1.5, is_home=True
+        )
+        weak_pitching = MLBAnalytics.calculate_runline_probability(
+            team_runs_avg=5.0, opponent_runs_avg=4.0, runline=-1.5, is_home=True,
+            opponent_pitcher_era=5.40, opponent_bullpen_era=4.90
+        )
+        self.assertGreater(weak_pitching['cover_probability'], baseline['cover_probability'])
 
 
 class TestMLBTotals(unittest.TestCase):
