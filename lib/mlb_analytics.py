@@ -8,7 +8,7 @@ totals modeling, and pitcher-specific adjustments.
 
 import math
 import random
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from lib.poisson_calculator import PoissonCalculator
 
 
@@ -19,12 +19,91 @@ class MLBAnalytics:
     AVG_RUNS_PER_GAME = 4.5
     AVG_HOME_ADVANTAGE = 0.25  # Runs
     AVG_TOTAL_RUNS = 9.0
+    AVG_ERA = 4.20
+    RECENT_FORM_WEIGHT = 0.30
+    STARTER_WEIGHT = 0.65
+    BULLPEN_WEIGHT = 0.35
+
+    @staticmethod
+    def _clamp(value: float, min_value: float, max_value: float) -> float:
+        """Clamp value into [min_value, max_value]."""
+        return max(min_value, min(max_value, value))
+
+    @staticmethod
+    def _blend_offense(season_runs: float, recent_runs: Optional[float]) -> float:
+        """
+        Blend season-long and recent scoring production.
+
+        Recent form receives a modest weight to avoid overreacting to small samples.
+        """
+        if recent_runs is None:
+            return season_runs
+        recent_weight = MLBAnalytics.RECENT_FORM_WEIGHT
+        return season_runs * (1 - recent_weight) + recent_runs * recent_weight
+
+    @staticmethod
+    def _pitching_factor(starter_era: Optional[float], bullpen_era: Optional[float]) -> float:
+        """
+        Convert pitcher quality into a run multiplier.
+
+        Factor is centered at 1.0 when ERA equals league average.
+        Lower ERA -> lower run environment, higher ERA -> higher run environment.
+        """
+        starter = starter_era if starter_era is not None else MLBAnalytics.AVG_ERA
+        bullpen = bullpen_era if bullpen_era is not None else MLBAnalytics.AVG_ERA
+        weighted_era = (
+            starter * MLBAnalytics.STARTER_WEIGHT
+            + bullpen * MLBAnalytics.BULLPEN_WEIGHT
+        )
+        factor = weighted_era / MLBAnalytics.AVG_ERA
+        return MLBAnalytics._clamp(factor, 0.75, 1.30)
+
+    @staticmethod
+    def _calculate_adjusted_lambdas(
+        team_runs_avg: float,
+        opponent_runs_avg: float,
+        is_home: bool,
+        team_recent_runs: Optional[float] = None,
+        opponent_recent_runs: Optional[float] = None,
+        team_pitcher_era: Optional[float] = None,
+        opponent_pitcher_era: Optional[float] = None,
+        team_bullpen_era: Optional[float] = None,
+        opponent_bullpen_era: Optional[float] = None,
+        weather_run_factor: float = 1.0
+    ) -> Tuple[float, float]:
+        """Build adjusted expected-runs inputs used by MLB side markets."""
+        home_adj = MLBAnalytics.AVG_HOME_ADVANTAGE if is_home else 0
+
+        team_offense = MLBAnalytics._blend_offense(team_runs_avg, team_recent_runs)
+        opp_offense = MLBAnalytics._blend_offense(opponent_runs_avg, opponent_recent_runs)
+
+        opp_pitching_factor = MLBAnalytics._pitching_factor(
+            starter_era=opponent_pitcher_era,
+            bullpen_era=opponent_bullpen_era
+        )
+        team_pitching_factor = MLBAnalytics._pitching_factor(
+            starter_era=team_pitcher_era,
+            bullpen_era=team_bullpen_era
+        )
+
+        weather = MLBAnalytics._clamp(weather_run_factor, 0.85, 1.15)
+
+        team_lambda = (team_offense + home_adj) * opp_pitching_factor * weather
+        opp_lambda = opp_offense * team_pitching_factor * weather
+        return team_lambda, opp_lambda
 
     @staticmethod
     def calculate_moneyline_probability(
         team_runs_avg: float,
         opponent_runs_avg: float,
-        is_home: bool = True
+        is_home: bool = True,
+        team_recent_runs: Optional[float] = None,
+        opponent_recent_runs: Optional[float] = None,
+        team_pitcher_era: Optional[float] = None,
+        opponent_pitcher_era: Optional[float] = None,
+        team_bullpen_era: Optional[float] = None,
+        opponent_bullpen_era: Optional[float] = None,
+        weather_run_factor: float = 1.0
     ) -> Dict:
         """
         Calculate MLB moneyline probability using Poisson
@@ -33,14 +112,29 @@ class MLBAnalytics:
             team_runs_avg: Team average runs per game
             opponent_runs_avg: Opponent average runs
             is_home: Home team advantage
+            team_recent_runs: Team recent runs per game (optional)
+            opponent_recent_runs: Opponent recent runs per game (optional)
+            team_pitcher_era: Team starting pitcher ERA (optional)
+            opponent_pitcher_era: Opponent starting pitcher ERA (optional)
+            team_bullpen_era: Team bullpen ERA (optional)
+            opponent_bullpen_era: Opponent bullpen ERA (optional)
+            weather_run_factor: Weather run environment multiplier (0.85-1.15 typical)
 
         Returns:
             Win probabilities
         """
-        # Adjust for home advantage
-        home_adj = MLBAnalytics.AVG_HOME_ADVANTAGE if is_home else 0
-        team_lambda = team_runs_avg + home_adj
-        opp_lambda = opponent_runs_avg
+        team_lambda, opp_lambda = MLBAnalytics._calculate_adjusted_lambdas(
+            team_runs_avg=team_runs_avg,
+            opponent_runs_avg=opponent_runs_avg,
+            is_home=is_home,
+            team_recent_runs=team_recent_runs,
+            opponent_recent_runs=opponent_recent_runs,
+            team_pitcher_era=team_pitcher_era,
+            opponent_pitcher_era=opponent_pitcher_era,
+            team_bullpen_era=team_bullpen_era,
+            opponent_bullpen_era=opponent_bullpen_era,
+            weather_run_factor=weather_run_factor
+        )
 
         # Use Poisson to calculate probabilities
         results = PoissonCalculator.calculate_match_probabilities(
@@ -54,7 +148,8 @@ class MLBAnalytics:
             'tie_probability': results['draw'],  # Extra innings
             'loss_probability': results['away_win'] if is_home else results['home_win'],
             'expected_runs': team_lambda,
-            'opponent_expected_runs': opp_lambda
+            'opponent_expected_runs': opp_lambda,
+            'weather_run_factor': MLBAnalytics._clamp(weather_run_factor, 0.85, 1.15)
         }
 
     @staticmethod
@@ -62,7 +157,14 @@ class MLBAnalytics:
         team_runs_avg: float,
         opponent_runs_avg: float,
         runline: float = -1.5,
-        is_home: bool = True
+        is_home: bool = True,
+        team_recent_runs: Optional[float] = None,
+        opponent_recent_runs: Optional[float] = None,
+        team_pitcher_era: Optional[float] = None,
+        opponent_pitcher_era: Optional[float] = None,
+        team_bullpen_era: Optional[float] = None,
+        opponent_bullpen_era: Optional[float] = None,
+        weather_run_factor: float = 1.0
     ) -> Dict:
         """
         Calculate run line cover probability
@@ -74,13 +176,29 @@ class MLBAnalytics:
             opponent_runs_avg: Opponent average runs
             runline: Run line (typically -1.5 for favorite)
             is_home: Home team advantage
+            team_recent_runs: Team recent runs per game (optional)
+            opponent_recent_runs: Opponent recent runs per game (optional)
+            team_pitcher_era: Team starting pitcher ERA (optional)
+            opponent_pitcher_era: Opponent starting pitcher ERA (optional)
+            team_bullpen_era: Team bullpen ERA (optional)
+            opponent_bullpen_era: Opponent bullpen ERA (optional)
+            weather_run_factor: Weather run environment multiplier (0.85-1.15 typical)
 
         Returns:
             Run line probabilities
         """
-        home_adj = MLBAnalytics.AVG_HOME_ADVANTAGE if is_home else 0
-        team_lambda = team_runs_avg + home_adj
-        opp_lambda = opponent_runs_avg
+        team_lambda, opp_lambda = MLBAnalytics._calculate_adjusted_lambdas(
+            team_runs_avg=team_runs_avg,
+            opponent_runs_avg=opponent_runs_avg,
+            is_home=is_home,
+            team_recent_runs=team_recent_runs,
+            opponent_recent_runs=opponent_recent_runs,
+            team_pitcher_era=team_pitcher_era,
+            opponent_pitcher_era=opponent_pitcher_era,
+            team_bullpen_era=team_bullpen_era,
+            opponent_bullpen_era=opponent_bullpen_era,
+            weather_run_factor=weather_run_factor
+        )
 
         # Calculate using Poisson distribution
         results = PoissonCalculator.calculate_match_probabilities(
@@ -106,7 +224,8 @@ class MLBAnalytics:
         return {
             'cover_probability': cover_prob,
             'runline': runline,
-            'expected_margin': team_lambda - opp_lambda
+            'expected_margin': team_lambda - opp_lambda,
+            'weather_run_factor': MLBAnalytics._clamp(weather_run_factor, 0.85, 1.15)
         }
 
     @staticmethod
