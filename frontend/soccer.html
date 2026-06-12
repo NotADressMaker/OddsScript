@@ -393,11 +393,20 @@
         return name.trim().split(/\s+/).slice(0, 2).map(word => word[0] || '').join('').toUpperCase() || 'FC';
     }
 
+    function likelyScorelines(homeXg, awayXg) {
+        const scores = [];
+        for (let h = 0; h <= 5; h++) {
+            for (let a = 0; a <= 5; a++) {
+                scores.push({ h, a, probability: poisson(h, homeXg) * poisson(a, awayXg) });
+            }
+        }
+        return scores.sort((a, b) => b.probability - a.probability).slice(0, 3);
+    }
+
     function localAnalysis(input) {
         const leagueLift = { BUNDESLIGA: 1.05, MLS: 1.06, LIGUE_1: .97, SERIE_A: .98, WORLD_CUP: .94 }[input.league] || 1;
         const homeXg = clamp(((input.homeScored * .62) + (input.awayConceded * .38)) * 1.07 * leagueLift, .15, 5);
         const awayXg = clamp(((input.awayScored * .62) + (input.homeConceded * .38)) * .96 * leagueLift, .15, 5);
-        const scores = [];
         let home = 0, draw = 0, away = 0, over = 0, btts = 0;
         for (let h = 0; h <= 9; h++) {
             for (let a = 0; a <= 9; a++) {
@@ -405,7 +414,6 @@
                 if (h > a) home += probability; else if (h === a) draw += probability; else away += probability;
                 if (h + a > input.totalLine) over += probability;
                 if (h > 0 && a > 0) btts += probability;
-                if (h <= 5 && a <= 5) scores.push({ h, a, probability });
             }
         }
         const total = home + draw + away;
@@ -413,7 +421,7 @@
             three_way: { home_win_probability: home / total, draw_probability: draw / total, away_win_probability: away / total, home_expected_goals: homeXg, away_expected_goals: awayXg },
             totals: { line: input.totalLine, expected_total: homeXg + awayXg, over_probability: over, under_probability: 1 - over },
             btts: { btts_yes_probability: btts, btts_no_probability: 1 - btts, home_clean_sheet_probability: Math.exp(-awayXg), away_clean_sheet_probability: Math.exp(-homeXg) },
-            scores: scores.sort((a, b) => b.probability - a.probability).slice(0, 3)
+            scores: likelyScorelines(homeXg, awayXg)
         };
     }
 
@@ -464,7 +472,7 @@
         el('home-xg-bar').style.width = `${share}%`;
         el('away-xg-bar').style.width = `${100 - share}%`;
 
-        const scores = model.scores || localAnalysis(getInputs()).scores;
+        const scores = model.scores || likelyScorelines(hxg, axg);
         el('scorelines').innerHTML = scores.map(score => `<div class="score-chip"><strong>${score.h}–${score.a}</strong><span>${pct(score.probability)}</span></div>`).join('');
         updateEdges();
     }
@@ -514,8 +522,10 @@
         let model;
         try {
             model = await getApiAnalysis(input);
-            const local = localAnalysis(input);
-            model.scores = local.scores;
+            model.scores = likelyScorelines(
+                model.three_way.home_expected_goals,
+                model.three_way.away_expected_goals
+            );
             el('api-state').textContent = 'API connected';
             el('api-state').classList.add('live');
             toast('Analysis updated with the SportsBetLang API.');
