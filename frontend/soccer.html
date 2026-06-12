@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A focused soccer match analysis workspace for SportsBetLang.">
+    <title>Touchline — Soccer Intelligence by SportsBetLang</title>
+    <style>
+        :root {
+            --ink: #17211b;
+            --muted: #6f7972;
+            --line: #e4e8e4;
+            --paper: #f4f6f2;
+            --card: #ffffff;
+            --pitch: #075f46;
+            --pitch-dark: #034735;
+            --lime: #d8ff4f;
+            --lime-soft: #efffc1;
+            --orange: #ff6b35;
+            --blue: #3b82f6;
+            --shadow: 0 14px 38px rgba(22, 45, 32, .09);
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--ink);
+            background: var(--paper);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        button, input, select { font: inherit; }
+        button { cursor: pointer; }
+        svg { display: block; }
+
+        .app-shell { min-height: 100vh; }
+        .topbar {
+            height: 72px;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            border-bottom: 1px solid var(--line);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .brand { display: flex; align-items: center; gap: 12px; color: var(--ink); text-decoration: none; }
+        .brand-mark {
+            width: 38px; height: 38px; border-radius: 12px;
+            display: grid; place-items: center;
+            background: var(--pitch); color: var(--lime);
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+        }
+        .brand-copy strong { display: block; font-size: 16px; letter-spacing: -.02em; }
+        .brand-copy span { display: block; font-size: 10px; color: var(--muted); letter-spacing: .14em; text-transform: uppercase; margin-top: 2px; }
+        .top-actions { display: flex; align-items: center; gap: 10px; }
+        .api-state {
+            display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px;
+            border-radius: 999px; border: 1px solid var(--line); background: #fafbfa;
+            color: var(--muted); font-size: 12px; font-weight: 700;
+        }
+        .api-state::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; }
+        .api-state.live::before { background: #21a66b; box-shadow: 0 0 0 4px rgba(33,166,107,.12); }
+        .back-link {
+            height: 36px; padding: 0 14px; display: inline-flex; align-items: center; gap: 7px;
+            color: var(--ink); text-decoration: none; border: 1px solid var(--line); border-radius: 10px;
+            font-size: 13px; font-weight: 750; background: #fff;
+        }
+
+        .layout { display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: calc(100vh - 72px); }
+        .sidebar {
+            padding: 28px 20px; border-right: 1px solid var(--line); background: #fff;
+            display: flex; flex-direction: column; gap: 28px;
+        }
+        .nav-label { margin: 0 10px 9px; color: #9aa29d; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+        .nav-list { display: grid; gap: 5px; }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px;
+            color: #657068; text-decoration: none; border-radius: 11px; font-size: 13px; font-weight: 700;
+        }
+        .nav-item svg { width: 18px; height: 18px; }
+        .nav-item.active { color: #fff; background: var(--pitch); box-shadow: 0 8px 20px rgba(7,95,70,.2); }
+        .nav-pill { margin-left: auto; padding: 3px 7px; border-radius: 999px; background: var(--lime); color: var(--pitch-dark); font-size: 9px; }
+        .sidebar-note {
+            margin-top: auto; padding: 18px; border-radius: 16px; color: #fff; overflow: hidden;
+            background: linear-gradient(145deg, var(--pitch), var(--pitch-dark)); position: relative;
+        }
+        .sidebar-note::after { content: ""; position: absolute; width: 90px; height: 90px; border: 1px solid rgba(216,255,79,.25); border-radius: 50%; right: -35px; bottom: -35px; }
+        .sidebar-note small { color: var(--lime); font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+        .sidebar-note strong { display: block; margin: 8px 0 6px; font-size: 17px; line-height: 1.2; }
+        .sidebar-note p { margin: 0; color: rgba(255,255,255,.68); font-size: 11px; line-height: 1.55; }
+
+        main { padding: 30px 34px 48px; min-width: 0; }
+        .page-heading { display: flex; justify-content: space-between; align-items: end; gap: 18px; margin-bottom: 24px; }
+        .eyebrow { color: var(--pitch); font-size: 11px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+        h1 { margin: 5px 0 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(30px, 4vw, 46px); font-weight: 500; letter-spacing: -.04em; line-height: 1; }
+        .page-heading p { max-width: 410px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; text-align: right; }
+
+        .workspace { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, .72fr); gap: 18px; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+        .match-card { overflow: hidden; }
+        .match-head {
+            padding: 18px 22px; color: #fff; background: var(--pitch);
+            display: flex; align-items: center; justify-content: space-between; gap: 15px;
+            position: relative; overflow: hidden;
+        }
+        .match-head::after {
+            content: ""; position: absolute; width: 220px; height: 220px; border: 1px solid rgba(255,255,255,.12);
+            border-radius: 50%; right: 13%; top: -94px;
+        }
+        .competition { display: flex; align-items: center; gap: 10px; position: relative; z-index: 1; }
+        .competition-badge { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: rgba(255,255,255,.11); color: var(--lime); }
+        .competition strong { display: block; font-size: 13px; }
+        .competition span { display: block; margin-top: 3px; color: rgba(255,255,255,.58); font-size: 10px; }
+        .model-badge { position: relative; z-index: 1; padding: 7px 10px; border: 1px solid rgba(216,255,79,.4); border-radius: 999px; color: var(--lime); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+        .teams { padding: 30px 28px 24px; display: grid; grid-template-columns: 1fr 110px 1fr; align-items: center; gap: 18px; }
+        .team { text-align: center; }
+        .crest {
+            width: 72px; height: 72px; margin: 0 auto 12px; display: grid; place-items: center;
+            border-radius: 22px; font-family: Georgia, serif; font-size: 26px; font-weight: 700;
+            background: #f1f4f1; border: 1px solid var(--line); color: var(--pitch);
+        }
+        .team.away .crest { background: #19231d; color: var(--lime); }
+        .team-name { width: 100%; border: 0; border-bottom: 1px dashed transparent; background: transparent; color: var(--ink); font-size: 15px; font-weight: 800; text-align: center; outline: none; }
+        .team-name:focus { border-bottom-color: var(--pitch); }
+        .team small { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+        .versus { text-align: center; }
+        .versus strong { display: block; font-family: Georgia, serif; color: #a7aea9; font-size: 24px; font-weight: 500; }
+        .versus span { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; }
+
+        .probabilities { padding: 0 22px 22px; }
+        .section-kicker { margin-bottom: 11px; color: #929a94; font-size: 10px; font-weight: 850; letter-spacing: .13em; text-transform: uppercase; }
+        .prob-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; }
+        .prob-box { padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: #fafbfa; }
+        .prob-box.best { border-color: #b5d949; background: var(--lime-soft); }
+        .prob-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .prob-top span { color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .prob-top strong { font-size: 21px; letter-spacing: -.04em; }
+        .prob-track { height: 4px; margin-top: 11px; border-radius: 99px; background: #e5e9e5; overflow: hidden; }
+        .prob-track i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--pitch); transition: width .5s ease; }
+        .prob-box.best .prob-track i { background: #87a900; }
+
+        .input-card { padding: 20px; }
+        .card-title { display: flex; justify-content: space-between; align-items: start; gap: 10px; margin-bottom: 18px; }
+        .card-title h2 { margin: 0; font-family: Georgia, serif; font-size: 22px; font-weight: 500; letter-spacing: -.03em; }
+        .card-title p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+        .reset-btn { border: 0; background: transparent; color: var(--pitch); font-size: 11px; font-weight: 800; }
+        .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .field.full { grid-column: 1 / -1; }
+        label { display: block; margin-bottom: 6px; color: #657068; font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+        input[type="number"], select {
+            width: 100%; height: 42px; border: 1px solid #dce1dd; border-radius: 10px;
+            background: #fafbfa; padding: 0 11px; color: var(--ink); font-size: 13px; font-weight: 700; outline: none;
+        }
+        input:focus, select:focus { border-color: var(--pitch); box-shadow: 0 0 0 3px rgba(7,95,70,.1); }
+        .analyze-btn {
+            width: 100%; height: 48px; margin-top: 17px; border: 0; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; gap: 9px;
+            color: var(--pitch-dark); background: var(--lime); font-size: 13px; font-weight: 900;
+            box-shadow: 0 10px 20px rgba(157,190,34,.2); transition: transform .2s ease, box-shadow .2s ease;
+        }
+        .analyze-btn:hover { transform: translateY(-2px); box-shadow: 0 14px 24px rgba(157,190,34,.28); }
+        .analyze-btn:disabled { opacity: .65; transform: none; cursor: wait; }
+        .input-foot { display: flex; align-items: center; gap: 7px; margin-top: 12px; color: #929a94; font-size: 10px; line-height: 1.45; }
+        .input-foot svg { flex: 0 0 auto; color: var(--pitch); }
+
+        .analytics-grid { grid-column: 1 / -1; display: grid; grid-template-columns: 1.1fr .85fr 1.05fr; gap: 18px; }
+        .analytics-card { padding: 20px; min-width: 0; }
+        .metric-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #edf0ed; }
+        .metric-row:last-child { border-bottom: 0; padding-bottom: 0; }
+        .metric-name { display: flex; align-items: center; gap: 10px; }
+        .metric-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--pitch); background: #edf6f1; }
+        .metric-name strong { display: block; font-size: 12px; }
+        .metric-name span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+        .metric-value { text-align: right; }
+        .metric-value strong { display: block; font-size: 17px; }
+        .metric-value span { display: block; margin-top: 2px; color: var(--muted); font-size: 9px; }
+
+        .xg-score { display: flex; justify-content: center; align-items: center; gap: 16px; padding: 7px 0 17px; }
+        .xg-team { text-align: center; }
+        .xg-team strong { display: block; font-family: Georgia, serif; font-size: 38px; font-weight: 500; letter-spacing: -.06em; }
+        .xg-team span { color: var(--muted); font-size: 9px; text-transform: uppercase; font-weight: 800; letter-spacing: .08em; }
+        .xg-divider { color: #c2c8c3; font-size: 18px; }
+        .xg-bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; background: #e7eae7; }
+        .xg-bar span:first-child { background: var(--pitch); }
+        .xg-bar span:last-child { background: var(--lime); }
+        .scorelines { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 18px; }
+        .score-chip { padding: 10px 6px; border-radius: 10px; background: #f6f8f6; text-align: center; }
+        .score-chip strong { display: block; font-size: 14px; }
+        .score-chip span { color: var(--muted); font-size: 9px; }
+
+        .market-head { display: grid; grid-template-columns: 1fr 54px 56px; gap: 8px; padding-bottom: 8px; color: #9aa19c; font-size: 8px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+        .market-row { display: grid; grid-template-columns: 1fr 54px 56px; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid #edf0ed; }
+        .market-row strong { font-size: 11px; }
+        .market-odds { width: 54px !important; height: 30px !important; padding: 0 7px !important; font-size: 10px !important; text-align: center; }
+        .edge { justify-self: end; padding: 4px 7px; border-radius: 7px; color: #778078; background: #eef1ee; font-size: 9px; font-weight: 850; }
+        .edge.positive { color: #096343; background: #dff8eb; }
+        .edge.negative { color: #9b4b2e; background: #fff0e9; }
+        .disclaimer { grid-column: 1 / -1; color: #8a938c; font-size: 10px; line-height: 1.5; text-align: center; }
+
+        .toast { position: fixed; right: 24px; bottom: 24px; z-index: 20; max-width: 360px; padding: 13px 15px; border-radius: 12px; color: #fff; background: #202b24; box-shadow: 0 14px 35px rgba(0,0,0,.2); font-size: 12px; line-height: 1.45; transform: translateY(20px); opacity: 0; pointer-events: none; transition: .25s ease; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        @media (max-width: 1050px) {
+            .layout { grid-template-columns: 82px minmax(0, 1fr); }
+            .sidebar { padding: 26px 13px; }
+            .nav-label, .nav-item span, .nav-pill, .sidebar-note { display: none; }
+            .nav-item { justify-content: center; padding: 0; }
+            .analytics-grid { grid-template-columns: 1fr 1fr; }
+            .market-card { grid-column: 1 / -1; }
+        }
+        @media (max-width: 780px) {
+            .topbar { height: 64px; padding: 0 16px; }
+            .brand-copy span, .api-state { display: none; }
+            .layout { display: block; min-height: calc(100vh - 64px); }
+            .sidebar { display: none; }
+            main { padding: 22px 14px 36px; }
+            .page-heading { align-items: start; }
+            .page-heading p { display: none; }
+            .workspace { grid-template-columns: 1fr; }
+            .analytics-grid { grid-column: auto; grid-template-columns: 1fr; }
+            .market-card { grid-column: auto; }
+            .teams { grid-template-columns: 1fr 60px 1fr; padding: 26px 14px 20px; gap: 7px; }
+            .crest { width: 58px; height: 58px; border-radius: 17px; font-size: 21px; }
+            .probabilities { padding: 0 14px 17px; }
+            .prob-box { padding: 10px 8px; }
+            .prob-top { display: block; }
+            .prob-top strong { display: block; margin-top: 5px; font-size: 18px; }
+        }
+        @media (max-width: 420px) {
+            .back-link span { display: none; }
+            .back-link { width: 36px; padding: 0; justify-content: center; }
+            .field-grid { grid-template-columns: 1fr; }
+            .field.full { grid-column: auto; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <header class="topbar">
+        <a class="brand" href="soccer.html" aria-label="Touchline home">
+            <span class="brand-mark" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2.5 19.8 7v9L12 20.5 4.2 16V7L12 2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m12 8 3.2 2.3-1.2 3.8h-4l-1.2-3.8L12 8Zm0-5.5V8m7.8-1-4.6 3.3M19.8 16 14 14.1m-9.8 1.9 5.8-1.9M4.2 7l4.6 3.3" stroke="currentColor" stroke-width="1.35"/></svg>
+            </span>
+            <span class="brand-copy"><strong>Touchline</strong><span>by SportsBetLang</span></span>
+        </a>
+        <div class="top-actions">
+            <span class="api-state" id="api-state">Local preview</span>
+            <a class="back-link" href="dashboard.html">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>All sports</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="layout">
+        <aside class="sidebar">
+            <div>
+                <p class="nav-label">Workspace</p>
+                <nav class="nav-list" aria-label="Soccer workspace">
+                    <a class="nav-item active" href="#match-analysis">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V9m8 10V5m8 14v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M2.5 19.5h19" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <span>Match analysis</span><b class="nav-pill">Live</b>
+                    </a>
+                    <a class="nav-item" href="#goal-markets">
+                        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.8"/><path d="m12 8 3 2.2-1.1 3.5h-3.8L9 10.2 12 8Z" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>Goal markets</span>
+                    </a>
+                    <a class="nav-item" href="#market-edge">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="m4 16 5-5 4 3 7-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 6h5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <span>Market edge</span>
+                    </a>
+                </nav>
+            </div>
+            <div>
+                <p class="nav-label">Model</p>
+                <nav class="nav-list">
+                    <a class="nav-item" href="#model-inputs">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M5 4v16m14-16v16M5 8h14M5 16h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <span>Inputs</span>
+                    </a>
+                </nav>
+            </div>
+            <div class="sidebar-note">
+                <small>Analyst note</small>
+                <strong>Model the match, not the badge.</strong>
+                <p>Use recent home and away splits for cleaner goal expectations.</p>
+            </div>
+        </aside>
+
+        <main>
+            <div class="page-heading">
+                <div><span class="eyebrow">Soccer intelligence</span><h1>Match Lab</h1></div>
+                <p>Turn simple scoring form into a complete probabilistic match view—without hiding the assumptions.</p>
+            </div>
+
+            <section class="workspace" id="match-analysis">
+                <article class="card match-card">
+                    <div class="match-head">
+                        <div class="competition">
+                            <span class="competition-badge"><svg width="19" height="19" viewBox="0 0 24 24" fill="none"><path d="M8 3h8v4a4 4 0 0 1-8 0V3Z" stroke="currentColor" stroke-width="1.6"/><path d="M8 5H5v2a4 4 0 0 0 4 4m7-6h3v2a4 4 0 0 1-4 4m-3 0v5m-4 4h8m-6-4h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+                            <span><strong id="league-label">Premier League</strong><span>Pre-match model · 90 minutes</span></span>
+                        </div>
+                        <span class="model-badge">Poisson view</span>
+                    </div>
+                    <div class="teams">
+                        <div class="team home">
+                            <div class="crest" id="home-crest">NL</div>
+                            <input class="team-name" id="home-name" value="North London" maxlength="24" aria-label="Home team name">
+                            <small>Home</small>
+                        </div>
+                        <div class="versus"><strong>vs</strong><span>90 min</span></div>
+                        <div class="team away">
+                            <div class="crest" id="away-crest">WL</div>
+                            <input class="team-name" id="away-name" value="West London" maxlength="24" aria-label="Away team name">
+                            <small>Away</small>
+                        </div>
+                    </div>
+                    <div class="probabilities">
+                        <div class="section-kicker">Match result probability</div>
+                        <div class="prob-grid">
+                            <div class="prob-box" id="home-prob-box"><div class="prob-top"><span>Home</span><strong id="home-prob">48%</strong></div><div class="prob-track"><i id="home-bar"></i></div></div>
+                            <div class="prob-box" id="draw-prob-box"><div class="prob-top"><span>Draw</span><strong id="draw-prob">25%</strong></div><div class="prob-track"><i id="draw-bar"></i></div></div>
+                            <div class="prob-box" id="away-prob-box"><div class="prob-top"><span>Away</span><strong id="away-prob">27%</strong></div><div class="prob-track"><i id="away-bar"></i></div></div>
+                        </div>
+                    </div>
+                </article>
+
+                <aside class="card input-card" id="model-inputs">
+                    <div class="card-title"><div><h2>Model inputs</h2><p>Recent per-match form works best.</p></div><button class="reset-btn" id="reset-btn" type="button">Reset</button></div>
+                    <form id="analysis-form">
+                        <div class="field-grid">
+                            <div class="field full"><label for="league">Competition</label><select id="league"><option value="PREMIER_LEAGUE">Premier League</option><option value="LA_LIGA">La Liga</option><option value="BUNDESLIGA">Bundesliga</option><option value="SERIE_A">Serie A</option><option value="LIGUE_1">Ligue 1</option><option value="MLS">MLS</option><option value="CHAMPIONS_LEAGUE">Champions League</option><option value="WORLD_CUP">World Cup</option><option value="OTHER">Other</option></select></div>
+                            <div class="field"><label for="home-scored">Home scored</label><input type="number" id="home-scored" value="1.80" min="0" max="8" step="0.05" required></div>
+                            <div class="field"><label for="home-conceded">Home conceded</label><input type="number" id="home-conceded" value="1.10" min="0" max="8" step="0.05" required></div>
+                            <div class="field"><label for="away-scored">Away scored</label><input type="number" id="away-scored" value="1.45" min="0" max="8" step="0.05" required></div>
+                            <div class="field"><label for="away-conceded">Away conceded</label><input type="number" id="away-conceded" value="1.35" min="0" max="8" step="0.05" required></div>
+                            <div class="field full"><label for="total-line">Goals line</label><select id="total-line"><option value="1.5">1.5 goals</option><option value="2.5" selected>2.5 goals</option><option value="3.5">3.5 goals</option><option value="4.5">4.5 goals</option></select></div>
+                        </div>
+                        <button class="analyze-btn" type="submit" id="analyze-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m8 10V5m8 14v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Run match analysis</span></button>
+                        <div class="input-foot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Uses the SportsBetLang API when available, with a transparent local preview fallback.</div>
+                    </form>
+                </aside>
+
+                <div class="analytics-grid">
+                    <article class="card analytics-card" id="goal-markets">
+                        <div class="card-title"><div><h2>Goal markets</h2><p>Probability and model-implied fair price.</p></div></div>
+                        <div class="metric-row"><div class="metric-name"><span class="metric-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="m5 14 4-4 3 3 6-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong id="over-label">Over 2.5</strong><span>Full-time total</span></span></div><div class="metric-value"><strong id="over-prob">57%</strong><span id="over-fair">Fair 1.75</span></div></div>
+                        <div class="metric-row"><div class="metric-name"><span class="metric-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/><circle cx="16" cy="12" r="4" stroke="currentColor" stroke-width="1.7"/></svg></span><span><strong>Both teams score</strong><span>Yes market</span></span></div><div class="metric-value"><strong id="btts-prob">59%</strong><span id="btts-fair">Fair 1.69</span></div></div>
+                        <div class="metric-row"><div class="metric-name"><span class="metric-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 18h14M7 18V9h10v9M9 9V6h6v3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></span><span><strong>Home clean sheet</strong><span>Away scores zero</span></span></div><div class="metric-value"><strong id="clean-prob">24%</strong><span id="clean-fair">Fair 4.17</span></div></div>
+                    </article>
+
+                    <article class="card analytics-card">
+                        <div class="card-title"><div><h2>Expected goals</h2><p>Projected attacking output.</p></div></div>
+                        <div class="xg-score"><div class="xg-team"><strong id="home-xg">1.78</strong><span id="home-xg-name">North London</span></div><span class="xg-divider">—</span><div class="xg-team"><strong id="away-xg">1.18</strong><span id="away-xg-name">West London</span></div></div>
+                        <div class="xg-bar"><span id="home-xg-bar" style="width:60%"></span><span id="away-xg-bar" style="width:40%"></span></div>
+                        <div class="section-kicker" style="margin-top:20px">Most likely scores</div>
+                        <div class="scorelines" id="scorelines"><div class="score-chip"><strong>1–1</strong><span>10.8%</span></div><div class="score-chip"><strong>2–1</strong><span>9.6%</span></div><div class="score-chip"><strong>1–0</strong><span>9.2%</span></div></div>
+                    </article>
+
+                    <article class="card analytics-card market-card" id="market-edge">
+                        <div class="card-title"><div><h2>Market edge</h2><p>Add decimal prices to compare with fair odds.</p></div></div>
+                        <div class="market-head"><span>Selection</span><span>Odds</span><span>Edge</span></div>
+                        <div class="market-row"><strong id="market-home-name">Home win</strong><input class="market-odds" id="odds-home" type="number" min="1.01" step="0.01" value="2.25" aria-label="Home win market odds"><span class="edge" id="edge-home">+8.0%</span></div>
+                        <div class="market-row"><strong>Draw</strong><input class="market-odds" id="odds-draw" type="number" min="1.01" step="0.01" value="3.50" aria-label="Draw market odds"><span class="edge" id="edge-draw">−2.5%</span></div>
+                        <div class="market-row"><strong id="market-away-name">Away win</strong><input class="market-odds" id="odds-away" type="number" min="1.01" step="0.01" value="3.10" aria-label="Away win market odds"><span class="edge" id="edge-away">−6.2%</span></div>
+                        <div class="market-row"><strong id="market-over-label">Over 2.5</strong><input class="market-odds" id="odds-over" type="number" min="1.01" step="0.01" value="1.92" aria-label="Over goals market odds"><span class="edge" id="edge-over">+9.4%</span></div>
+                    </article>
+                    <p class="disclaimer">Probabilities are estimates, not guarantees. SportsBetLang is an analysis tool; always validate inputs and bet responsibly.</p>
+                </div>
+            </section>
+        </main>
+    </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+    const API_URL = window.SPORTSBET_API_URL || 'http://localhost:8000';
+    const defaults = { league: 'PREMIER_LEAGUE', homeScored: 1.8, homeConceded: 1.1, awayScored: 1.45, awayConceded: 1.35, totalLine: 2.5 };
+    let currentModel;
+
+    const el = (id) => document.getElementById(id);
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const pct = (value) => `${(value * 100).toFixed(1)}%`;
+    const fair = (value) => value > 0 ? (1 / value).toFixed(2) : '—';
+    const factorial = (n) => n < 2 ? 1 : n * factorial(n - 1);
+    const poisson = (goals, lambda) => Math.exp(-lambda) * Math.pow(lambda, goals) / factorial(goals);
+
+    function initials(name) {
+        return name.trim().split(/\s+/).slice(0, 2).map(word => word[0] || '').join('').toUpperCase() || 'FC';
+    }
+
+    function localAnalysis(input) {
+        const leagueLift = { BUNDESLIGA: 1.05, MLS: 1.06, LIGUE_1: .97, SERIE_A: .98, WORLD_CUP: .94 }[input.league] || 1;
+        const homeXg = clamp(((input.homeScored * .62) + (input.awayConceded * .38)) * 1.07 * leagueLift, .15, 5);
+        const awayXg = clamp(((input.awayScored * .62) + (input.homeConceded * .38)) * .96 * leagueLift, .15, 5);
+        const scores = [];
+        let home = 0, draw = 0, away = 0, over = 0, btts = 0;
+        for (let h = 0; h <= 9; h++) {
+            for (let a = 0; a <= 9; a++) {
+                const probability = poisson(h, homeXg) * poisson(a, awayXg);
+                if (h > a) home += probability; else if (h === a) draw += probability; else away += probability;
+                if (h + a > input.totalLine) over += probability;
+                if (h > 0 && a > 0) btts += probability;
+                if (h <= 5 && a <= 5) scores.push({ h, a, probability });
+            }
+        }
+        const total = home + draw + away;
+        return {
+            three_way: { home_win_probability: home / total, draw_probability: draw / total, away_win_probability: away / total, home_expected_goals: homeXg, away_expected_goals: awayXg },
+            totals: { line: input.totalLine, expected_total: homeXg + awayXg, over_probability: over, under_probability: 1 - over },
+            btts: { btts_yes_probability: btts, btts_no_probability: 1 - btts, home_clean_sheet_probability: Math.exp(-awayXg), away_clean_sheet_probability: Math.exp(-homeXg) },
+            scores: scores.sort((a, b) => b.probability - a.probability).slice(0, 3)
+        };
+    }
+
+    function getInputs() {
+        return {
+            league: el('league').value,
+            homeScored: parseFloat(el('home-scored').value),
+            homeConceded: parseFloat(el('home-conceded').value),
+            awayScored: parseFloat(el('away-scored').value),
+            awayConceded: parseFloat(el('away-conceded').value),
+            totalLine: parseFloat(el('total-line').value)
+        };
+    }
+
+    async function getApiAnalysis(input) {
+        const response = await fetch(`${API_URL}/predict/soccer/match`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ home_goals_avg: input.homeScored, away_goals_avg: input.awayScored, home_goals_against_avg: input.homeConceded, away_goals_against_avg: input.awayConceded, total_line: input.totalLine, league: input.league })
+        });
+        if (!response.ok) throw new Error(`API returned ${response.status}`);
+        return response.json();
+    }
+
+    function render(model) {
+        currentModel = model;
+        const probs = [model.three_way.home_win_probability, model.three_way.draw_probability, model.three_way.away_win_probability];
+        ['home', 'draw', 'away'].forEach((key, index) => {
+            el(`${key}-prob`).textContent = pct(probs[index]);
+            el(`${key}-bar`).style.width = `${probs[index] * 100}%`;
+            el(`${key}-prob-box`).classList.toggle('best', probs[index] === Math.max(...probs));
+        });
+
+        const line = model.totals.line;
+        el('over-label').textContent = `Over ${line}`;
+        el('market-over-label').textContent = `Over ${line}`;
+        el('over-prob').textContent = pct(model.totals.over_probability);
+        el('over-fair').textContent = `Fair ${fair(model.totals.over_probability)}`;
+        el('btts-prob').textContent = pct(model.btts.btts_yes_probability);
+        el('btts-fair').textContent = `Fair ${fair(model.btts.btts_yes_probability)}`;
+        el('clean-prob').textContent = pct(model.btts.home_clean_sheet_probability);
+        el('clean-fair').textContent = `Fair ${fair(model.btts.home_clean_sheet_probability)}`;
+
+        const hxg = model.three_way.home_expected_goals;
+        const axg = model.three_way.away_expected_goals;
+        el('home-xg').textContent = hxg.toFixed(2);
+        el('away-xg').textContent = axg.toFixed(2);
+        const share = hxg / (hxg + axg) * 100;
+        el('home-xg-bar').style.width = `${share}%`;
+        el('away-xg-bar').style.width = `${100 - share}%`;
+
+        const scores = model.scores || localAnalysis(getInputs()).scores;
+        el('scorelines').innerHTML = scores.map(score => `<div class="score-chip"><strong>${score.h}–${score.a}</strong><span>${pct(score.probability)}</span></div>`).join('');
+        updateEdges();
+    }
+
+    function updateNames() {
+        const home = el('home-name').value.trim() || 'Home';
+        const away = el('away-name').value.trim() || 'Away';
+        el('home-crest').textContent = initials(home);
+        el('away-crest').textContent = initials(away);
+        el('home-xg-name').textContent = home;
+        el('away-xg-name').textContent = away;
+        el('market-home-name').textContent = `${home} win`;
+        el('market-away-name').textContent = `${away} win`;
+    }
+
+    function updateEdges() {
+        if (!currentModel) return;
+        const markets = [
+            ['home', currentModel.three_way.home_win_probability],
+            ['draw', currentModel.three_way.draw_probability],
+            ['away', currentModel.three_way.away_win_probability],
+            ['over', currentModel.totals.over_probability]
+        ];
+        markets.forEach(([key, probability]) => {
+            const odds = parseFloat(el(`odds-${key}`).value);
+            const edge = probability * odds - 1;
+            const target = el(`edge-${key}`);
+            target.textContent = `${edge >= 0 ? '+' : '−'}${Math.abs(edge * 100).toFixed(1)}%`;
+            target.className = `edge ${edge > .01 ? 'positive' : edge < -.01 ? 'negative' : ''}`;
+        });
+    }
+
+    function toast(message) {
+        el('toast').textContent = message;
+        el('toast').classList.add('show');
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => el('toast').classList.remove('show'), 3800);
+    }
+
+    async function analyze(event) {
+        if (event) event.preventDefault();
+        const input = getInputs();
+        if (Object.values(input).some(value => typeof value === 'number' && !Number.isFinite(value))) return;
+        const button = el('analyze-btn');
+        button.disabled = true;
+        button.querySelector('span').textContent = 'Analyzing match…';
+        let model;
+        try {
+            model = await getApiAnalysis(input);
+            const local = localAnalysis(input);
+            model.scores = local.scores;
+            el('api-state').textContent = 'API connected';
+            el('api-state').classList.add('live');
+            toast('Analysis updated with the SportsBetLang API.');
+        } catch (error) {
+            model = localAnalysis(input);
+            el('api-state').textContent = 'Local preview';
+            el('api-state').classList.remove('live');
+            toast('API unavailable. Showing the built-in Poisson preview instead.');
+        } finally {
+            render(model);
+            button.disabled = false;
+            button.querySelector('span').textContent = 'Run match analysis';
+        }
+    }
+
+    function reset() {
+        el('league').value = defaults.league;
+        el('home-scored').value = defaults.homeScored.toFixed(2);
+        el('home-conceded').value = defaults.homeConceded.toFixed(2);
+        el('away-scored').value = defaults.awayScored.toFixed(2);
+        el('away-conceded').value = defaults.awayConceded.toFixed(2);
+        el('total-line').value = defaults.totalLine;
+        render(localAnalysis(getInputs()));
+    }
+
+    el('analysis-form').addEventListener('submit', analyze);
+    el('reset-btn').addEventListener('click', reset);
+    el('league').addEventListener('change', () => { el('league-label').textContent = el('league').selectedOptions[0].textContent; });
+    ['home-name', 'away-name'].forEach(id => el(id).addEventListener('input', updateNames));
+    ['odds-home', 'odds-draw', 'odds-away', 'odds-over'].forEach(id => el(id).addEventListener('input', updateEdges));
+    updateNames();
+    render(localAnalysis(getInputs()));
+</script>
+</body>
+</html>
