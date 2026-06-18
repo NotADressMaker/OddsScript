@@ -58,8 +58,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Run a SportsBetLang .odds file.")
-    run_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
+    run_parser = subparsers.add_parser("run", help="Run a SportsBetLang .sportsodds file.")
+    run_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     _add_runtime_flags(run_parser)
     _add_json_flag(run_parser)
 
@@ -93,15 +93,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_json_flag(research_parser)
 
-    format_parser = subparsers.add_parser("format", help="Format a .odds SportsBetLang program.")
-    format_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
+    format_parser = subparsers.add_parser("format", help="Format a .sportsodds SportsBetLang program.")
+    format_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     format_parser.add_argument(
         "--write", action="store_true", help="Write formatted output back to the source file."
     )
     _add_json_flag(format_parser)
 
-    lint_parser = subparsers.add_parser("lint", help="Lint a .odds SportsBetLang program.")
-    lint_parser.add_argument("source", help="Path to a .odds SportsBetLang program.")
+    lint_parser = subparsers.add_parser("lint", help="Lint a .sportsodds SportsBetLang program.")
+    lint_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     _add_json_flag(lint_parser)
     return parser
 
@@ -376,7 +376,7 @@ def _normalize_argv(argv: list[str]) -> list[str]:
         command = argv[0][2:]
         return [command, *argv[1:]]
 
-    # Legacy runtime flags before file: `sportsbetlang --max-steps 100 file.odds`
+    # Legacy runtime flags before file: `sportsbetlang --max-steps 100 file.sportsodds`
     runtime_flags = {
         "--mode",
         "--max-steps",

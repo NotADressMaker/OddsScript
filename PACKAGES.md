@@ -985,28 +985,28 @@ class TestMyFeature(unittest.TestCase):
 
 ### Basic Examples (1-7)
 
-1. **01_basic_bet.odds** - Basic betting calculations
-2. **02_kelly_criterion.odds** - Optimal bet sizing
-3. **03_parlay.odds** - Parlay betting analysis
-4. **04_vig_calculator.odds** - Understanding bookmaker's vig
-5. **05_bankroll_management.odds** - Bankroll simulation
-6. **06_odds_conversion.odds** - Format conversions
-7. **07_advanced_strategy.odds** - EV-based betting strategy
+1. **01_basic_bet.sportsodds** - Basic betting calculations
+2. **02_kelly_criterion.sportsodds** - Optimal bet sizing
+3. **03_parlay.sportsodds** - Parlay betting analysis
+4. **04_vig_calculator.sportsodds** - Understanding bookmaker's vig
+5. **05_bankroll_management.sportsodds** - Bankroll simulation
+6. **06_odds_conversion.sportsodds** - Format conversions
+7. **07_advanced_strategy.sportsodds** - EV-based betting strategy
 
 ### Advanced Examples (8-10)
 
-8. **08_arbitrage_betting.odds** - Arbitrage opportunity detection
-9. **09_monte_carlo_simulation.odds** - Monte Carlo bankroll simulation
-10. **10_hedging_calculator.odds** - Hedging strategies and middle opportunities
+8. **08_arbitrage_betting.sportsodds** - Arbitrage opportunity detection
+9. **09_monte_carlo_simulation.sportsodds** - Monte Carlo bankroll simulation
+10. **10_hedging_calculator.sportsodds** - Hedging strategies and middle opportunities
 
 ### Running Examples
 
 ```bash
 # Run an example
-python3 oddsscript.py examples/02_kelly_criterion.odds
+python3 oddsscript.py examples/02_kelly_criterion.sportsodds
 
 # Run all examples
-for f in examples/*.odds; do
+for f in examples/*.sportsodds; do
     echo "Running $f..."
     python3 oddsscript.py "$f"
     echo "---"
@@ -1122,7 +1122,7 @@ While these packages are written in Python, you can use them alongside OddsScrip
 
 ```bash
 # Run OddsScript for analysis
-python3 oddsscript.py my_analysis.odds
+python3 oddsscript.py my_analysis.sportsodds
 
 # Use Python tools for tracking
 python3 tools/bet_tracker.py add NBA "Lakers vs Celtics" "Lakers -5" \
@@ -1524,7 +1524,7 @@ let results = poisson_simulate_matches(1.8, 1.2, 1000)
 ```
 
 **Example Program:**
-See `examples/11_poisson_simulations.odds` for comprehensive examples including:
+See `examples/11_poisson_simulations.sportsodds` for comprehensive examples including:
 - Probability calculations
 - Single match simulations
 - Monte Carlo betting strategy testing

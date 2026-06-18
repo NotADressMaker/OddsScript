@@ -252,7 +252,7 @@ let match = poisson_simulate_match(2.0, 1.3)
 let prob = poisson_probability(2, 1.8)
 ```
 
-See `examples/11_poisson_simulations.odds` for detailed examples.
+See `examples/11_poisson_simulations.sportsodds` for detailed examples.
 
 ## Performance Notes
 
@@ -296,7 +296,7 @@ Use `-o filename.json` to save:
 
 For issues or questions:
 - Check `PACKAGES.md` for full documentation
-- See `examples/11_poisson_simulations.odds` for code examples
+- See `examples/11_poisson_simulations.sportsodds` for code examples
 - Run `python3 tools/poisson_simulator.py --help` for quick reference
 
 ## License

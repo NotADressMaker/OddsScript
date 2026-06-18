@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 def test_legacy_cli_runs_poisson_example():
-    odds_path = Path(__file__).resolve().parents[1] / "test_poisson.odds"
+    odds_path = Path(__file__).resolve().parents[1] / "test_poisson.sportsodds"
     result = subprocess.run(
         [sys.executable, "-m", "sportsbetlang", str(odds_path)],
         capture_output=True,
@@ -18,7 +18,7 @@ def test_legacy_cli_runs_poisson_example():
 
 
 def test_cli_runtime_limit_flags_trigger(tmp_path: Path):
-    program = tmp_path / "loop.odds"
+    program = tmp_path / "loop.sportsodds"
     program.write_text("while true { }\n", encoding="utf-8")
     result = subprocess.run(
         [
@@ -38,7 +38,7 @@ def test_cli_runtime_limit_flags_trigger(tmp_path: Path):
 
 
 def test_betlang_run_supports_json_output():
-    odds_path = Path(__file__).resolve().parents[1] / "examples" / "01_basic_bet.odds"
+    odds_path = Path(__file__).resolve().parents[1] / "examples" / "01_basic_bet.sportsodds"
     result = subprocess.run(
         [sys.executable, "-m", "sportsbetlang", "run", str(odds_path), "--json"],
         capture_output=True,
