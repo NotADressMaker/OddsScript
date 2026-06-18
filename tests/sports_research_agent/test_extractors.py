@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
@@ -53,3 +52,22 @@ def test_extract_qb_starters() -> None:
     results = extract_qb_starters(html, "https://example.com/qb", datetime.utcnow())
     assert len(results) == 1
     assert results[0].player == "Taylor Swift"
+
+
+def test_extract_novel_moneyline_signals() -> None:
+    pytest.importorskip("bs4")
+    from src.sports_research_agent.extract.rule_extractors import extract_novel_moneyline_signals
+
+    html = """
+    <html><body><main>
+    BOS is playing its third game in four nights after a late arrival from the West Coast.
+    Market screens also showed reverse line movement and buyback on the underdog moneyline.
+    </main></body></html>
+    """
+    results = extract_novel_moneyline_signals(
+        html, "https://example.com/context", datetime.utcnow()
+    )
+    assert len(results) == 2
+    assert results[0].category == "travel_rest"
+    assert results[0].team == "BOS"
+    assert results[1].category == "market_microstructure"

@@ -9,6 +9,7 @@ from .extract.rule_extractors import (
     extract_goalies_from_text,
     extract_injuries_from_html,
     extract_line_moves,
+    extract_novel_moneyline_signals,
     extract_probable_pitchers,
     extract_qb_starters,
 )
@@ -47,7 +48,9 @@ def resolve_sources_path(league: str | None, override: str | None) -> Path:
     return default_path
 
 
-def run(query: str, league: str | None, sources_path: str | None, json_output: bool, limit: int) -> str:
+def run(
+    query: str, league: str | None, sources_path: str | None, json_output: bool, limit: int
+) -> str:
     sources_file = resolve_sources_path(league, sources_path)
     registry = load_registry(sources_file)
     client = HttpClient()
@@ -63,6 +66,7 @@ def run(query: str, league: str | None, sources_path: str | None, json_output: b
         goalies = []
         probable_pitchers = []
         line_moves = []
+        novel_signals = []
         notes = []
 
         for url in urls:
@@ -76,6 +80,7 @@ def run(query: str, league: str | None, sources_path: str | None, json_output: b
             goalies.extend(extract_goalies_from_text(html, url, retrieved_at))
             probable_pitchers.extend(extract_probable_pitchers(html, url, retrieved_at))
             line_moves.extend(extract_line_moves(html, url, retrieved_at))
+            novel_signals.extend(extract_novel_moneyline_signals(html, url, retrieved_at))
 
         report = ResearchReport(
             query=query,
@@ -85,6 +90,7 @@ def run(query: str, league: str | None, sources_path: str | None, json_output: b
             goalies=goalies,
             probable_pitchers=probable_pitchers,
             line_moves=reconcile_line_moves(registry, line_moves),
+            novel_signals=novel_signals,
             notes=notes,
         )
 

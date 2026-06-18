@@ -3,17 +3,18 @@ from __future__ import annotations
 import re
 from datetime import datetime
 
+from ..parse.extract_main import extract_main_text
+from ..parse.extract_tables import extract_tables
 from .schemas import (
     Citation,
     InjuryReport,
     LineMove,
+    NovelSignal,
     ProbablePitcher,
-    StartingGoalie,
     StarterInfo,
+    StartingGoalie,
     StatusEnum,
 )
-from ..parse.extract_main import extract_main_text
-from ..parse.extract_tables import extract_tables
 
 STATUS_MAP = {
     "out": StatusEnum.OUT,
@@ -42,7 +43,7 @@ def extract_injuries_from_html(
         if not any("player" in cell for cell in header):
             continue
         for row in table[1:]:
-            row_data = dict(zip(header, row))
+            row_data = dict(zip(header, row, strict=False))
             player = row_data.get("player")
             status_value = row_data.get("status") or row_data.get("injury status")
             if not player or not status_value:
@@ -73,7 +74,8 @@ def extract_goalies_from_text(
 ) -> list[StartingGoalie]:
     text = extract_main_text(html)
     results: list[StartingGoalie] = []
-    pattern = re.compile(r"(?P<goalie>[A-Z][a-z]+\s[A-Z][a-z]+)\s+\((?P<team>[A-Z]{2,3})\)\s+-\s+(?P<status>confirmed|projected)",
+    pattern = re.compile(
+        r"(?P<goalie>[A-Z][a-z]+\s[A-Z][a-z]+)\s+\((?P<team>[A-Z]{2,3})\)\s+-\s+(?P<status>confirmed|projected)",
         re.IGNORECASE,
     )
     for match in pattern.finditer(text):
@@ -128,9 +130,7 @@ def extract_probable_pitchers(
     return results
 
 
-def extract_line_moves(
-    html: str, source_url: str, retrieved_at: datetime
-) -> list[LineMove]:
+def extract_line_moves(html: str, source_url: str, retrieved_at: datetime) -> list[LineMove]:
     text = extract_main_text(html)
     results: list[LineMove] = []
     pattern = re.compile(
@@ -169,9 +169,122 @@ def extract_line_moves(
     return results
 
 
-def extract_qb_starters(
+NOVEL_SIGNAL_PATTERNS: list[tuple[str, str, str]] = [
+    (
+        "travel_rest",
+        (
+            r"\b(?:third game in four nights|back[- ]to[- ]back|(?:no|zero) rest|"
+            r"travel(?:ing|led)?|late arrival|road trip|time zone|altitude)\b"
+        ),
+        "negative",
+    ),
+    (
+        "lineup_role",
+        (
+            r"\b(?:minutes restriction|limited minutes|lineup change|bench(?:ed)?|"
+            r"scratched|called up|role change|first start|resting starters?)\b"
+        ),
+        "mixed",
+    ),
+    (
+        "weather_venue",
+        (
+            r"\b(?:wind gusts?|crosswind|rain|snow|roof (?:open|closed)|"
+            r"field conditions?|humidity|extreme heat|cold front)\b"
+        ),
+        "mixed",
+    ),
+    (
+        "market_microstructure",
+        (
+            r"\b(?:reverse line movement|steam move|buyback|stale line|low liquidity|"
+            r"market disagreement|split tickets|sharp money)\b"
+        ),
+        "unknown",
+    ),
+    (
+        "tactical_matchup",
+        (
+            r"\b(?:pace mismatch|scheme change|defensive matchup|forecheck|bullpen taxed|"
+            r"platoon advantage|transition defense|rebounding edge)\b"
+        ),
+        "mixed",
+    ),
+    (
+        "motivation_schedule",
+        (
+            r"\b(?:lookahead spot|letdown spot|must[- ]win|revenge spot|trap game|"
+            r"clinched|eliminated|rivalry)\b"
+        ),
+        "mixed",
+    ),
+    (
+        "officiating",
+        (
+            r"\b(?:referee assignment|umpire assignment|officials?|strike zone|whistle|"
+            r"penalty rate|foul rate)\b"
+        ),
+        "mixed",
+    ),
+]
+
+
+def _sentence_windows(text: str) -> list[str]:
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+
+
+def _extract_team_hint(snippet: str) -> str | None:
+    bracketed = re.search(r"\(([A-Z]{2,4})\)", snippet)
+    if bracketed:
+        return bracketed.group(1)
+    acronym = re.search(r"\b([A-Z]{2,4})\b", snippet)
+    return acronym.group(1) if acronym else None
+
+
+def extract_novel_moneyline_signals(
     html: str, source_url: str, retrieved_at: datetime
-) -> list[StarterInfo]:
+) -> list[NovelSignal]:
+    """Extract under-discussed contextual signals for moneyline research.
+
+    These are deliberately broader than canonical injuries/starters so the agent can
+    surface potentially stale or slow-to-price information for human review.
+    """
+    text = extract_main_text(html)
+    results: list[NovelSignal] = []
+    seen: set[tuple[str, str]] = set()
+    for sentence in _sentence_windows(text):
+        for category, pattern, default_impact in NOVEL_SIGNAL_PATTERNS:
+            if not re.search(pattern, sentence, re.IGNORECASE):
+                continue
+            snippet = sentence[:240]
+            key = (category, snippet.lower())
+            if key in seen:
+                continue
+            seen.add(key)
+            citation = _build_citation(snippet, source_url, snippet, retrieved_at)
+            novelty_score = (
+                0.75 if category in {"travel_rest", "market_microstructure", "lineup_role"} else 0.6
+            )
+            results.append(
+                NovelSignal(
+                    category=category,  # type: ignore[arg-type]
+                    team=_extract_team_hint(sentence),
+                    signal=sentence,
+                    moneyline_impact=default_impact,  # type: ignore[arg-type]
+                    novelty_score=novelty_score,
+                    source_url=source_url,
+                    snippet=snippet,
+                    citations=[citation],
+                    source=source_url,
+                    timestamp=retrieved_at,
+                    citation=citation,
+                    confidence=0.45,
+                )
+            )
+    return results
+
+
+def extract_qb_starters(html: str, source_url: str, retrieved_at: datetime) -> list[StarterInfo]:
     text = extract_main_text(html)
     results: list[StarterInfo] = []
     pattern = re.compile(
