@@ -3,7 +3,7 @@
 ## Overview
 SportsBetLang is a domain-specific language plus analytics toolkit for sports betting workflows. The repository hosts two layers:
 
-1. **Language runtime** (lexer → parser → AST → interpreter) for `.odds` scripts.
+1. **Language runtime** (lexer → parser → AST → interpreter) for `.sportsodds` scripts.
 2. **Python analytics libraries** that provide betting math, sports models, and data utilities.
 
 The runtime is intentionally lightweight and keeps execution in-process (no external code execution).

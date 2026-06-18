@@ -19,10 +19,10 @@ betlang test -q
 
 ```bash
 # Run a strategy-focused DSL program
-betlang run examples/07_advanced_strategy.odds
+betlang run examples/07_advanced_strategy.sportsodds
 
 # Compare against expected outputs for curated examples
-betlang run examples/13_totals_spread_props.odds > /tmp/13_totals_spread_props.txt
+betlang run examples/13_totals_spread_props.sportsodds > /tmp/13_totals_spread_props.txt
 diff -u examples/expected_outputs/13_totals_spread_props.txt /tmp/13_totals_spread_props.txt
 ```
 
@@ -56,14 +56,14 @@ betlang repl
 ### Format + lint a program
 
 ```bash
-betlang format examples/01_basic_bet.odds --write
-betlang lint examples/01_basic_bet.odds
+betlang format examples/01_basic_bet.sportsodds --write
+betlang lint examples/01_basic_bet.sportsodds
 ```
 
 ### Run a program in JSON mode
 
 ```bash
-betlang run examples/01_basic_bet.odds --json
+betlang run examples/01_basic_bet.sportsodds --json
 ```
 
 ### Run tests with extra pytest args
@@ -94,7 +94,7 @@ betlang research --json "probable pitchers today" --max-results 5
 
 ### `Runtime Error: ... step limit`
 - Your script hit runtime safety limits.
-- Increase limits for trusted code: `betlang run my.odds --max-steps 200000`.
+- Increase limits for trusted code: `betlang run my.sportsodds --max-steps 200000`.
 
 ### `Dependency Error: ...`
 - Optional dependencies may be missing for research workflows.

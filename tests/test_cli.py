@@ -9,7 +9,7 @@ import unittest
 class TestCLI(unittest.TestCase):
     def test_example_program_runs(self):
         result = subprocess.run(
-            [sys.executable, "sportsbetlang.py", "examples/01_basic_bet.odds"],
+            [sys.executable, "sportsbetlang.py", "examples/01_basic_bet.sportsodds"],
             capture_output=True,
             text=True,
             check=False,

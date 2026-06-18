@@ -251,13 +251,13 @@ print(result)
 Use the formatter to normalize whitespace and indentation:
 
 ```bash
-python sportsbetlang.py --format path/to/script.odds
-python sportsbetlang.py --format --write path/to/script.odds
+python sportsbetlang.py --format path/to/script.sportsodds
+python sportsbetlang.py --format --write path/to/script.sportsodds
 ```
 
 ### 5.2 Linter
 The linter flags common issues like missing bet fields or `return` outside a function:
 
 ```bash
-python sportsbetlang.py --lint path/to/script.odds
+python sportsbetlang.py --lint path/to/script.sportsodds
 ```

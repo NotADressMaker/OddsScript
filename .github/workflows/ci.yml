@@ -26,8 +26,8 @@ jobs:
           pytest --cov=sportsbetlang --cov-report=term-missing --cov-fail-under=70
       - name: Smoke run CLI examples
         run: |
-          betlang run examples/01_basic_bet.odds --json
-          betlang run examples/06_odds_conversion.odds --json
+          betlang run examples/01_basic_bet.sportsodds --json
+          betlang run examples/06_odds_conversion.sportsodds --json
       - name: Ruff format check
         run: |
           ruff format --check .

@@ -1,7 +1,7 @@
 """
 SportsBetLang core language implementation.
 
-Contains the lexer, parser, and interpreter for the .odds language.
+Contains the lexer, parser, and interpreter for the .sportsodds language.
 """
 
 from sportsbetlang.lang.codegen import CodeGenerator, generate_code, GeneratedCode

@@ -1,7 +1,7 @@
 # SportsBetLang Audit Report
 
 ## What the repo does
-SportsBetLang is a domain-specific language (DSL) for sports betting analysis, plus a large Python analytics toolkit. The DSL allows `.odds` scripts to express betting logic (bets, parlays, bankroll management) and executes them through a custom lexer, parser, and interpreter. The Python libraries provide odds conversion utilities, sport-specific analytics, model helpers, and data tooling that can be used independently or from SportsBetLang scripts.
+SportsBetLang is a domain-specific language (DSL) for sports betting analysis, plus a large Python analytics toolkit. The DSL allows `.sportsodds` scripts to express betting logic (bets, parlays, bankroll management) and executes them through a custom lexer, parser, and interpreter. The Python libraries provide odds conversion utilities, sport-specific analytics, model helpers, and data tooling that can be used independently or from SportsBetLang scripts.
 
 The runtime model is an in-process interpreter: source code is tokenized, parsed into an AST, and evaluated with built-in betting functions and modules. The repository also ships a wide set of domain libraries under `lib/` for sports modeling and betting math.
 
@@ -16,7 +16,7 @@ The runtime model is an in-process interpreter: source code is tokenized, parsed
   - `lib/betting_core.py` – odds conversion + EV math
   - `lib/nhl_analytics.py` – NHL analytics utilities
 - Examples:
-  - `examples/*.odds` – language examples
+  - `examples/*.sportsodds` – language examples
 - Tests:
   - `tests/test_interpreter.py` – language unit tests
   - `tests/test_nhl_analytics.py` – NHL analytics tests
@@ -64,7 +64,7 @@ The runtime model is an in-process interpreter: source code is tokenized, parsed
 pip install -e ".[dev]"
 
 # Run the CLI on an example program
-sportsbetlang examples/01_basic_bet.odds
+sportsbetlang examples/01_basic_bet.sportsodds
 
 # Run tests
 pytest

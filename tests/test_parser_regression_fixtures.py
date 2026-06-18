@@ -16,6 +16,6 @@ def _parse(path: Path) -> None:
 
 
 def test_regression_fixture_errors_are_diagnostic() -> None:
-    for path in Path("tests/fixtures/parser_regressions").glob("*.odds"):
+    for path in Path("tests/fixtures/parser_regressions").glob("*.sportsodds"):
         with pytest.raises(DiagnosticError):
             _parse(path)

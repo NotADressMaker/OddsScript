@@ -193,7 +193,7 @@ oddsscript/
 │   └── fixtures/             # Test data
 │
 ├── examples/                  # Example code
-│   ├── scripts/              # .odds files
+│   ├── scripts/              # .sportsodds files
 │   ├── notebooks/            # Jupyter notebooks
 │   └── workflows/            # Common workflows
 │

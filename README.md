@@ -133,13 +133,13 @@ sportsbetlang
 # (or python -m sportsbetlang)
 
 # Or run a script
-sportsbetlang examples/01_basic_bet.odds
+sportsbetlang examples/01_basic_bet.sportsodds
 ```
 
 **One-command quickstart (pipx + betlang):**
 ```bash
 pipx install git+https://github.com/NotADressMaker/SportsBetLang.git
-betlang run examples/13_totals_spread_props.odds
+betlang run examples/13_totals_spread_props.sportsodds
 ```
 Run the `betlang` command from a repo checkout so the `examples/` directory is available.
 
@@ -282,7 +282,7 @@ let data = http.get_json("https://example.com/data.json")
 SportsBetLang now uses a single front door with explicit subcommands:
 
 ```bash
-betlang run examples/01_basic_bet.odds
+betlang run examples/01_basic_bet.sportsodds
 betlang repl
 betlang test -q
 betlang ingest backfill --sport nba --start 2025-10-01 --end 2025-10-31
@@ -356,36 +356,36 @@ Core utilities (`abs`, `min`, `max`, `sqrt`, `pow`, `len`, `range`, `sum`) are a
 The `examples/` directory contains comprehensive examples:
 
 ### Basic Examples
-1. **01_basic_bet.odds** - Basic betting operations and calculations
-2. **02_kelly_criterion.odds** - Optimal bet sizing using Kelly criterion
-3. **03_parlay.odds** - Parlay betting and analysis
-4. **04_vig_calculator.odds** - Understanding bookmaker's vig
-5. **05_bankroll_management.odds** - Bankroll management simulation
-6. **06_odds_conversion.odds** - Converting between odds formats
-7. **07_advanced_strategy.odds** - Advanced betting strategy with EV analysis
+1. **01_basic_bet.sportsodds** - Basic betting operations and calculations
+2. **02_kelly_criterion.sportsodds** - Optimal bet sizing using Kelly criterion
+3. **03_parlay.sportsodds** - Parlay betting and analysis
+4. **04_vig_calculator.sportsodds** - Understanding bookmaker's vig
+5. **05_bankroll_management.sportsodds** - Bankroll management simulation
+6. **06_odds_conversion.sportsodds** - Converting between odds formats
+7. **07_advanced_strategy.sportsodds** - Advanced betting strategy with EV analysis
 
 ### Advanced Examples
-8. **08_arbitrage_betting.odds** - Arbitrage opportunity detection
-9. **09_monte_carlo_simulation.odds** - Monte Carlo bankroll simulation
-10. **10_hedging_calculator.odds** - Hedging strategies and middle opportunities
+8. **08_arbitrage_betting.sportsodds** - Arbitrage opportunity detection
+9. **09_monte_carlo_simulation.sportsodds** - Monte Carlo bankroll simulation
+10. **10_hedging_calculator.sportsodds** - Hedging strategies and middle opportunities
 
 ### Workflow Examples
-11. **13_totals_spread_props.odds** - Totals + spread + player props flow
-12. **14_line_shopping.odds** - Line shopping across books
-13. **15_bankroll_rules.odds** - Daily cap, max exposure, fractional Kelly sizing
-14. **16_bet_slip_exports.odds** - Output CSV/JSON bet slips
+11. **13_totals_spread_props.sportsodds** - Totals + spread + player props flow
+12. **14_line_shopping.sportsodds** - Line shopping across books
+13. **15_bankroll_rules.sportsodds** - Daily cap, max exposure, fractional Kelly sizing
+14. **16_bet_slip_exports.sportsodds** - Output CSV/JSON bet slips
 
 ### Running Examples
 
 ```bash
 # Run an example
-./sportsbetlang.py examples/02_kelly_criterion.odds
+./sportsbetlang.py examples/02_kelly_criterion.sportsodds
 
 # Or via pipx-installed CLI
-betlang run examples/02_kelly_criterion.odds
+betlang run examples/02_kelly_criterion.sportsodds
 
 # Or using Python directly
-python3 sportsbetlang.py examples/02_kelly_criterion.odds
+python3 sportsbetlang.py examples/02_kelly_criterion.sportsodds
 ```
 
 ### Golden Outputs (Expected Results)
@@ -393,7 +393,7 @@ python3 sportsbetlang.py examples/02_kelly_criterion.odds
 Each workflow example has a committed expected output in `examples/expected_outputs/`.
 
 ```bash
-betlang run examples/13_totals_spread_props.odds > /tmp/13_totals_spread_props.txt
+betlang run examples/13_totals_spread_props.sportsodds > /tmp/13_totals_spread_props.txt
 diff -u examples/expected_outputs/13_totals_spread_props.txt /tmp/13_totals_spread_props.txt
 ```
 
@@ -467,9 +467,9 @@ Type 'exit' or 'quit' to exit, 'help' for help
 SportsBetLang includes basic formatting and linting helpers:
 
 ```bash
-python sportsbetlang.py --format path/to/script.odds
-python sportsbetlang.py --format --write path/to/script.odds
-python sportsbetlang.py --lint path/to/script.odds
+python sportsbetlang.py --format path/to/script.sportsodds
+python sportsbetlang.py --format --write path/to/script.sportsodds
+python sportsbetlang.py --lint path/to/script.sportsodds
 ```
 
 ## Use Cases
@@ -1103,7 +1103,7 @@ then produces over/under probabilities, edge points, and derivative suggestions.
 
 **How to run the example**
 ```bash
-python sportsbetlang.py examples/basketball_totals_edges.odds
+python sportsbetlang.py examples/basketball_totals_edges.sportsodds
 ```
 
 **Model overview**
