@@ -137,6 +137,27 @@ class NewsItem(ExtractedEntityV1):
     citations: list[Citation]
 
 
+class NovelSignal(ExtractedEntityV1):
+    """Contextual signal that may not be fully incorporated into moneyline prices."""
+
+    category: Literal[
+        "travel_rest",
+        "lineup_role",
+        "weather_venue",
+        "market_microstructure",
+        "tactical_matchup",
+        "motivation_schedule",
+        "officiating",
+    ]
+    team: str | None
+    signal: str
+    moneyline_impact: Literal["positive", "negative", "mixed", "unknown"] = "unknown"
+    novelty_score: float = 0.5
+    source_url: str
+    snippet: str
+    citations: list[Citation]
+
+
 class BoxscoreSnapshot(ExtractedEntityV1):
     team: str
     opponent: str | None

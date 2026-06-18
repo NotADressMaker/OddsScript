@@ -7,9 +7,10 @@ from typing import Any
 from ..extract.schemas import (
     InjuryReport,
     LineMove,
+    NovelSignal,
     ProbablePitcher,
-    StartingGoalie,
     StarterInfo,
+    StartingGoalie,
 )
 
 
@@ -22,6 +23,7 @@ class ResearchReport:
     goalies: list[StartingGoalie]
     probable_pitchers: list[ProbablePitcher]
     line_moves: list[LineMove]
+    novel_signals: list[NovelSignal]
     notes: list[str]
 
     def to_json(self) -> dict[str, Any]:
@@ -33,11 +35,12 @@ class ResearchReport:
             "goalies": [item.model_dump() for item in self.goalies],
             "probable_pitchers": [item.model_dump() for item in self.probable_pitchers],
             "line_moves": [item.model_dump() for item in self.line_moves],
+            "novel_signals": [item.model_dump() for item in self.novel_signals],
             "notes": self.notes,
         }
 
     def to_markdown(self) -> str:
-        lines = [f"# Sports Research Report", f"Query: {self.query}", ""]
+        lines = ["# Sports Research Report", f"Query: {self.query}", ""]
         if self.injuries:
             lines.append("## Injuries")
             for injury in self.injuries:
@@ -66,7 +69,8 @@ class ResearchReport:
             for pitcher in self.probable_pitchers:
                 status = "confirmed" if pitcher.confirmed else "projected"
                 lines.append(
-                    f"- {pitcher.pitcher} ({pitcher.team or 'N/A'}) vs {pitcher.opponent or 'TBD'}: {status}"
+                    f"- {pitcher.pitcher} ({pitcher.team or 'N/A'}) vs "
+                    f"{pitcher.opponent or 'TBD'}: {status}"
                     f" — {pitcher.snippet} ({pitcher.source_url})"
                 )
         if self.line_moves:
@@ -75,6 +79,16 @@ class ResearchReport:
                 lines.append(
                     f"- {move.market}: {move.open} → {move.current}"
                     f" — {move.snippet} ({move.source_url})"
+                )
+        if self.novel_signals:
+            lines.append("\n## Novel Moneyline Signals")
+            for signal in sorted(
+                self.novel_signals, key=lambda item: item.novelty_score, reverse=True
+            ):
+                lines.append(
+                    f"- [{signal.category}] {signal.team or 'N/A'} "
+                    f"impact={signal.moneyline_impact}, novelty={signal.novelty_score:.2f}: "
+                    f"{signal.snippet} ({signal.source_url})"
                 )
         if self.notes:
             lines.append("\n## Notes")
