@@ -37,6 +37,37 @@ SportsBetLang is a domain-specific programming language designed specifically fo
 - 📉 **Regression Analysis** - Build custom betting models
 - 🎲 **Multi-Outcome Kelly** - Kelly criterion for 3+ outcomes (horse racing, golf, etc.)
 
+
+### UFC Fight Dataset Builder
+
+SportsBetLang includes a UFC-focused dataset builder for creating fighter-perspective training rows. It normalizes common fight-card aliases, keeps a stable schema for modeling, and derives implied probability from American moneyline odds when the source data does not provide one.
+
+```bash
+betlang ufc-dataset data/raw_ufc_fights.csv data/ufc_fight_dataset.csv
+```
+
+You can also build rows through the API:
+
+```http
+POST /ufc/datasets/build
+Content-Type: application/json
+
+{
+  "rows": [
+    {
+      "event_date": "2026-06-20",
+      "event_name": "UFC Fight Night",
+      "weight_class": "Lightweight",
+      "fighter": "Fighter A",
+      "opponent": "Fighter B",
+      "moneyline": -135
+    }
+  ]
+}
+```
+
+The response includes the normalized schema, row count, and generated rows for export or model training.
+
 ### Data Ingestion & Feature Pipeline
 - **Modular pipeline** in `sportsbetlang/ingestion` with sources, extractors, normalizers, db, features, and pipelines modules.
 - **Schema-first** odds snapshots and injury reports with validation utilities.
