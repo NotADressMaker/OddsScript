@@ -321,7 +321,7 @@
                 </div>
                 <div class="stat-card">
                     <span>Tracked Markets</span>
-                    <strong>NBA • NHL • Soccer</strong>
+                    <strong>NBA • NHL • Soccer • UFC</strong>
                 </div>
             </div>
         </div>
@@ -330,6 +330,7 @@
             <button class="tab active" onclick="switchTab('kelly')">Kelly Calculator</button>
             <button class="tab" onclick="switchTab('prediction')">NBA Prediction</button>
             <button class="tab" onclick="switchTab('performance')">Performance</button>
+            <button class="tab" onclick="switchTab('ufc')">UFC Dataset</button>
         </div>
 
         <!-- Kelly Calculator Tab -->
@@ -450,6 +451,54 @@
                 </div>
 
                 <div class="results" id="perf-results"></div>
+            </div>
+        </div>
+
+        <!-- UFC Dataset Tab -->
+        <div id="ufc-tab" class="tab-content">
+            <div class="card">
+                <h2>UFC Fight Dataset Builder</h2>
+                <p class="card-description">Create normalized fighter-perspective rows for fight modeling, including moneyline-derived implied probability.</p>
+
+                <form id="ufc-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Event Date</label>
+                            <input type="date" id="ufc-date" value="2026-06-20" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Event Name</label>
+                            <input type="text" id="ufc-event" value="UFC Fight Night" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Weight Class</label>
+                            <input type="text" id="ufc-weight" value="Lightweight" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Fighter</label>
+                            <input type="text" id="ufc-fighter" value="Fighter A" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Opponent</label>
+                            <input type="text" id="ufc-opponent" value="Fighter B" required>
+                        </div>
+                        <div class="form-group">
+                            <label>American Moneyline</label>
+                            <input type="number" id="ufc-moneyline" value="-135" required>
+                            <div class="help-text">Used to derive implied probability.</div>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button type="submit">Build UFC Dataset Row</button>
+                    </div>
+                </form>
+
+                <div class="loading" id="ufc-loading">
+                    <div class="spinner"></div>
+                    <p>Building dataset...</p>
+                </div>
+
+                <div class="results" id="ufc-results"></div>
             </div>
         </div>
     </div>
@@ -584,6 +633,49 @@
                     </div>
                 `;
 
+                results.classList.add('show');
+            } catch (error) {
+                results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                results.classList.add('show');
+            } finally {
+                loading.classList.remove('show');
+            }
+        });
+
+
+        // UFC Dataset Builder
+        document.getElementById('ufc-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const loading = document.getElementById('ufc-loading');
+            const results = document.getElementById('ufc-results');
+            loading.classList.add('show');
+            results.classList.remove('show');
+
+            const row = {
+                event_date: document.getElementById('ufc-date').value,
+                event_name: document.getElementById('ufc-event').value,
+                weight_class: document.getElementById('ufc-weight').value,
+                fighter: document.getElementById('ufc-fighter').value,
+                opponent: document.getElementById('ufc-opponent').value,
+                moneyline: parseInt(document.getElementById('ufc-moneyline').value, 10),
+                is_favorite: parseInt(document.getElementById('ufc-moneyline').value, 10) < 0
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/ufc/datasets/build`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: [row] })
+                });
+                const data = await response.json();
+                const built = data.rows[0];
+                results.innerHTML = `
+                    <div class="result-item"><span class="result-label">Schema Columns:</span><span class="result-value">${data.schema.length}</span></div>
+                    <div class="result-item"><span class="result-label">Fighter Row:</span><span class="result-value">${built.fighter} vs ${built.opponent}</span></div>
+                    <div class="result-item"><span class="result-label">Implied Probability:</span><span class="result-value">${(built.implied_probability * 100).toFixed(1)}%</span></div>
+                    <div class="recommendation value">Dataset row ready for export or model training.</div>
+                `;
                 results.classList.add('show');
             } catch (error) {
                 results.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;

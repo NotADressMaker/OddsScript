@@ -103,6 +103,11 @@ def build_parser() -> argparse.ArgumentParser:
     lint_parser = subparsers.add_parser("lint", help="Lint a .sportsodds SportsBetLang program.")
     lint_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     _add_json_flag(lint_parser)
+
+    ufc_parser = subparsers.add_parser("ufc-dataset", help="Build a normalized UFC fight dataset CSV.")
+    ufc_parser.add_argument("input", help="Input CSV with UFC fight rows.")
+    ufc_parser.add_argument("output", help="Output CSV path for normalized fighter-perspective rows.")
+    _add_json_flag(ufc_parser)
     return parser
 
 
@@ -347,6 +352,18 @@ def _lint(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ufc_dataset(args: argparse.Namespace) -> int:
+    from sportsbetlang.data.ufc_dataset import build_ufc_dataset_file
+
+    count = build_ufc_dataset_file(args.input, args.output)
+    _emit(
+        args,
+        {"command": "ufc-dataset", "status": "ok", "rows": count, "output": args.output},
+        text=f"Built UFC dataset with {count} rows at {args.output}",
+    )
+    return 0
+
+
 def _normalize_argv(argv: list[str]) -> list[str]:
     """Support legacy invocations by translating them to subcommands."""
     if not argv:
@@ -360,6 +377,7 @@ def _normalize_argv(argv: list[str]) -> list[str]:
         "research",
         "format",
         "lint",
+        "ufc-dataset",
         "-h",
         "--help",
         "--version",
@@ -411,6 +429,8 @@ def main() -> int:
             return _format(args)
         if args.command == "lint":
             return _lint(args)
+        if args.command == "ufc-dataset":
+            return _ufc_dataset(args)
     except FileNotFoundError as exc:
         print(f"Error: {exc}")
         return 1

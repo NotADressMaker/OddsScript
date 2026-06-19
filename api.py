@@ -47,6 +47,7 @@ from lib import (
 )
 from lib.soccer_analytics import SoccerAnalytics, League
 from sportsbetlang.data.dataset_storage import DatasetStorage
+from sportsbetlang.data.ufc_dataset import UFC_DATASET_COLUMNS, build_ufc_fight_dataset
 from sportsbetlang.core.interpreter import Interpreter
 from sportsbetlang.core.lexer import Lexer
 from sportsbetlang.core.parser import Parser
@@ -102,6 +103,17 @@ class ConnectionManager:
                 pass
 
 manager = ConnectionManager()
+
+
+class UFCDatasetBuildRequest(BaseModel):
+    rows: List[Dict[str, Any]] = Field(..., description="Raw UFC fight rows to normalize")
+
+
+class UFCDatasetBuildResponse(BaseModel):
+    sport: str
+    schema: List[str]
+    row_count: int
+    rows: List[Dict[str, Any]]
 
 
 class LiveStreamManager:
@@ -1239,6 +1251,18 @@ else:
     async def upload_dataset() -> dict[str, str]:  # type: ignore[override]
         """Placeholder upload handler when multipart support is unavailable."""
         raise HTTPException(status_code=503, detail="python-multipart is required for uploads")
+
+
+@app.post("/ufc/datasets/build", response_model=UFCDatasetBuildResponse)
+async def build_ufc_dataset(request: UFCDatasetBuildRequest):
+    """Build a normalized fighter-perspective dataset for UFC fights."""
+    rows = build_ufc_fight_dataset(request.rows)
+    return UFCDatasetBuildResponse(
+        sport="ufc",
+        schema=UFC_DATASET_COLUMNS,
+        row_count=len(rows),
+        rows=rows,
+    )
 
 @app.get("/datasets")
 async def list_datasets(dataset_type: Optional[str] = None):
