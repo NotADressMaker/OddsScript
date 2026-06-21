@@ -1,6 +1,6 @@
-# SportsBetLang Language Specification
+# VigScript Language Specification
 
-This document formalizes SportsBetLang syntax and semantics so the language can evolve consistently alongside the parser and interpreter.
+This document formalizes VigScript syntax and semantics so the language can evolve consistently alongside the parser and interpreter.
 
 ## 1) Lexical Structure
 
@@ -179,7 +179,7 @@ Assignment (`=`) is **statement-only** and does not participate in expression pr
 
 ## 4) LLM/Automation-Friendly Conventions
 
-These conventions make generated SportsBetLang easier to parse, review, and run in automated systems. They are stylistic; they do not change semantics.
+These conventions make generated VigScript easier to parse, review, and run in automated systems. They are stylistic; they do not change semantics.
 
 ### 4.1 Canonical Formatting
 - Use **one statement per line** (even inside blocks).
@@ -224,7 +224,7 @@ When the caller expects a machine-readable result, emit a single top-level dicti
 
 Example:
 
-```sportsbetlang
+```vigscript
 import betting
 
 const true_prob = 0.57

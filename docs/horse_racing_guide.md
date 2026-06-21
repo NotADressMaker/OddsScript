@@ -680,7 +680,7 @@ kelly_result = KellyCriterion.multi_outcome(
 
 ## Integration with Other Tools
 
-The horse racing library integrates seamlessly with other SportsBetLang tools:
+The horse racing library integrates seamlessly with other VigScript tools:
 
 - **Multi-Outcome Kelly** (`lib/multi_outcome_kelly.py`): Optimal bet sizing
 - **Dutch Betting** (`tools/dutch_betting.py`): Guaranteed profit strategies

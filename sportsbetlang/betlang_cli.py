@@ -1,4 +1,4 @@
-"""Unified BetLang CLI front door."""
+"""Unified VigScript CLI front door with legacy BetLang aliases."""
 
 from __future__ import annotations
 
@@ -54,16 +54,34 @@ def _add_json_flag(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="betlang", description="Unified CLI for SportsBetLang workflows."
+        prog="vigscript",
+        description=(
+            "VigScript CLI for writing, testing, and explaining betting strategies as code. "
+            "Formerly SportsBetLang."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Run a SportsBetLang .sportsodds file.")
-    run_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run a VigScript .vig file (.sportsodds is supported as legacy compatibility).",
+    )
+    run_parser.add_argument(
+        "source", help="Path to a .vig VigScript program (.sportsodds legacy files still work)."
+    )
     _add_runtime_flags(run_parser)
     _add_json_flag(run_parser)
 
-    repl_parser = subparsers.add_parser("repl", help="Start an interactive REPL.")
+    backtest_parser = subparsers.add_parser(
+        "backtest", help="Backtest a VigScript .vig strategy file."
+    )
+    backtest_parser.add_argument(
+        "source", help="Path to a .vig VigScript strategy (.sportsodds legacy files still work)."
+    )
+    _add_runtime_flags(backtest_parser)
+    _add_json_flag(backtest_parser)
+
+    repl_parser = subparsers.add_parser("repl", help="Start an interactive VigScript REPL.")
     _add_runtime_flags(repl_parser)
     _add_json_flag(repl_parser)
 
@@ -107,16 +125,22 @@ def build_parser() -> argparse.ArgumentParser:
     _add_json_flag(research_terminal_parser)
 
     format_parser = subparsers.add_parser(
-        "format", help="Format a .sportsodds SportsBetLang program."
+        "format", help="Format a .vig VigScript program (.sportsodds remains compatible)."
     )
-    format_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
+    format_parser.add_argument(
+        "source", help="Path to a .vig VigScript program (.sportsodds legacy files still work)."
+    )
     format_parser.add_argument(
         "--write", action="store_true", help="Write formatted output back to the source file."
     )
     _add_json_flag(format_parser)
 
-    lint_parser = subparsers.add_parser("lint", help="Lint a .sportsodds SportsBetLang program.")
-    lint_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
+    lint_parser = subparsers.add_parser(
+        "lint", help="Lint a .vig VigScript program (.sportsodds remains compatible)."
+    )
+    lint_parser.add_argument(
+        "source", help="Path to a .vig VigScript program (.sportsodds legacy files still work)."
+    )
     _add_json_flag(lint_parser)
 
     ufc_parser = subparsers.add_parser(
@@ -191,7 +215,7 @@ def _run_file(args: argparse.Namespace) -> int:
 
 
 def _repl(args: argparse.Namespace) -> int:
-    print("SportsBetLang v1.0 - Sports Betting Programming Language")
+    print("VigScript v1.0 - Sports Betting Strategy Language")
     print("Type 'exit' or 'quit' to exit, 'help' for help")
     print()
 
@@ -329,7 +353,7 @@ def _research(args: argparse.Namespace) -> int:
 
 
 def _research_terminal(args: argparse.Namespace) -> int:
-    print("SportsBetLang Research Terminal")
+    print("VigScript Research Terminal")
     print("Enter a research query, or type :help, :quit, or :exit.")
     print()
 
@@ -433,6 +457,7 @@ def _normalize_argv(argv: list[str]) -> list[str]:
         "format",
         "lint",
         "ufc-dataset",
+        "backtest",
         "-h",
         "--help",
         "--version",
@@ -470,7 +495,7 @@ def main() -> int:
     args = parser.parse_args(_normalize_argv(sys.argv[1:]))
 
     try:
-        if args.command == "run":
+        if args.command in {"run", "backtest"}:
             return _run_file(args)
         if args.command == "repl":
             return _repl(args)

@@ -1,6 +1,6 @@
 # Advanced Statistics Guide
 
-Comprehensive guide to advanced statistical techniques for sports betting analytics in SportsBetLang.
+Comprehensive guide to advanced statistical techniques for sports betting analytics in VigScript.
 
 ## Table of Contents
 

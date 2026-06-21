@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Complete guide for deploying SportsBetLang API to production on popular platforms.
+Complete guide for deploying VigScript API to production on popular platforms.
 
 ## Quick Deploy Options
 
@@ -36,7 +36,7 @@ Complete guide for deploying SportsBetLang API to production on popular platform
    - Sign up/login with GitHub
    - Click "New Project"
    - Select "Deploy from GitHub repo"
-   - Choose your SportsBetLang repository
+   - Choose your VigScript repository
 
 3. **Configure environment**
    - Railway auto-detects Python
@@ -177,7 +177,7 @@ heroku config:set VARIABLE_NAME=value
 
 2. **Connect GitHub**
    - Authorize DigitalOcean
-   - Select your SportsBetLang repository
+   - Select your VigScript repository
    - Choose branch (main)
 
 3. **Configure app**
@@ -427,8 +427,8 @@ flyctl scale count 2  # Run 2 instances
 5. **Clone repository**
    ```bash
    cd /opt
-   git clone https://github.com/YOUR_USERNAME/SportsBetLang.git
-   cd SportsBetLang
+   git clone https://github.com/YOUR_USERNAME/VigScript.git
+   cd VigScript
    ```
 
 6. **Install Python dependencies**
@@ -439,12 +439,12 @@ flyctl scale count 2  # Run 2 instances
 7. **Create systemd service** (`/etc/systemd/system/sportsbetlang.service`)
    ```ini
    [Unit]
-   Description=SportsBetLang API
+   Description=VigScript API
    After=network.target
 
    [Service]
    User=www-data
-   WorkingDirectory=/opt/SportsBetLang
+   WorkingDirectory=/opt/VigScript
    ExecStart=/usr/local/bin/uvicorn api:app --host 0.0.0.0 --port 8000
    Restart=always
 

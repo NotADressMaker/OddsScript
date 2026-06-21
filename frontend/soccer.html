@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="A focused soccer match analysis workspace for SportsBetLang.">
-    <title>Touchline — Soccer Intelligence by SportsBetLang</title>
+    <meta name="description" content="A focused soccer match analysis workspace for VigScript.">
+    <title>Touchline — Soccer Intelligence by VigScript</title>
     <style>
         :root {
             --ink: #17211b;
@@ -245,7 +245,7 @@
             <span class="brand-mark" aria-hidden="true">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2.5 19.8 7v9L12 20.5 4.2 16V7L12 2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m12 8 3.2 2.3-1.2 3.8h-4l-1.2-3.8L12 8Zm0-5.5V8m7.8-1-4.6 3.3M19.8 16 14 14.1m-9.8 1.9 5.8-1.9M4.2 7l4.6 3.3" stroke="currentColor" stroke-width="1.35"/></svg>
             </span>
-            <span class="brand-copy"><strong>Touchline</strong><span>by SportsBetLang</span></span>
+            <span class="brand-copy"><strong>Touchline</strong><span>by VigScript</span></span>
         </a>
         <div class="top-actions">
             <span class="api-state" id="api-state">Local preview</span>
@@ -341,7 +341,7 @@
                             <div class="field full"><label for="total-line">Goals line</label><select id="total-line"><option value="1.5">1.5 goals</option><option value="2.5" selected>2.5 goals</option><option value="3.5">3.5 goals</option><option value="4.5">4.5 goals</option></select></div>
                         </div>
                         <button class="analyze-btn" type="submit" id="analyze-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19V9m8 10V5m8 14v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><span>Run match analysis</span></button>
-                        <div class="input-foot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Uses the SportsBetLang API when available, with a transparent local preview fallback.</div>
+                        <div class="input-foot"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Uses the VigScript API when available, with a transparent local preview fallback.</div>
                     </form>
                 </aside>
 
@@ -369,7 +369,7 @@
                         <div class="market-row"><strong id="market-away-name">Away win</strong><input class="market-odds" id="odds-away" type="number" min="1.01" step="0.01" value="3.10" aria-label="Away win market odds"><span class="edge" id="edge-away">−6.2%</span></div>
                         <div class="market-row"><strong id="market-over-label">Over 2.5</strong><input class="market-odds" id="odds-over" type="number" min="1.01" step="0.01" value="1.92" aria-label="Over goals market odds"><span class="edge" id="edge-over">+9.4%</span></div>
                     </article>
-                    <p class="disclaimer">Probabilities are estimates, not guarantees. SportsBetLang is an analysis tool; always validate inputs and bet responsibly.</p>
+                    <p class="disclaimer">Probabilities are estimates, not guarantees. VigScript is an analysis tool; always validate inputs and bet responsibly.</p>
                 </div>
             </section>
         </main>
@@ -518,7 +518,7 @@
             model.scores = local.scores;
             el('api-state').textContent = 'API connected';
             el('api-state').classList.add('live');
-            toast('Analysis updated with the SportsBetLang API.');
+            toast('Analysis updated with the VigScript API.');
         } catch (error) {
             model = localAnalysis(input);
             el('api-state').textContent = 'Local preview';

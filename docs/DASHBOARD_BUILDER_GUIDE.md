@@ -1,6 +1,6 @@
 # Dashboard & Tool Builder Guide
 
-This guide makes it easy for LLMs and developers to assemble dashboards, internal tools, and custom front-ends around SportsBetLang APIs and utilities.
+This guide makes it easy for LLMs and developers to assemble dashboards, internal tools, and custom front-ends around VigScript APIs and utilities.
 
 ## Quick Start (No Frameworks)
 
@@ -23,7 +23,7 @@ The manifest is intentionally simple (JSON + plain text) so an LLM can:
 - Inject tool metadata such as inputs, labels, and default values.
 - Point cards at API endpoints or local calculation helpers.
 
-The starter page reads the manifest and renders cards automatically. Developers can extend the JS handlers to call the SportsBetLang API or local scripts.
+The starter page reads the manifest and renders cards automatically. Developers can extend the JS handlers to call the VigScript API or local scripts.
 
 ## Manifest Schema (Summary)
 

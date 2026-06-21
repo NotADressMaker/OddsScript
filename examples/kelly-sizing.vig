@@ -1,0 +1,24 @@
+# VigScript Kelly sizing with risk controls
+
+print("=== Kelly sizing with bankroll constraints ===")
+
+let bankroll = 5000
+let model_probability = 0.57
+let price = -105
+let full_kelly = kelly_criterion(model_probability, price)
+let fractional_kelly = full_kelly * 0.25
+let full_kelly_stake = bankroll * full_kelly
+let fractional_stake = bankroll * fractional_kelly
+let expected_value = calculate_ev(model_probability, price, fractional_stake)
+
+print("Full Kelly fraction")
+print(full_kelly)
+print("Quarter Kelly fraction")
+print(fractional_kelly)
+print("Full Kelly stake")
+print(full_kelly_stake)
+print("Quarter Kelly stake")
+print(fractional_stake)
+print("Expected value at risk-controlled stake")
+print(expected_value)
+print("Risk note: fractional Kelly reduces drawdown and model-error sensitivity.")

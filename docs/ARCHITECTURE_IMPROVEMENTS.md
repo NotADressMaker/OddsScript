@@ -1,8 +1,8 @@
-# SportsBetLang Architecture Improvement Plan
+# VigScript Architecture Improvement Plan
 
 ## Executive Summary
 
-This document outlines concrete architectural improvements for SportsBetLang to enhance:
+This document outlines concrete architectural improvements for VigScript to enhance:
 - **Maintainability**: Easier to update and extend
 - **Scalability**: Handle larger datasets and more complex operations
 - **Reusability**: Reduce code duplication across 36 Python files
@@ -475,7 +475,7 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class SportsBetLangConfig:
+class VigScriptConfig:
     """Main configuration class"""
 
     # Kelly settings
@@ -517,7 +517,7 @@ class SportsBetLangConfig:
         self.data_directory.mkdir(parents=True, exist_ok=True)
 
     @classmethod
-    def from_env(cls) -> 'SportsBetLangConfig':
+    def from_env(cls) -> 'VigScriptConfig':
         """Load configuration from environment variables"""
         config = cls()
 
@@ -542,7 +542,7 @@ class SportsBetLangConfig:
             json.dump(self.__dict__, f, indent=2, default=str)
 
     @classmethod
-    def load_from_file(cls, path: Path) -> 'SportsBetLangConfig':
+    def load_from_file(cls, path: Path) -> 'VigScriptConfig':
         """Load configuration from file"""
         import json
         with open(path, 'r') as f:
@@ -551,18 +551,18 @@ class SportsBetLangConfig:
 
 
 # Global config instance
-_config: Optional[SportsBetLangConfig] = None
+_config: Optional[VigScriptConfig] = None
 
 
-def get_config() -> SportsBetLangConfig:
+def get_config() -> VigScriptConfig:
     """Get global configuration (singleton)"""
     global _config
     if _config is None:
-        _config = SportsBetLangConfig.from_env()
+        _config = VigScriptConfig.from_env()
     return _config
 
 
-def set_config(config: SportsBetLangConfig):
+def set_config(config: VigScriptConfig):
     """Set global configuration"""
     global _config
     _config = config
@@ -570,7 +570,7 @@ def set_config(config: SportsBetLangConfig):
 
 ### .env.example
 ```bash
-# SportsBetLang Configuration
+# VigScript Configuration
 
 # Kelly Criterion Settings
 ODDSSCRIPT_KELLY_FRACTION=0.25
@@ -862,8 +862,8 @@ class BaseTool(ABC):
         # Load custom config if specified
         if args.config:
             from pathlib import Path
-            from oddsscript.config import SportsBetLangConfig, set_config
-            config = SportsBetLangConfig.load_from_file(Path(args.config))
+            from oddsscript.config import VigScriptConfig, set_config
+            config = VigScriptConfig.load_from_file(Path(args.config))
             set_config(config)
             self.config = config
 
@@ -1155,8 +1155,8 @@ def temp_data_dir():
 @pytest.fixture
 def sample_config(temp_data_dir):
     """Create sample configuration"""
-    from oddsscript.config import SportsBetLangConfig
-    return SportsBetLangConfig(
+    from oddsscript.config import VigScriptConfig
+    return VigScriptConfig(
         data_directory=temp_data_dir,
         storage_backend='csv'
     )
@@ -1483,21 +1483,21 @@ Create Python API for non-CLI usage.
 ### oddsscript/api/client.py
 ```python
 """
-Programmatic API for SportsBetLang.
+Programmatic API for VigScript.
 
-Use SportsBetLang as a library in your own applications.
+Use VigScript as a library in your own applications.
 """
 
 from typing import List, Dict, Any, Optional
-from oddsscript.config import SportsBetLangConfig, get_config, set_config
+from oddsscript.config import VigScriptConfig, get_config, set_config
 from oddsscript.data.storage import create_storage, StorageBackend
 from oddsscript.strategies.base import StrategyRegistry
 
 
-class SportsBetLangAPI:
+class VigScriptAPI:
     """Main API client"""
 
-    def __init__(self, config: Optional[SportsBetLangConfig] = None):
+    def __init__(self, config: Optional[VigScriptConfig] = None):
         """
         Initialize API
 
@@ -1741,7 +1741,7 @@ class SportsBetLangAPI:
 # Example usage
 if __name__ == '__main__':
     # Initialize API
-    api = SportsBetLangAPI()
+    api = VigScriptAPI()
 
     # Convert odds
     decimal = api.convert_odds(-110, 'american', 'decimal')
@@ -1778,7 +1778,7 @@ if __name__ == '__main__':
 ### setup.py
 
 ```python
-"""SportsBetLang package setup"""
+"""VigScript package setup"""
 
 from setuptools import setup, find_packages
 from pathlib import Path
@@ -1798,7 +1798,7 @@ setup(
     description="Domain-specific language and analytics suite for sports betting",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="SportsBetLang Team",
+    author="VigScript Team",
     author_email="info@oddsscript.com",
     url="https://github.com/yourusername/oddsscript",
     packages=find_packages(exclude=["tests", "tests.*"]),
@@ -1869,7 +1869,7 @@ requires-python = ">=3.7"
 license = {text = "MIT"}
 keywords = ["sports", "betting", "analytics", "odds", "kelly"]
 authors = [
-  {name = "SportsBetLang Team"}
+  {name = "VigScript Team"}
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -2029,7 +2029,7 @@ warnings.warn(
 
 ## Conclusion
 
-These architectural improvements will transform SportsBetLang from a collection of useful scripts into a **professional-grade betting analytics platform**.
+These architectural improvements will transform VigScript from a collection of useful scripts into a **professional-grade betting analytics platform**.
 
 The key improvements are:
 

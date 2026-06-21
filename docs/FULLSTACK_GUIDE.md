@@ -1,10 +1,10 @@
 # Full-Stack Application Guide
 
-Complete guide for using SportsBetLang in full-stack web and mobile applications.
+Complete guide for using VigScript in full-stack web and mobile applications.
 
 ## Overview
 
-SportsBetLang provides a complete REST API that exposes all betting calculations, ML predictions, and database operations. This allows you to build web apps, mobile apps, and integrate with any platform that can make HTTP requests.
+VigScript provides a complete REST API that exposes all betting calculations, ML predictions, and database operations. This allows you to build web apps, mobile apps, and integrate with any platform that can make HTTP requests.
 
 **What's Included:**
 - REST API with FastAPI
@@ -480,7 +480,7 @@ Complete example in `frontend/index.html`:
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SportsBetLang</title>
+    <title>VigScript</title>
 </head>
 <body>
     <h1>Kelly Calculator</h1>

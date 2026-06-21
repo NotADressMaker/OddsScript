@@ -21,7 +21,7 @@ from lib.easy_sport_models import (
 )
 import random
 
-print("SportsBetLang - Easy Sport Models")
+print("VigScript - Easy Sport Models")
 print("=" * 60)
 print()
 

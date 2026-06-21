@@ -1,6 +1,6 @@
 # Simplified API Guide
 
-The Simplified API makes SportsBetLang incredibly easy to use with clean, intuitive functions.
+The Simplified API makes VigScript incredibly easy to use with clean, intuitive functions.
 
 ## Table of Contents
 

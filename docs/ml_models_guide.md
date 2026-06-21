@@ -1,6 +1,6 @@
 # Machine Learning Models Guide
 
-Complete guide to using machine learning models for sports betting predictions in SportsBetLang.
+Complete guide to using machine learning models for sports betting predictions in VigScript.
 
 ## Table of Contents
 

@@ -1,7 +1,7 @@
-# SportsBetLang Audit Report
+# VigScript Audit Report
 
 ## What the repo does
-SportsBetLang is a domain-specific language (DSL) for sports betting analysis, plus a large Python analytics toolkit. The DSL allows `.sportsodds` scripts to express betting logic (bets, parlays, bankroll management) and executes them through a custom lexer, parser, and interpreter. The Python libraries provide odds conversion utilities, sport-specific analytics, model helpers, and data tooling that can be used independently or from SportsBetLang scripts.
+VigScript is a domain-specific language (DSL) for sports betting analysis, plus a large Python analytics toolkit. The DSL allows `.sportsodds` scripts to express betting logic (bets, parlays, bankroll management) and executes them through a custom lexer, parser, and interpreter. The Python libraries provide odds conversion utilities, sport-specific analytics, model helpers, and data tooling that can be used independently or from VigScript scripts.
 
 The runtime model is an in-process interpreter: source code is tokenized, parsed into an AST, and evaluated with built-in betting functions and modules. The repository also ships a wide set of domain libraries under `lib/` for sports modeling and betting math.
 

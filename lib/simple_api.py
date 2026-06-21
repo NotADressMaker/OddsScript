@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simplified API for SportsBetLang
+Simplified API for VigScript
 
 Easy-to-use interfaces for common betting operations.
 """
@@ -13,7 +13,7 @@ from lib.ml_models import RandomForest, DecisionTree, FeatureEngineering
 
 class SBL:
     """
-    SportsBetLang - Simplified API
+    VigScript - Simplified API
 
     Quick access to common betting calculations with one-liners.
     """

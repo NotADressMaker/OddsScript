@@ -12,17 +12,17 @@ pip install -e ".[dev]"
 python examples/ml_model_examples.py
 
 # 3) Validate project health
-betlang test -q
+vigscript test -q
 ```
 
 ## Golden path 2: Backtest a strategy
 
 ```bash
 # Run a strategy-focused DSL program
-betlang run examples/07_advanced_strategy.sportsodds
+vigscript run examples/07_advanced_strategy.sportsodds
 
 # Compare against expected outputs for curated examples
-betlang run examples/13_totals_spread_props.sportsodds > /tmp/13_totals_spread_props.txt
+vigscript run examples/13_totals_spread_props.sportsodds > /tmp/13_totals_spread_props.txt
 diff -u examples/expected_outputs/13_totals_spread_props.txt /tmp/13_totals_spread_props.txt
 ```
 
@@ -30,23 +30,23 @@ diff -u examples/expected_outputs/13_totals_spread_props.txt /tmp/13_totals_spre
 
 ```bash
 # Use the compliant research workflow and return machine-readable output
-betlang research --json "closing line movement for tonight's nba slate"
+vigscript research --json "closing line movement for tonight's nba slate"
 ```
 
 ## Golden path 4: Ingest historical/live data
 
 ```bash
 # Backfill run
-betlang ingest backfill --sport nba --start 2025-10-01 --end 2025-10-31 --markets spread,total,moneyline
+vigscript ingest backfill --sport nba --start 2025-10-01 --end 2025-10-31 --markets spread,total,moneyline
 
 # Live run
-betlang ingest live --sport nba --start 2025-10-01 --end 2025-10-01 --markets spread,total,moneyline
+vigscript ingest live --sport nba --start 2025-10-01 --end 2025-10-01 --markets spread,total,moneyline
 ```
 
 ## Golden path 5: Interactive DSL iteration
 
 ```bash
-betlang repl
+vigscript repl
 ```
 
 ---
@@ -56,8 +56,8 @@ betlang repl
 ### Format + lint a program
 
 ```bash
-betlang format examples/01_basic_bet.sportsodds --write
-betlang lint examples/01_basic_bet.sportsodds
+vigscript format examples/01_basic_bet.sportsodds --write
+vigscript lint examples/01_basic_bet.sportsodds
 ```
 
 ### Run a program in JSON mode
@@ -69,19 +69,19 @@ betlang run examples/01_basic_bet.sportsodds --json
 ### Run tests with extra pytest args
 
 ```bash
-betlang test tests/test_smoke_cli.py -q
+vigscript test tests/test_smoke_cli.py -q
 ```
 
 ### Ingestion output for automation
 
 ```bash
-betlang ingest backfill --sport nfl --start 2025-09-01 --end 2025-09-07 --json
+vigscript ingest backfill --sport nfl --start 2025-09-01 --end 2025-09-07 --json
 ```
 
 ### Research output for automation
 
 ```bash
-betlang research --json "probable pitchers today" --max-results 5
+vigscript research --json "probable pitchers today" --max-results 5
 ```
 
 ---

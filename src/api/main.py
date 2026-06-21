@@ -1,4 +1,4 @@
-"""FastAPI service for totals predictions."""
+"""FastAPI service for VigScript totals predictions and strategy research."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from sportsbetlang.api.safe_http import fetch_text
 from src.models.inference import load_bundle, predict_totals
 from src.utils.config import LeagueConfig
 
-app = FastAPI(title="Totals Regression API")
+app = FastAPI(title="VigScript Totals Regression API")
 
 REQUEST_BODY_LIMIT = int(os.getenv("SBL_MAX_REQUEST_BYTES", "1048576"))
 RATE_LIMIT_PER_MINUTE = int(os.getenv("SBL_RATE_LIMIT_PER_MINUTE", "60"))

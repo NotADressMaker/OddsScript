@@ -18,7 +18,7 @@ from lib.sport_models import (
 from lib.model_builder import DataHelper, split_data
 import random
 
-print("SportsBetLang - Sport-Specific ML Models")
+print("VigScript - Sport-Specific ML Models")
 print("=" * 60)
 print()
 

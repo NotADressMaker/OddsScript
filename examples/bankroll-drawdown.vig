@@ -1,0 +1,27 @@
+# VigScript bankroll drawdown simulation sketch
+
+print("=== Bankroll drawdown risk report ===")
+
+let starting_bankroll = 2000
+let wager = 40
+let modeled_roi = 0.03
+let losing_streak = 12
+let drawdown = wager * losing_streak
+let bankroll_after_streak = starting_bankroll - drawdown
+let risk_of_ruin_threshold = starting_bankroll * 0.5
+
+print("Starting bankroll")
+print(starting_bankroll)
+print("Wager")
+print(wager)
+print("Modeled ROI")
+print(modeled_roi)
+print("Stress-test losing streak")
+print(losing_streak)
+print("Drawdown during stress test")
+print(drawdown)
+print("Bankroll after stress test")
+print(bankroll_after_streak)
+print("Risk-of-ruin threshold")
+print(risk_of_ruin_threshold)
+print("VigScript reports should make variance and drawdown visible before capital is risked.")
