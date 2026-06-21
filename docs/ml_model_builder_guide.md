@@ -312,6 +312,37 @@ for feature, score in importance.items():
     print(f"{feature}: {score:.3f}")
 ```
 
+### Optimize by Important Variables
+
+Use importance-ranked variables to focus the model on the inputs that create the
+most predictive value. This is useful when you start with a wide feature set and
+want to remove low-signal variables before evaluating picks.
+
+```python
+model = (Model()
+         .named("NBA Value Model")
+         .for_classification()
+         .using_random_forest(n_trees=100, max_depth=8)
+         .with_features([
+             'rating_diff', 'rest_edge', 'home_court',
+             'market_noise', 'travel_noise'
+         ])
+         .optimize_features(X_train, y_train, top_n=3))
+
+# See which variables made the cut
+for item in model.important_variables():
+    print(f"{item['feature']}: {item['importance']:.3f}")
+
+# Predictions can still use the original full feature rows.
+predictions = model.predict(X_test)
+```
+
+`optimize_features()` trains the tree-based model if needed, ranks variables by
+importance, keeps the top variables (or those above `min_importance`), and
+re-trains on that smaller feature set. Future `predict()` and `evaluate()` calls
+accept either full feature rows or rows already filtered to the selected columns.
+
+
 ### Cross-Validation
 
 ```python
