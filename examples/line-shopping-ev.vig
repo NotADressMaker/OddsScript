@@ -1,0 +1,21 @@
+# VigScript line-shopping expected value comparison
+
+print("=== Line shopping EV research ===")
+
+let bankroll = 1000
+let wager = 20
+let model_probability = 0.54
+let book_a = -115
+let book_b = -108
+let book_c = -102
+let ev_a = calculate_ev(model_probability, book_a, wager)
+let ev_b = calculate_ev(model_probability, book_b, wager)
+let ev_c = calculate_ev(model_probability, book_c, wager)
+
+print("EV at Book A")
+print(ev_a)
+print("EV at Book B")
+print(ev_b)
+print("EV at Book C")
+print(ev_c)
+print("Best available line improves expected value and closing line value tracking.")

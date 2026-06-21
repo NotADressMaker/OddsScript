@@ -1,7 +1,7 @@
-# SportsBetLang Language Reference
+# VigScript Language Reference
 
 ## Overview
-SportsBetLang is a lightweight DSL for expressing sports betting logic, calculations, and basic control flow. Programs are executed by the interpreter or compiled via code generation.
+VigScript is a lightweight DSL for expressing sports betting logic, calculations, and basic control flow. Programs are executed by the interpreter or compiled via code generation.
 
 ## Syntax Overview
 - Statements are newline-separated.

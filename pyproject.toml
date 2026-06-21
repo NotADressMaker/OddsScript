@@ -5,8 +5,19 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sportsbetlang"
 dynamic = ["version"]
-description = "Advanced sports betting analytics library with ML and statistical analysis"
+description = "Open-source sports betting language and analytics toolkit for odds math, bankroll simulation, backtesting, and strategy research"
 readme = "README.md"
+keywords = [
+    "sports betting",
+    "betting language",
+    "odds",
+    "bankroll management",
+    "backtesting",
+    "Kelly criterion",
+    "expected value",
+    "risk analysis",
+    "VigScript",
+]
 requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.24",
@@ -50,6 +61,7 @@ dev = [
 ]
 
 [project.scripts]
+vigscript = "sportsbetlang.betlang_cli:main"
 sportsbetlang = "sportsbetlang.cli:main"
 betlang = "sportsbetlang.betlang_cli:main"
 

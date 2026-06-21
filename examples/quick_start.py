@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Quick Start Examples for SportsBetLang
+Quick Start Examples for VigScript
 
 Simple examples using the simplified API.
 """
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 # ========================================
 from lib.simple_api import SBL, Bet, Compare
 
-print("SportsBetLang - Quick Start Examples")
+print("VigScript - Quick Start Examples")
 print("=" * 60)
 print()
 

@@ -1,5 +1,5 @@
 /**
- * SportsBetLang React Component Example
+ * VigScript React Component Example
  *
  * Install dependencies:
  * npm install axios

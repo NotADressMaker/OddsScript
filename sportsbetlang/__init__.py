@@ -1,5 +1,5 @@
 """
-SportsBetLang - Domain-specific language and analytics suite for sports betting.
+VigScript - Domain-specific language and analytics suite for sports betting.
 
 A comprehensive platform for:
 - Sports betting calculations (odds, Kelly, EV)
@@ -10,8 +10,8 @@ A comprehensive platform for:
 - And much more!
 
 Example usage:
-    >>> from sportsbetlang import SportsBetLangAPI
-    >>> api = SportsBetLangAPI()
+    >>> from sportsbetlang import VigScriptAPI
+    >>> api = VigScriptAPI()
     >>> api.convert_odds(-110, 'american', 'decimal')
     1.9091
     >>> api.calculate_kelly(odds=-110, true_prob=0.55, bankroll=1000)

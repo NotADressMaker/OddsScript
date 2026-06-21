@@ -1,6 +1,6 @@
 # Sports Betting Data Storage Guide
 
-Comprehensive guide to storing and managing sports betting data in SportsBetLang.
+Comprehensive guide to storing and managing sports betting data in VigScript.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ Comprehensive guide to storing and managing sports betting data in SportsBetLang
 
 ## Overview
 
-SportsBetLang provides a comprehensive data storage system built on SQLite with enhanced schemas for:
+VigScript provides a comprehensive data storage system built on SQLite with enhanced schemas for:
 - **Teams**: Team information with ratings and records
 - **Games**: Game schedules, results, and betting lines
 - **Odds Snapshots**: Historical odds tracking across multiple sportsbooks

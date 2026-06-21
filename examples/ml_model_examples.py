@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from lib.model_builder import Model, ModelBuilder, DataHelper, build_model, quick_model, split_data
 
-print("SportsBetLang - ML Model Examples")
+print("VigScript - ML Model Examples")
 print("=" * 60)
 print()
 

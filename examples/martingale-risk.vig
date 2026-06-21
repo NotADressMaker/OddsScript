@@ -1,0 +1,32 @@
+# VigScript Martingale risk research
+
+print("=== Martingale MLB risk research ===")
+
+let bankroll = 1000
+let target_profit = 10
+let win_probability = 0.52
+let loss_probability = 1 - win_probability
+let max_steps = 8
+let required_bankroll = 0
+let wager = target_profit
+let step = 1
+let reach_probability = 1
+
+while step <= max_steps {
+    required_bankroll = required_bankroll + wager
+    print("Step")
+    print(step)
+    print("Wager required")
+    print(wager)
+    print("Probability of reaching this step")
+    print(reach_probability)
+    reach_probability = reach_probability * loss_probability
+    wager = wager * 2
+    step = step + 1
+}
+
+print("Required bankroll for full progression")
+print(required_bankroll)
+print("Starting bankroll")
+print(bankroll)
+print("Risk note: Martingale risk is hidden until losing streaks and table limits are modeled.")

@@ -1,6 +1,6 @@
 # API Reference
 
-Quick reference for all SportsBetLang API endpoints.
+Quick reference for all VigScript API endpoints.
 
 **Base URL:** `http://localhost:8000`
 
@@ -482,7 +482,7 @@ Content-Type: application/json
 const ws = new WebSocket('ws://localhost:8000/ws');
 
 ws.onopen = () => {
-    console.log('Connected to SportsBetLang WebSocket');
+    console.log('Connected to VigScript WebSocket');
 };
 
 ws.onmessage = (event) => {

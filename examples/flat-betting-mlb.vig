@@ -1,0 +1,25 @@
+# VigScript flat-betting MLB moneyline research
+
+print("=== Flat betting MLB moneyline research ===")
+
+let bankroll = 2500
+let wager = 25
+let model_probability = 0.55
+let market_odds = -110
+let bets_per_season = 300
+let hit_rate_variance_buffer = 0.05
+let edge = model_probability - implied_probability(market_odds)
+let expected_value = calculate_ev(model_probability, market_odds, wager)
+let max_exposure = wager * bets_per_season
+
+print("Bankroll")
+print(bankroll)
+print("Flat wager")
+print(wager)
+print("Estimated edge after market probability")
+print(edge)
+print("Expected value per bet")
+print(expected_value)
+print("Season handle if every signal is played")
+print(max_exposure)
+print("Report fields: ROI, max drawdown, longest losing streak, closing line value, variance.")

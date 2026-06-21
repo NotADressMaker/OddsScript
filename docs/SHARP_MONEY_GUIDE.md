@@ -715,4 +715,4 @@ Sharp money detection is the most powerful tool in sports betting. By following 
 
 ---
 
-*For support and questions, see the main SportsBetLang README.*
+*For support and questions, see the main VigScript README.*

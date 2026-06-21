@@ -2,7 +2,7 @@
 """
 Betting Database Examples
 
-Shows how to use the SportsBetLang database to track bets, predictions,
+Shows how to use the VigScript database to track bets, predictions,
 and performance.
 """
 
@@ -15,7 +15,7 @@ from lib import SBL, EasySportModel
 from datetime import datetime, timedelta
 import random
 
-print("SportsBetLang - Database Examples")
+print("VigScript - Database Examples")
 print("=" * 60)
 print()
 
