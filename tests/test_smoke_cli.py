@@ -71,3 +71,22 @@ def test_betlang_test_subcommand_accepts_pytest_args():
     payload = json.loads(result.stdout[json_start:])
     assert payload["command"] == "test"
     assert payload["exit_code"] == 0
+
+
+def test_betlang_research_terminal_accepts_help_and_quit():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "sportsbetlang",
+            "research-terminal",
+            "--no-external-search",
+        ],
+        input=":help\n:quit\n",
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "SportsBetLang Research Terminal" in result.stdout
+    assert "Use :quit or :exit" in result.stdout

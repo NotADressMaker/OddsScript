@@ -79,21 +79,36 @@ def build_parser() -> argparse.ArgumentParser:
     ingest_parser.add_argument("--markets", default=",".join(DEFAULT_MARKETS))
     _add_json_flag(ingest_parser)
 
+    def add_research_options(research_command_parser: argparse.ArgumentParser) -> None:
+        research_command_parser.add_argument("--sources", type=str, help="Path to seed URL list")
+        research_command_parser.add_argument("--sitemaps", type=str, help="Path to sitemap list")
+        research_command_parser.add_argument("--rss", type=str, help="Path to RSS feed list")
+        research_command_parser.add_argument("--no-external-search", action="store_true")
+        research_command_parser.add_argument("--max-results", type=int, default=8)
+        research_command_parser.add_argument(
+            "--cache-dir", type=str, default=".cache/web_research_agent"
+        )
+        research_command_parser.add_argument("--rate-limit", type=float, default=1.0)
+        research_command_parser.add_argument(
+            "--user-agent", type=str, default="WebResearchAgent/1.0 (+https://example.org/agent)"
+        )
+
     research_parser = subparsers.add_parser("research", help="Run compliant web research agent.")
     research_parser.add_argument("query", help="Research query")
-    research_parser.add_argument("--sources", type=str, help="Path to seed URL list")
-    research_parser.add_argument("--sitemaps", type=str, help="Path to sitemap list")
-    research_parser.add_argument("--rss", type=str, help="Path to RSS feed list")
-    research_parser.add_argument("--no-external-search", action="store_true")
-    research_parser.add_argument("--max-results", type=int, default=8)
-    research_parser.add_argument("--cache-dir", type=str, default=".cache/web_research_agent")
-    research_parser.add_argument("--rate-limit", type=float, default=1.0)
-    research_parser.add_argument(
-        "--user-agent", type=str, default="WebResearchAgent/1.0 (+https://example.org/agent)"
-    )
+    add_research_options(research_parser)
     _add_json_flag(research_parser)
 
-    format_parser = subparsers.add_parser("format", help="Format a .sportsodds SportsBetLang program.")
+    research_terminal_parser = subparsers.add_parser(
+        "research-terminal",
+        aliases=["research-term"],
+        help="Start an interactive terminal for repeated web research queries.",
+    )
+    add_research_options(research_terminal_parser)
+    _add_json_flag(research_terminal_parser)
+
+    format_parser = subparsers.add_parser(
+        "format", help="Format a .sportsodds SportsBetLang program."
+    )
     format_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     format_parser.add_argument(
         "--write", action="store_true", help="Write formatted output back to the source file."
@@ -104,9 +119,13 @@ def build_parser() -> argparse.ArgumentParser:
     lint_parser.add_argument("source", help="Path to a .sportsodds SportsBetLang program.")
     _add_json_flag(lint_parser)
 
-    ufc_parser = subparsers.add_parser("ufc-dataset", help="Build a normalized UFC fight dataset CSV.")
+    ufc_parser = subparsers.add_parser(
+        "ufc-dataset", help="Build a normalized UFC fight dataset CSV."
+    )
     ufc_parser.add_argument("input", help="Input CSV with UFC fight rows.")
-    ufc_parser.add_argument("output", help="Output CSV path for normalized fighter-perspective rows.")
+    ufc_parser.add_argument(
+        "output", help="Output CSV path for normalized fighter-perspective rows."
+    )
     _add_json_flag(ufc_parser)
     return parser
 
@@ -308,6 +327,40 @@ def _research(args: argparse.Namespace) -> int:
         fetcher.close()
 
 
+
+def _research_terminal(args: argparse.Namespace) -> int:
+    print("SportsBetLang Research Terminal")
+    print("Enter a research query, or type :help, :quit, or :exit.")
+    print()
+
+    while True:
+        try:
+            query = input("research> ").strip()
+        except EOFError:
+            break
+        except KeyboardInterrupt:
+            print("\nInterrupted")
+            break
+
+        if not query:
+            continue
+        if query in {":quit", ":exit", "quit", "exit"}:
+            break
+        if query in {":help", "help"}:
+            print("Type any research question to run the compliant web research agent.")
+            print("Use :quit or :exit to close the terminal.")
+            continue
+
+        query_args = argparse.Namespace(**vars(args))
+        query_args.query = query
+        code = _research(query_args)
+        if code != 0:
+            return code
+        print()
+
+    _emit(args, {"command": "research-terminal", "status": "ok"})
+    return 0
+
 def _format(args: argparse.Namespace) -> int:
     file_path = Path(args.source)
     if not file_path.exists():
@@ -375,6 +428,8 @@ def _normalize_argv(argv: list[str]) -> list[str]:
         "test",
         "ingest",
         "research",
+        "research-terminal",
+        "research-term",
         "format",
         "lint",
         "ufc-dataset",
@@ -425,6 +480,8 @@ def main() -> int:
             return _ingest(args)
         if args.command == "research":
             return _research(args)
+        if args.command in {"research-terminal", "research-term"}:
+            return _research_terminal(args)
         if args.command == "format":
             return _format(args)
         if args.command == "lint":
