@@ -41,6 +41,8 @@ class Model:
         self._name = "Model"
         self._normalize = False
         self._normalization_params = None
+        self._normalization_method = 'standard'
+        self._selected_feature_indices = None
 
     def named(self, name: str):
         """Give the model a name"""
@@ -133,6 +135,20 @@ class Model:
         self._normalization_method = method
         return self
 
+    def _filter_selected_features(self, X: List[List[float]]) -> List[List[float]]:
+        """Return X limited to feature columns selected by optimize_features()."""
+        if not self._selected_feature_indices:
+            return X
+
+        selected_count = len(self._selected_feature_indices)
+        filtered = []
+        for row in X:
+            if len(row) == selected_count:
+                filtered.append(row)
+            else:
+                filtered.append([row[i] for i in self._selected_feature_indices])
+        return filtered
+
     def train(self, X: List[List[float]], y: List[float]):
         """
         Train the model
@@ -143,6 +159,8 @@ class Model:
         """
         if self.model is None:
             raise ValueError("No model selected. Use .using_random_forest() or similar")
+
+        X = self._filter_selected_features(X)
 
         # Normalize if requested
         if self._normalize:
@@ -185,15 +203,24 @@ class Model:
         if not self.is_trained:
             raise ValueError("Model not trained. Call .train() first")
 
+        X = self._filter_selected_features(X)
+
         # Normalize if needed
         if self._normalize and self._normalization_params:
             X_normalized = []
             for row in X:
-                normalized_row = [
-                    (row[j] - self._normalization_params[j]['mean']) /
-                    self._normalization_params[j]['std']
-                    for j in range(len(row))
-                ]
+                if self._normalization_method == 'minmax':
+                    normalized_row = [
+                        (row[j] - self._normalization_params[j]['min']) /
+                        self._normalization_params[j]['range']
+                        for j in range(len(row))
+                    ]
+                else:
+                    normalized_row = [
+                        (row[j] - self._normalization_params[j]['mean']) /
+                        self._normalization_params[j]['std']
+                        for j in range(len(row))
+                    ]
                 X_normalized.append(normalized_row)
             X = X_normalized
 
@@ -307,6 +334,91 @@ class Model:
             return importance
         else:
             return {}  # Neural networks don't have feature importance
+
+
+    def important_variables(self, top_n: Optional[int] = None,
+                            min_importance: float = 0.0) -> List[Dict[str, Any]]:
+        """
+        Return variables sorted by model importance.
+
+        Args:
+            top_n: Optional number of highest-value variables to return.
+            min_importance: Minimum importance score required to include a variable.
+
+        Returns:
+            List of dictionaries with feature name, original index, and importance.
+        """
+        importance = self.feature_importance()
+        selected_indices = self._selected_feature_indices
+        rows = []
+
+        for position, (feature, score) in enumerate(importance.items()):
+            if score < min_importance:
+                continue
+            original_index = (
+                selected_indices[position]
+                if selected_indices and position < len(selected_indices)
+                else position
+            )
+            rows.append({
+                'feature': feature,
+                'index': original_index,
+                'importance': score
+            })
+
+        rows.sort(key=lambda item: item['importance'], reverse=True)
+        if top_n is not None:
+            if top_n <= 0:
+                raise ValueError("top_n must be greater than 0")
+            rows = rows[:top_n]
+        return rows
+
+    def optimize_features(self, X: List[List[float]], y: List[float],
+                          top_n: Optional[int] = None,
+                          min_importance: float = 0.0):
+        """
+        Keep the most important variables and retrain the model on them.
+
+        Tree-based models often identify a small set of variables that produce
+        most of the predictive value. This helper trains the current model if
+        needed, ranks variables by importance, stores the selected columns, and
+        retrains on only those columns. Future predict/evaluate calls may pass
+        either the original full feature matrix or an already-filtered matrix.
+
+        Args:
+            X: Training features [n_samples x n_features]
+            y: Training labels
+            top_n: Optional number of highest-importance variables to keep.
+            min_importance: Minimum importance score required to keep a variable.
+
+        Returns:
+            The current Model instance, retrained on important variables.
+        """
+        if self.model_type not in ['random_forest', 'decision_tree']:
+            raise ValueError("Feature optimization requires a tree-based model")
+
+        if not self.is_trained:
+            self.train(X, y)
+
+        selected = self.important_variables(
+            top_n=top_n,
+            min_importance=min_importance
+        )
+        if not selected:
+            raise ValueError("No variables met the importance threshold")
+
+        original_feature_names = list(self.feature_names)
+        self._selected_feature_indices = [item['index'] for item in selected]
+        if original_feature_names:
+            self.feature_names = [
+                original_feature_names[i]
+                for i in self._selected_feature_indices
+            ]
+
+        self.is_trained = False
+        self._normalization_params = None
+        self.train(X, y)
+        return self
 
     def print_performance(self, X_test: List[List[float]],
                          y_test: List[float]):
